@@ -1247,6 +1247,7 @@ ${optHtml}</div></div>
     for (let k = 0; k < batch.length; k++) {
       const { ev, view } = batch[k];
       if (!this.introDone && view && view.players?.[0]?.leader && !this.noIntro) await this.intro(view);
+      try { this.tally(ev, view); } catch (e) { console.warn(e); }
       try { await this.pre(ev, batch, k); } catch (e) { console.warn(e); }
       this.render(view);
       try { await this.post(ev); } catch (e) { console.warn(e); }
@@ -1606,22 +1607,72 @@ ${optHtml}</div></div>
     setTimeout(() => sc.remove(), 300 / FX.speed);
     if (el) el.style.opacity = '';
   }
+  /** Match statistics for the end screen, counted from the events as they are shown. */
+  tally(ev, view) {
+    const st = this.stats || (this.stats = { dmg: [0, 0], face: [0, 0], kills: [0, 0], played: [0, 0], best: null, byCard: new Map() });
+    const ctrl = (uid) => {
+      if (uid == null) return null;
+      for (const v of [this.view, view]) for (const p of v?.players || []) for (const c of [p.leader, ...p.support, ...p.regions.flatMap((r) => [r.ally, r.place])]) if (c && c.uid === uid) return p.i ?? v.players.indexOf(p);
+      return null;
+    };
+    const idOf = (uid) => this.cardIdOf(uid);
+    if (ev.type === 'declare' && ev.player != null) st.played[ev.player]++;
+    if (ev.type === 'damage' && ev.amount > 0) {
+      const sc = ctrl(ev.src), tc = ctrl(ev.tgt);
+      const side = sc ?? (tc != null ? 1 - tc : null);
+      if (side != null) {
+        st.dmg[side] += ev.amount;
+        if (CARDS[idOf(ev.tgt)]?.type === 'leader') st.face[side] += ev.amount;
+        const sid = idOf(ev.src);
+        if (sid != null) {
+          if (!st.best || ev.amount > st.best.amount) st.best = { amount: ev.amount, id: sid, side };
+          const key = `${side}:${sid}`; st.byCard.set(key, (st.byCard.get(key) || 0) + ev.amount);
+        }
+      }
+    }
+    if (ev.type === 'death') { const tc = ctrl(ev.uid); const t = CARDS[idOf(ev.uid)]?.type; if (tc != null && (t === 'ally' || t === 'companion')) st.kills[1 - tc]++; }
+  }
+  /** Update the ranking block of the end screen (filled in by the app once the result is saved). */
+  setRankInfo(html) { const el = document.querySelector('#game .over2 .ov-rank'); if (el) el.innerHTML = html; else this._rankHtml = html; }
   showGameOver(winner) {
     const win = winner === this.me, draw = winner === 'draw';
     (win ? sfx.win : sfx.lose)();
-    if (win) for (let i = 0; i < 6; i++) setTimeout(() => FX.burst(200 + Math.random() * 1200, 200 + Math.random() * 400, { emoji: ['🎉', '✨', '🏆', '🎊'], shape: 'emoji', count: 14, speed: 9, add: false, size: 14, gravity: 0.2 }), i * 250);
     const L = this.view.players[win ? 1 - this.me : this.me].leader;
     const p = L && this.pointOf(L.uid);
     if (p) FX.burst(p.x, p.y, { color: ['#3a2a1a', '#7a5a3a', '#ffcf6a'], shape: 'shard', count: 50, speed: 10, gravity: 0.3, add: false, size: 12, spin: 0.5, life: 1400 });
+    const me = this.me, op = 1 - me, P = this.view.players;
+    const st = this.stats || { dmg: [0, 0], face: [0, 0], kills: [0, 0], played: [0, 0], best: null, byCard: new Map() };
+    let bestCard = null;
+    for (const [k, v] of st.byCard) { const [side, id] = k.split(':').map(Number); if (side === me && CARDS[id]?.type !== 'leader' && (!bestCard || v > bestCard.v)) bestCard = { id, v }; }
+    const name = (i) => esc(LEADER_SHORT[P[i].leader?.id] || CARDS[P[i].leader?.id]?.name.split(',')[0] || P[i].name);
+    const art = (i) => CARDS[P[i].leader?.id]?.img || '';
+    const row = (lbl, a, b) => `<tr><td>${lbl}</td><td class="${a > b ? 'up' : ''}">${a}</td><td class="${b > a ? 'up' : ''}">${b}</td></tr>`;
     setTimeout(() => {
+      document.querySelector('#game > .over-screen')?.remove();
       const o = document.createElement('div');
-      o.className = 'over-screen';
-      o.innerHTML = `<div class="over-box ${win ? '' : 'lose'}"><h1>${draw ? 'Ничья' : win ? 'Победа!' : 'Поражение'}</h1><p>${draw ? 'Оба Лидера пали одновременно' : win ? 'Вражеский Лидер повержен' : 'Ваш Лидер пал'}</p><div class="row-btns" style="display:flex;gap:12px;justify-content:center"><button class="btn primary" data-again>Ещё раз</button><button class="btn" data-menu>В меню</button></div></div>`;
-      this.ui.appendChild(o);
+      o.className = 'over-screen over2' + (win ? ' win' : draw ? ' draw' : ' lose');
+      o.innerHTML = `
+        <div class="ov-side ov-me ${win || draw ? 'bright' : 'dim'}" style="background-image:url('${art(me)}')"></div>
+        <div class="ov-side ov-op ${!win || draw ? 'bright' : 'dim'}" style="background-image:url('${art(op)}')"></div>
+        <div class="ov-center">
+          <div class="ov-title">${draw ? 'Ничья' : win ? 'Победа' : 'Поражение'}</div>
+          <div class="ov-sub">${draw ? 'Оба Лидера пали одновременно' : `${name(win ? me : op)} побеждает ${name(win ? op : me)}`} · раунд ${this.view.round || 1}</div>
+          <table class="ov-stats"><tr><th></th><th>Вы</th><th>Соперник</th></tr>
+            ${row('Нанесено ран', st.dmg[me], st.dmg[op])}${row('Из них Лидеру', st.face[me], st.face[op])}${row('Уничтожено союзников', st.kills[me], st.kills[op])}${row('Сыграно карт', st.played[me], st.played[op])}</table>
+          <div class="ov-highs">
+            ${st.best ? `<div class="ov-high"><span class="ov-pic" style="background-image:url('${CARDS[st.best.id]?.img || ''}')"></span><div><b>Самый сильный удар</b>«${esc(CARDS[st.best.id]?.name.split(',')[0] || '')}» — ${st.best.amount} ${plural(st.best.amount, 'рана', 'раны', 'ран')}${st.best.side === me ? '' : ' (соперник)'}</div></div>` : ''}
+            ${bestCard ? `<div class="ov-high"><span class="ov-pic" style="background-image:url('${CARDS[bestCard.id]?.img || ''}')"></span><div><b>Ваша лучшая карта</b>«${esc(CARDS[bestCard.id]?.name.split(',')[0] || '')}» — ${bestCard.v} ${plural(bestCard.v, 'рана', 'раны', 'ран')} за партию</div></div>` : ''}
+          </div>
+          <div class="ov-rank">${this._rankHtml || (this.noRank ? '' : '<span class="ov-wait">Обновляем мировой рейтинг…</span>')}</div>
+          <div class="ov-btns"><button class="ov-btn gold" data-again>Реванш</button><button class="ov-btn" data-rank>Рейтинг</button><button class="ov-btn" data-menu>В меню</button></div>
+        </div>`;
+      this.overlay().appendChild(o);
       o.querySelector('[data-menu]').addEventListener('click', () => this.onMenu && this.onMenu(true));
       o.querySelector('[data-again]').addEventListener('click', () => this.onAgain && this.onAgain());
-    }, 1200);
+      o.querySelector('[data-rank]').addEventListener('click', () => this.onRanking ? this.onRanking() : this.onMenu && this.onMenu(true));
+    }, 1300);
   }
+
 }
 
 export function esc(s) { return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }

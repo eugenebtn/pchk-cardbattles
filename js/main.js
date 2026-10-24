@@ -11,7 +11,7 @@ import { renderRules } from './ui/rules.js';
 import { renderBuilder, loadCustomDecks } from './ui/builder.js';
 import { installTooltips, linkTerms } from './ui/glossary.js';
 import { renderStats, recordGame } from './ui/stats.js';
-import { submitResult } from './net/ranking.js';
+import { submitResult, loadPlayers, playerId } from './net/ranking.js';
 import { openFeedback } from './ui/feedback.js';
 import { renderLegal } from './ui/legal.js';
 import { showTutorial } from './ui/tutorial.js';
@@ -321,21 +321,30 @@ function startBoard(session) {
   ui.noTips = session.controllers ? session.controllers[session.me] !== 'human' : false;
   ui.onFeedback = () => openFeedback({ ui, name: opt.name });
   ui.onEmote = (text) => { if (session.remote) session.remote.send({ t: 'emote', text }); if (session.conn) session.conn.send({ t: 'emote', text }); };
+  ui.onRanking = () => { ui.onMenu(true); document.querySelector('#menu [data-act="ranking"]')?.click(); };
   ui.onGameEnd = (winner, view, played) => {
-    if (session.controllers && session.controllers[session.me] !== 'human') return; // bot vs bot
-    if (session.hotseat) return;
+    if (session.controllers && session.controllers[session.me] !== 'human') { ui.noRank = true; return; } // bot vs bot
+    if (session.hotseat) { ui.noRank = true; return; }
     const me = session.me, P = view.players;
     recordGame({
       mode: session.remote || session.conn ? 'online' : 'bot',
       myLeader: P[me].leader.id, oppLeader: P[1 - me].leader.id, oppName: P[1 - me].name,
       result: winner === 'draw' ? 'draw' : winner === me ? 'win' : 'loss', rounds: view.round, played,
     });
-    // World ranking (draws are not sent).
-    if (winner !== 'draw') {
-      const titleOf = (i) => session.cfgPlayers?.[i]?.title || Object.values(DECKS).find((d) => d.leader === P[i].leader.id)?.title || CARDS[P[i].leader.id]?.name;
-      submitResult({ name: myName(), deck: titleOf(me), leader: P[me].leader.id, oppName: P[1 - me].name, oppDeck: titleOf(1 - me),
-        mode: session.remote || session.conn ? 'online' : 'bot', won: winner === me, rounds: view.round });
-    }
+    // World ranking (draws are not sent): place and wins before and after this game, shown on the end screen.
+    if (winner === 'draw') { ui.setRankInfo('<span class="ov-wait">Ничьи в мировой рейтинг не идут.</span>'); return; }
+    const titleOf = (i) => session.cfgPlayers?.[i]?.title || Object.values(DECKS).find((d) => d.leader === P[i].leader.id)?.title || CARDS[P[i].leader.id]?.name;
+    const mode = session.remote || session.conn ? 'online' : 'bot';
+    const mine = (list) => { const k = (list || []).findIndex((x) => x.player_id === playerId()); return k < 0 ? null : { place: k + 1, wins: list[k].wins, games: list[k].games, winrate: list[k].winrate, total: list.length }; };
+    (async () => {
+      let before = null; try { before = mine(await loadPlayers(mode)); } catch { /* offline */ }
+      const ok = await submitResult({ name: myName(), deck: titleOf(me), leader: P[me].leader.id, oppName: P[1 - me].name, oppDeck: titleOf(1 - me), mode, won: winner === me, rounds: view.round });
+      let after = null; if (ok) { try { after = mine(await loadPlayers(mode)); } catch { /* offline */ } }
+      const where = mode === 'online' ? 'с друзьями' : 'против компьютера';
+      if (!ok || !after) { ui.setRankInfo('<span class="ov-wait">Мировой рейтинг сейчас недоступен — результат сохранён в вашей статистике.</span>'); return; }
+      const move = !before ? `вы вошли в рейтинг на <b>${after.place}-е место</b>` : after.place < before.place ? `вы поднялись с ${before.place}-го на <b>${after.place}-е место</b> ▲` : after.place > before.place ? `вы опустились с ${before.place}-го на <b>${after.place}-е место</b> ▼` : `вы на <b>${after.place}-м месте</b>`;
+      ui.setRankInfo(`<div class="ov-rank-in"><span class="ov-rank-place">${after.place}</span><div><b>Мировой рейтинг ${where}</b><br>${move} из ${after.total}. Побед ${after.wins}${winner === me ? ' (+1)' : ''} из ${after.games}, ${after.winrate}%.</div></div>`);
+    })();
   };
   const wire = () => {
     const spd = $('#btn-speed'), snd = $('#btn-sound'), fst = $('#btn-fast'), mus = $('#btn-music');
