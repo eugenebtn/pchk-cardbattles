@@ -2,6 +2,7 @@
 import { Game } from './engine/game.js';
 import { botAnswer, randomAnswer } from './engine/bot.js';
 import { checkAchievements } from './ui/achievements.js';
+import { createChat, cleanChat } from './ui/watch.js';
 import { levelAnswer, LEVEL_RU, adaptiveLevel, adaptiveAfterGame } from './engine/botlevels.js';
 import { CARDS } from './data/cards.js';
 import { DECKS } from './data/decks.js';
@@ -212,6 +213,7 @@ class Session {
     this.remote = remote;
     this.queue = [];
     this.remoteQueue = [];
+    this.watchQueue = []; // what watchers see: both hands hidden
     this.busy = false;
     this.cfgPlayers = players;
     this.newGame();
@@ -231,11 +233,13 @@ class Session {
       const v = this.viewFor(this.me);
       this.queue.push({ ev, view: v });
       if (this.remote) this.remoteQueue.push({ ev, view: g.view(1) });
+      if (this.remote?.watcherCount) this.watchQueue.push({ ev, view: g.view(-1) });
       return ev;
     };
     // Events already emitted during construction (setup) — replay the current view.
     this.queue.push({ ev: { type: 'init' }, view: this.viewFor(this.me) });
     if (this.remote) this.remoteQueue.push({ ev: { type: 'init' }, view: g.view(1) });
+    if (this.remote?.watcherCount) this.watchQueue.push({ ev: { type: 'init' }, view: g.view(-1) });
   }
   viewFor(i) { return this.game.view(i); }
   attach(ui) {
@@ -243,7 +247,7 @@ class Session {
     ui.onAgain = () => this.again();
   }
   again() {
-    this.queue = []; this.remoteQueue = [];
+    this.queue = []; this.remoteQueue = []; this.watchQueue = [];
     this.ui.destroy();
     this.newGame();
     startBoard(this);
@@ -254,6 +258,9 @@ class Session {
     const batch = this.remoteQueue.splice(0);
     batch.push({ ev: { type: 'sync' }, view: this.game.view(1) });
     this.remote.send({ t: 'events', batch, pending: q && q.player === 1 ? q : null, waiting: q && q.player !== 1 ? (q.type === 'priority' ? 'priority' : true) : false });
+    // Watchers get the same moves with both hands hidden.
+    const wb = this.watchQueue.splice(0);
+    if (wb.length && this.remote.watcherCount) this.remote.sendWatchers({ t: 'events', batch: wb });
   }
   async pump() {
     if (this.busy) return;
@@ -347,17 +354,25 @@ function startBoard(session) {
     me: session.me, theme,
     onAnswer: (q, a) => session.answer(q, a),
     onMenu: (force) => {
-      if (force || confirm('Выйти в меню? Партия будет потеряна.')) { session.close(); ui.destroy(); current = null; show('menu'); }
+      if (force || session.watch || confirm('Выйти в меню? Партия будет потеряна.')) { session.close(); ui.chat?.destroy(); ui.destroy(); current = null; show('menu'); }
     },
   });
   session.attach(ui);
-  ui.noTips = session.controllers ? session.controllers[session.me] !== 'human' : false;
-  ui.spectator = !!session.controllers && !session.controllers.includes('human') && !session.controllers.includes('remote');
+  ui.noTips = !!session.watch || (session.controllers ? session.controllers[session.me] !== 'human' : false);
+  ui.spectator = !!session.watch || (!!session.controllers && !session.controllers.includes('human') && !session.controllers.includes('remote'));
   ui.onFeedback = () => openFeedback({ ui, name: opt.name });
-  ui.onEmote = (text) => { if (session.remote) session.remote.send({ t: 'emote', text }); if (session.conn) session.conn.send({ t: 'emote', text }); };
+  ui.onEmote = (text) => {
+    if (session.remote) { session.remote.send({ t: 'emote', text }); session.remote.sendWatchers({ t: 'emote', side: session.me, text }); }
+    if (session.conn) session.conn.send({ t: 'emote', text });
+  };
+  // Online games: a watchers' badge and their comments for players; the full chat for watchers.
+  if (session.watch) {
+    ui.chat = createChat({ watcher: true, onSend: (text) => { session.conn.send({ t: 'chat', name: myName() || 'Зритель', text }); ui.chat.add(myName() || 'Вы', text, true); } });
+  } else if (session.remote || session.conn) ui.chat = createChat({ watcher: false });
+  if (session.inviteCode || session.code) { ui.onInviteWatchers = () => inviteWatchers(session.inviteCode || session.code); document.querySelector('#btn-watch')?.classList.remove('hidden'); }
   ui.onRanking = () => { ui.onMenu(true); document.querySelector('#menu [data-act="ranking"]')?.click(); };
   ui.onGameEnd = (winner, view, played) => {
-    if (session.controllers && session.controllers[session.me] !== 'human') { ui.noRank = true; return; } // bot vs bot
+    if (session.watch || (session.controllers && session.controllers[session.me] !== 'human')) { ui.noRank = true; return; } // watchers, bot vs bot
     if (session.hotseat) { ui.noRank = true; return; }
     const me = session.me, P = view.players;
     if (session.adaptive && !session.remote && !session.conn && winner !== 'draw') {
@@ -478,16 +493,36 @@ async function startHost() {
       session = new Session({ players: [playerCfg(mine, myName()), playerCfg(guestDeck, hello.name || 'Друг')], controllers: ['human', 'remote'], me: 0, remote: room });
       session.game.cfg.options.autoPass[1] = hello.autopass === true ? true : hello.autopass === false ? false : 'smart';
       room.send({ t: 'start', me: 1 });
+      session.inviteCode = room.code;
       startBoard(session);
+      if (room.watcherCount) { room.sendWatchers({ t: 'watchStart', view: session.game.view(-1) }); session.ui?.chat?.setCount(room.watcherCount); room.send({ t: 'watchers', n: room.watcherCount }); }
     },
     onMessage(msg) {
       if (!session) return;
       if (msg.t === 'answer') session.remoteAnswer(msg.a);
-      if (msg.t === 'emote' && session.ui) session.ui.showEmote(1, String(msg.text).slice(0, 160));
+      if (msg.t === 'emote' && session.ui) { session.ui.showEmote(1, String(msg.text).slice(0, 160)); room.sendWatchers({ t: 'emote', side: 1, text: String(msg.text).slice(0, 160) }); }
       if (msg.t === 'autopass') { session.game.cfg.options.autoPass[1] = msg.on === 'smart' ? 'smart' : !!msg.on; const q = session.game.pending; if (msg.on === true && q && q.player === 1 && q.type === 'priority') session.remoteAnswer('pass'); }
     },
     onClose() { toast('Друг отключился. Ждём переподключения по той же ссылке…', 5000); },
     onError(e) { ob.innerHTML = `Ошибка соединения: ${esc(e.type || e.message || e)}. Попробуйте ещё раз.`; },
+    // Watchers: they get the game with both hands hidden and can comment.
+    onWatcher(c, hello) {
+      if (!session) { c.send({ t: 'wait' }); return; }
+      c.send({ t: 'watchStart', view: session.game.view(-1) });
+      c.send({ t: 'watchers', n: room.watcherCount });
+      session.ui?.chat?.add('👁', `${cleanChat(hello.name, 'x').name} смотрит партию`);
+    },
+    onWatcherMessage(c, msg) {
+      if (msg?.t !== 'chat' || !session) return;
+      if (Date.now() - (c._last || 0) < 2500) return; // anti-spam
+      c._last = Date.now();
+      const m = cleanChat(msg.name, msg.text);
+      if (!m.text) return;
+      room.sendWatchers({ t: 'chat', ...m }, c);
+      room.send({ t: 'chat', ...m });
+      session.ui?.chat?.add(m.name, m.text);
+    },
+    onWatchersChange(n) { session?.ui?.chat?.setCount(n); room.send({ t: 'watchers', n }); room.sendWatchers({ t: 'watchers', n }); },
   });
   $('#picker').querySelector('[data-act=back]').onclick = () => { room.close(); show('menu'); };
 }
@@ -514,6 +549,10 @@ class GuestSession {
       });
     } else if (msg.t === 'emote') {
       this.ui?.showEmote(0, String(msg.text).slice(0, 160));
+    } else if (msg.t === 'chat') {
+      this.ui?.chat?.add(msg.name, msg.text);
+    } else if (msg.t === 'watchers') {
+      this.ui?.chat?.setCount(msg.n | 0);
     } else if (msg.t === 'sync') {
       this.chain = this.chain.then(() => { this.ui.render(msg.view); this.ui.setPending(msg.pending); });
     }
@@ -533,7 +572,7 @@ async function startJoin(code) {
     onOpen() { ob.textContent = 'Соединено! Ждём начала…'; },
     onMessage(msg) {
       if (msg.t === 'start' || (msg.t === 'sync' && !gs)) {
-        if (!gs) { gs = new GuestSession(conn); startBoard(gs); }
+        if (!gs) { gs = new GuestSession(conn); gs.code = code; startBoard(gs); }
         if (msg.t === 'sync') gs.onMessage(msg);
       } else if (msg.t === 'busy') { ob.textContent = 'В этой комнате уже идёт игра.'; }
       else if (msg.t === 'error') { ob.textContent = msg.text; }
@@ -543,6 +582,75 @@ async function startJoin(code) {
     onError(e) { ob.textContent = `Не удалось подключиться (${e.type || e.message || e}). Проверьте ссылку или попросите друга создать комнату заново.`; },
   });
   $('#picker').querySelector('[data-act=back]').onclick = () => { conn.close(); show('menu'); };
+}
+
+// ---------- watching a friends' game ----------
+/** The link for watchers of the current online game. */
+function inviteWatchers(code) {
+  const url = `${location.origin}${location.pathname}?watch=${code}`;
+  const b = document.createElement('div');
+  b.className = 'modal-back'; b.style.cssText = 'position:fixed;inset:0;z-index:400';
+  b.innerHTML = `<div class="modal" style="max-width:560px"><h3>👁 Позвать зрителей</h3>
+    <p style="font-size:17px;line-height:1.4">Отправьте эту ссылку тем, кто хочет посмотреть партию. Зрители видят поле и ходы, но <b>не видят карт в руках</b> ни у одного игрока. Они могут писать комментарии — вы увидите их слева вверху (там же их можно выключить).</p>
+    <div class="link"><input readonly value="${url}" style="width:100%"></div>
+    <div class="row-btns"><button class="btn primary" data-copy>Копировать ссылку</button>${navigator.share ? '<button class="btn" data-share>Поделиться</button>' : ''}<button class="btn" data-close>Закрыть</button></div></div>`;
+  document.body.appendChild(b);
+  b.querySelector('[data-copy]').onclick = () => navigator.clipboard?.writeText(url).then(() => toast('Ссылка для зрителей скопирована'));
+  const sh = b.querySelector('[data-share]');
+  if (sh) sh.onclick = () => navigator.share({ title: 'Карточные битвы ПЧК', text: 'Посмотри нашу партию!', url });
+  b.querySelector('[data-close]').onclick = () => b.remove();
+  b.addEventListener('click', (e) => { if (e.target === b) b.remove(); });
+}
+class WatchSession {
+  constructor(conn) { this.conn = conn; this.watch = true; this.me = 0; this.chain = Promise.resolve(); }
+  attach(ui) { this.ui = ui; ui.onAgain = () => toast('Реванш запускают игроки — вы увидите его здесь'); }
+  pump() {}
+  answer() {}
+  onMessage(msg) {
+    if (msg.t === 'events') {
+      this.chain = this.chain.then(async () => {
+        if (msg.batch[0]?.ev?.type === 'init') document.querySelector('#game > .over-screen')?.remove(); // a rematch
+        await this.ui.playEvents(msg.batch);
+      });
+    } else if (msg.t === 'watchStart') {
+      this.chain = this.chain.then(() => { document.querySelector('#game > .over-screen')?.remove(); this.ui.render(msg.view); this.ui.setPending(null); });
+    } else if (msg.t === 'chat') this.ui?.chat?.add(msg.name, msg.text);
+    else if (msg.t === 'emote') this.ui?.showEmote(msg.side ? 1 : 0, String(msg.text).slice(0, 160));
+    else if (msg.t === 'watchers') this.ui?.chat?.setCount(msg.n | 0);
+  }
+  close() { this.conn.close(); }
+}
+function startWatch(code) {
+  show('picker');
+  $('#picker-title').textContent = 'Подключаемся к партии…';
+  $('#picker-list').innerHTML = '';
+  const ob = $('#picker-online'); ob.classList.remove('hidden'); ob.textContent = 'Соединяемся…';
+  let ws = null;
+  const conn = joinRoom(code, { watch: true, name: myName() || 'Зритель' }, {
+    onOpen() { ob.textContent = 'Соединено! Получаем партию…'; },
+    onMessage(msg) {
+      if (msg.t === 'watchStart' && !ws) {
+        ws = new WatchSession(conn);
+        startBoard(ws);
+        ws.ui.noIntro = true;
+        ws.onMessage(msg);
+      } else if (msg.t === 'wait') ob.textContent = 'Партия ещё не началась — ждём, когда второй игрок подключится…';
+      else if (msg.t === 'error') ob.textContent = msg.text;
+      else if (ws) ws.onMessage(msg);
+    },
+    onClose() { toast('Партия закончилась или хозяин комнаты закрыл её', 5000); },
+    onError(e) { ob.textContent = `Не удалось подключиться (${e.type || e.message || e}). Возможно, партия уже закончилась.`; },
+  });
+  $('#picker').querySelector('[data-act=back]').onclick = () => { conn.close(); show('menu'); };
+}
+/** «Смотреть»: two computers play each other. */
+async function startWatchBots() {
+  const r = await pickDecks([{ title: 'Первая колода', allowRandom: true }, { title: 'Вторая колода', allowRandom: true, level: true }]);
+  if (!r) return;
+  const level = opt.botLevel === 'auto' ? 'strong' : opt.botLevel;
+  const s = new Session({ players: [playerCfg(r[0], `Компьютер · ${r[0].title}`), playerCfg(r[1], `Компьютер · ${r[1].title}`)], controllers: ['bot', 'bot'], me: 0 });
+  s.botLevel = level;
+  startBoard(s);
 }
 
 // ---------- deck builder ----------
@@ -596,6 +704,13 @@ if (quick) {
 }
 
 // ---------- menu wiring ----------
+const watchCode = new URLSearchParams(location.search).get('watch');
+if (watchCode && /^[a-z0-9]{4,10}$/.test(watchCode)) {
+  const jb = $('#join-banner');
+  jb.classList.remove('hidden');
+  jb.innerHTML = `Вас позвали посмотреть партию! <button class="btn primary" style="margin-left:8px">👁 Смотреть</button>`;
+  jb.querySelector('button').addEventListener('click', () => { sfx.click(); jb.classList.add('hidden'); startWatch(watchCode); });
+}
 const joinCode = new URLSearchParams(location.search).get('join');
 if (joinCode) {
   const jb = $('#join-banner');
@@ -608,6 +723,7 @@ document.querySelectorAll('#menu [data-act]').forEach((b) => b.addEventListener(
   const a = b.dataset.act;
   if (a === 'bot') startBot();
   else if (a === 'hotseat') startHotseat();
+  else if (a === 'watchbots') startWatchBots();
   else if (a === 'host') startHost();
   else if (a === 'rules') { renderRules($('#rules'), () => show('menu')); show('rules'); }
   else if (a === 'tutorial') openTutorial();

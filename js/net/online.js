@@ -12,25 +12,44 @@ function newPeer(id) {
   return new Peer(id, { debug: 1, config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:global.stun.twilio.com:3478' }] } });
 }
 
-/** Host side: waits for one guest. Callbacks: onGuest(conn, hello), onMessage(msg), onClose(). */
-export function hostRoom({ onOpen, onGuest, onMessage, onClose, onError }) {
+/**
+ * Host side: one guest player plus any number of watchers (up to MAX_WATCHERS).
+ * Callbacks: onGuest(conn, hello), onMessage(msg), onClose(), onWatcher(conn, hello), onWatcherMessage(conn, msg), onWatchersChange(n).
+ */
+const MAX_WATCHERS = 12;
+export function hostRoom({ onOpen, onGuest, onMessage, onClose, onError, onWatcher, onWatcherMessage, onWatchersChange }) {
   const code = randomId();
   const peer = newPeer(PREFIX + code);
   let conn = null;
+  const watchers = new Set();
+  const changed = () => onWatchersChange && onWatchersChange(watchers.size);
   peer.on('open', () => onOpen && onOpen(code));
   peer.on('error', (e) => onError && onError(e));
   peer.on('connection', (c) => {
-    if (conn && conn.open) { c.on('open', () => { c.send({ t: 'busy' }); setTimeout(() => c.close(), 300); }); return; }
-    conn = c;
+    let role = null;
     c.on('data', (msg) => {
-      if (msg && msg.t === 'hello') onGuest && onGuest(c, msg);
+      if (!role) {
+        if (msg?.t !== 'hello') return;
+        if (msg.watch) {
+          if (watchers.size >= MAX_WATCHERS) { c.send({ t: 'error', text: 'Слишком много зрителей — попробуйте позже.' }); setTimeout(() => c.close(), 300); return; }
+          role = 'watch'; watchers.add(c); changed(); onWatcher && onWatcher(c, msg); return;
+        }
+        if (conn && conn.open && conn !== c) { c.send({ t: 'busy' }); setTimeout(() => c.close(), 300); return; }
+        role = 'player'; conn = c; onGuest && onGuest(c, msg); return;
+      }
+      if (role === 'watch') onWatcherMessage && onWatcherMessage(c, msg);
       else onMessage && onMessage(msg);
     });
-    c.on('close', () => { if (conn === c) { conn = null; onClose && onClose(); } });
+    c.on('close', () => {
+      if (role === 'watch') { watchers.delete(c); changed(); }
+      if (role === 'player' && conn === c) { conn = null; onClose && onClose(); }
+    });
   });
   return {
     code,
     send(msg) { if (conn && conn.open) conn.send(msg); },
+    sendWatchers(msg, except = null) { for (const w of watchers) if (w !== except && w.open) w.send(msg); },
+    get watcherCount() { return watchers.size; },
     get connected() { return !!(conn && conn.open); },
     close() { try { peer.destroy(); } catch (e) { /* ignore */ } },
   };

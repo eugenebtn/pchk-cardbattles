@@ -157,6 +157,7 @@ export class BoardUI {
       </div>
       <div class="opts-pop hidden" id="opts-pop">
         <button class="btn" id="btn-log">📜 Журнал</button>
+        <button class="btn hidden" id="btn-watch">👁 Позвать зрителей</button>
         <button class="btn" id="btn-bug">✉ Сообщить об ошибке</button>
         <button class="btn" id="btn-speed">⏩ Скорость</button>
         <button class="btn" id="btn-music">🎵 Музыка</button>
@@ -182,6 +183,7 @@ export class BoardUI {
     u.querySelector('#btn-emote').addEventListener('click', (e) => { e.stopPropagation(); this.openEmotes(); });
     u.querySelector('#btn-log').addEventListener('click', () => { this.showLog(); u.querySelector('#opts-pop').classList.add('hidden'); });
     u.querySelector('#btn-bug').addEventListener('click', () => { u.querySelector('#opts-pop').classList.add('hidden'); this.onFeedback?.(); });
+    u.querySelector('#btn-watch').addEventListener('click', () => { u.querySelector('#opts-pop').classList.add('hidden'); this.onInviteWatchers?.(); });
     u.querySelector('#btn-opts').addEventListener('click', (e) => { e.stopPropagation(); u.querySelector('#opts-pop').classList.toggle('hidden'); });
     this.ui.addEventListener('click', (e) => { if (!e.target.closest('#opts-pop') && !e.target.closest('#btn-opts')) u.querySelector('#opts-pop')?.classList.add('hidden'); });
     this.stage.style.setProperty('--banner-y', L.bannerY + 'px');
@@ -505,7 +507,7 @@ export class BoardUI {
     this.renderPowers();
     this.stage.classList.toggle('choosing', !!(mine && ['region', 'target'].includes(q.type)));
     this.endBtn.className = 'end-turn wait';
-    this.endBtn.textContent = this.view?.phase === 'battle' ? 'Сражение' : 'Ход соперника';
+    this.endBtn.textContent = this.spectator ? 'Режим зрителя' : this.view?.phase === 'battle' ? 'Сражение' : 'Ход соперника';
     if (!mine) return;
     if (q.type === 'main' || q.type === 'priority') {
       for (const o of q.options) {
