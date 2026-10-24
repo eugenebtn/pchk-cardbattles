@@ -70,3 +70,17 @@ export function findMatch(name, { onMatch, onQueue, onError } = {}) {
   ws.onerror = () => onError && onError();
   return { cancel() { done = true; try { ws.close(); } catch { /* ignore */ } }, get matched() { return done; } };
 }
+
+/** Tournament bracket connection; the seat key is kept in this browser. onMessage gets {t:'you'} and {t:'state'}. */
+export function connectTour(code, hello, onMessage) {
+  const key = 'pchk_tour_' + code;
+  let ws = null, closed = false;
+  const open = () => {
+    ws = new WebSocket(wsUrl('/ws/tour/' + code));
+    ws.onopen = () => { let token = null, maybe = false; try { token = sessionStorage.getItem(key); if (!token) { token = localStorage.getItem(key); maybe = !!token; } } catch { /* private mode */ } ws.send(JSON.stringify({ t: 'hello', ...hello, token, maybe })); };
+    ws.onmessage = (e) => { const m = JSON.parse(e.data); if (m.t === 'you' && m.token) try { sessionStorage.setItem(key, m.token); localStorage.setItem(key, m.token); } catch { /* private mode */ } onMessage(m); };
+    ws.onclose = () => { if (!closed) setTimeout(open, 1500); };
+  };
+  open();
+  return { code, send(m) { if (ws?.readyState === 1) ws.send(JSON.stringify(m)); }, close() { closed = true; try { ws.close(); } catch { /* ignore */ } } };
+}

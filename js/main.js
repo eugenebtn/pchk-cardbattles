@@ -14,7 +14,8 @@ import { BoardUI, esc } from './ui/board.js';
 import { sfx, setSound, setMusic, playMusic, unlockAudio, setVolumes } from './ui/sound.js';
 import * as FX from './ui/fx.js';
 import { hostRoom, joinRoom } from './net/online.js';
-import { serverOn, newRoomCode, connectRoom, findMatch } from './net/server.js';
+import { serverOn, newRoomCode, connectRoom, findMatch, connectTour } from './net/server.js';
+import { FEATURES } from './features.js';
 import { renderRules } from './ui/rules.js';
 import { renderBuilder, loadCustomDecks } from './ui/builder.js';
 import { installTooltips, linkTerms } from './ui/glossary.js';
@@ -415,6 +416,7 @@ function startBoard(session) {
     if (session.conn) session.conn.send({ t: 'emote', text });
   };
   if (session.canUndo) ui.onUndo = () => session.undo();
+  if (session.tour) ui.onAgain = () => { session.close(); ui.chat?.destroy(); ui.destroy(); current = null; drawTour(); };
   if (session.game && !session.replay && !session.watch) ui.onReplay = () => { const r = loadReplays().at(-1); session.close?.(); ui.chat?.destroy(); ui.coach?.destroy(); ui.destroy(); startReplay(r); };
   // Move coach: the learning game points at the best move; other local games show a «Совет» line (can be turned off).
   if (session.game && !ui.spectator && session.controllers?.[session.me] === 'human' && !session.hotseat) {
@@ -790,6 +792,7 @@ function startReplay(r) {
 window.addEventListener('error', (e) => { if (current?.ui && e.filename && e.filename.includes(location.host)) autoReport(e.error || e.message, current.ui); });
 window.addEventListener('unhandledrejection', (e) => { if (current?.ui) autoReport(e.reason, current.ui); });
 
+if (FEATURES.tournaments) document.querySelector('#menu [data-act="tour"]')?.classList.remove('hidden');
 // ---------- Задание дня on the menu ----------
 function drawDaily() {
   const box = $('#menu-daily'); if (!box) return;
@@ -826,7 +829,7 @@ class ServerSession {
   close() { this.conn.close(); }
 }
 /** Join or create a room on the server with my deck; the board opens when the game starts. */
-function serverPlay(code, deck, { creating = false, matched = false } = {}) {
+function serverPlay(code, deck, { creating = false, matched = false, tour: inTour = false } = {}) {
   show('picker');
   $('#picker-list').innerHTML = '';
   const ob = $('#picker-online'); ob.classList.remove('hidden');
@@ -842,8 +845,8 @@ function serverPlay(code, deck, { creating = false, matched = false } = {}) {
   let ss = null;
   const conn = connectRoom(code, { name: myName(), playerId: playerId(), autopass: AP_ENGINE(opt.autopass), timer: creating ? opt.timer : matched ? 90 : 0, deck: { leader: deck.leader, cards: deck.cards, title: deck.title } }, {
     onMessage(msg) {
-      if ((msg.t === 'start' || msg.t === 'sync') && !ss) { ss = new ServerSession(conn, msg.me ?? 0); startBoard(ss); if (msg.t === 'sync') ss.onMessage(msg); return; }
-      if (msg.t === 'start' && ss) { ss.me = msg.me; return; }
+      if ((msg.t === 'start' || msg.t === 'sync') && !ss) { ss = new ServerSession(conn, msg.me ?? 0); ss.tour = inTour; startBoard(ss); if (msg.t === 'sync') ss.onMessage(msg); return; }
+      if (msg.t === 'start' && ss) { ss.me = msg.me; document.querySelector('#game > .over-screen')?.remove(); toast('Новая партия!', 1800); return; } // rematch, or a draw replayed in a tournament
       if (msg.t === 'waitOpponent' && !creating) ob.textContent = 'Подключено! Ждём второго игрока…';
       else if (msg.t === 'busy') ob.textContent = 'В этой комнате уже идёт игра. Можно посмотреть её как зритель.';
       else if (msg.t === 'error') ob.textContent = msg.text;
@@ -915,10 +918,57 @@ function startServerWatch(code) {
   $('#picker').querySelector('[data-act=back]').onclick = () => { conn.close(); show('menu'); };
 }
 
+// ---------- tournaments (on while the authors agree: features.js) ----------
+let tour = null; // { conn, code, deck, me, owner, state }
+function drawTour() {
+  if (!tour) return;
+  show('picker');
+  const st = tour.state, me = tour.me;
+  $('#picker-title').textContent = st?.champion != null ? 'Турнир завершён' : st?.started ? 'Турнир идёт' : 'Турнир: собираем игроков';
+  $('#picker-list').innerHTML = '';
+  const ob = $('#picker-online'); ob.classList.remove('hidden');
+  const url = `${location.origin}${location.pathname}?tour=${tour.code}`;
+  const name = (i) => (i == null ? '<i>—</i>' : `${esc(st.players[i]?.name || '?')}${i === me ? ' <small>(вы)</small>' : ''}`);
+  const myMatch = st?.rounds.flat().find((m) => m.room && m.winner == null && (m.a === me || m.b === me));
+  ob.innerHTML = `<div class="tour">
+    ${!st?.started ? `<p>Отправьте ссылку участникам (до 8 человек). Каждый выбирает колоду и попадает в сетку.</p>
+      <div class="link"><input readonly value="${url}"><button class="btn small" data-copy>Копировать</button></div>
+      <h3>Участники: ${st?.players.length || 0} из 8</h3><div class="tour-players">${(st?.players || []).map((p, i) => `<span><i style="background-image:url('assets/leaders/${p.leader}.webp')"></i>${name(i)}</span>`).join('')}</div>
+      ${tour.owner ? `<button class="btn primary" data-start ${(st?.players.length || 0) < 2 ? 'disabled' : ''}>Начать турнир</button>` : '<p>Турнир начнёт его создатель.</p>'}` : ''}
+    ${st?.started ? `<div class="tour-bracket">${st.rounds.map((r, k) => `<div class="tour-round"><b>${r.length === 1 ? 'Финал' : r.length === 2 ? 'Полуфинал' : `Раунд ${k + 1}`}</b>${r.map((m) => `<div class="tour-match ${m.winner != null ? 'done' : m.room ? 'live' : ''}"><span class="${m.winner === m.a && m.a != null ? 'win' : ''}">${name(m.a)}</span><span class="${m.winner === m.b && m.b != null ? 'win' : ''}">${name(m.b)}</span>${m.room && m.winner == null ? `<button class="btn small" data-watch="${m.room}">👁</button>` : ''}</div>`).join('')}</div>`).join('')}</div>` : ''}
+    ${st?.champion != null ? `<h3 class="tour-champ">🏆 Победитель: ${name(st.champion)}</h3>` : ''}
+    ${myMatch ? `<button class="btn primary big" data-play="${myMatch.room}">⚔ Играть свой матч</button>` : ''}
+  </div>`;
+  ob.querySelector('[data-copy]')?.addEventListener('click', () => navigator.clipboard?.writeText(url).then(() => toast('Ссылка на турнир скопирована')));
+  ob.querySelector('[data-start]')?.addEventListener('click', () => tour.conn.send({ t: 'start' }));
+  ob.querySelector('[data-play]')?.addEventListener('click', (e) => serverPlay(e.target.dataset.play, tour.deck, { tour: true }));
+  ob.querySelectorAll('[data-watch]').forEach((b) => b.addEventListener('click', () => startServerWatch(b.dataset.watch)));
+  $('#picker').querySelector('[data-act=back]').onclick = () => { show('menu'); };
+}
+async function startTour(code = null) {
+  if (!serverOn()) { toast('Турниры работают через игровой сервер — он ещё не подключён'); return; }
+  const r = await pickDecks([{ title: code ? 'Ваша колода для турнира' : 'Ваша колода — затем позовите участников', goLabel: code ? 'Войти в турнир' : 'Создать турнир' }]);
+  if (!r) return;
+  if (!code) { try { code = await newRoomCode(); } catch { toast('Сервер недоступен'); return; } }
+  tour?.conn.close();
+  tour = { code, deck: r[0], me: -1, owner: false, state: null };
+  tour.conn = connectTour(code, { name: myName(), playerId: playerId(), deck: { leader: r[0].leader, cards: r[0].cards } }, (m) => {
+    if (m.t === 'you') { tour.me = m.me; tour.owner = m.owner; }
+    if (m.t === 'state') {
+      const had = tour.state?.rounds.flat().find((x) => x.room && x.winner == null && (x.a === tour.me || x.b === tour.me));
+      tour.state = m;
+      const now = m.rounds.flat().find((x) => x.room && x.winner == null && (x.a === tour.me || x.b === tour.me));
+      if (now && now.room !== had?.room) toast('Ваш матч готов — нажмите «Играть свой матч»', 4000);
+      if (!current || $('#picker').classList.contains('active')) drawTour();
+    }
+  });
+  drawTour();
+}
+
 // ---------- deck builder ----------
 function openBuilder({ startNew = false, back = () => show('menu') } = {}) {
   renderBuilder($('#builder'), store, back, {
-    startNew,
+    startNew, author: () => myName(),
     onPlay: (deck) => {
       const bots = Object.values(DECKS);
       const bot = bots[Math.floor(Math.random() * bots.length)];
@@ -968,6 +1018,13 @@ if (quick) {
 }
 
 // ---------- menu wiring ----------
+const tourParam = new URLSearchParams(location.search).get('tour');
+if (tourParam && /^[a-z0-9]{4,10}$/.test(tourParam) && FEATURES.tournaments) {
+  const jb = $('#join-banner');
+  jb.classList.remove('hidden');
+  jb.innerHTML = `Вас позвали на турнир! <button class="btn primary" style="margin-left:8px">🏆 Участвовать</button>`;
+  jb.querySelector('button').addEventListener('click', () => { sfx.click(); jb.classList.add('hidden'); startTour(tourParam); });
+}
 const replayParam = new URLSearchParams(location.search).get('replay');
 if (replayParam) {
   const jb = $('#join-banner');
@@ -1002,6 +1059,7 @@ document.querySelectorAll('#menu [data-act]').forEach((b) => b.addEventListener(
   if (a === 'bot') startBot();
   else if (a === 'hotseat') startHotseat();
   else if (a === 'watchbots') startWatchBots();
+  else if (a === 'tour') startTour();
   else if (a === 'host') chooseOnline();
   else if (a === 'rules') { renderRules($('#rules'), () => show('menu')); show('rules'); }
   else if (a === 'tutorial') openTutorial();

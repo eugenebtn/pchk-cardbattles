@@ -4,7 +4,8 @@ import { DECKS } from '../data/decks.js';
 import { esc } from './board.js';
 import { linkTerms } from './glossary.js';
 import { sfx } from './sound.js';
-import { loadCardStats, loadDecks } from '../net/ranking.js';
+import { loadCardStats, loadDecks, loadCommunityDecks, publishDeck } from '../net/ranking.js';
+import { FEATURES } from '../features.js';
 import { loadGames } from './stats.js';
 
 const TYPE_RU = { ally: 'Союзники', place: 'Места', action: 'Действия', item: 'Предметы', companion: 'Напарники' };
@@ -57,12 +58,21 @@ export function renderBuilder(root, store, onBack, opts = {}) {
         ${decks.map((d, k) => `<div class="bld-tile" data-edit="${k}"><div class="face" style="background-image:url('${CARDS[d.leader]?.img}')"></div>
           <b>${esc(d.name)}</b><small>${esc((CARDS[d.leader]?.name || '').split(',')[0])} · ${d.cards.length} карт ${d.cards.length >= MIN ? '✔' : '⚠'}</small></div>`).join('')}
       </div>
+      ${FEATURES.community ? '<h3 class="bld-h3">Колоды сообщества</h3><div class="bld-gal small bld-comm"><p class="bld-note">Загружаем…</p></div>' : ''}
       <h3 class="bld-h3">Начать со стартовой скрижали</h3>
       <div class="bld-gal small">${Object.values(DECKS).map((d) => `<div class="bld-tile" data-copy="${d.key}"><div class="face" style="background-image:url('${CARDS[d.leader].img}')"></div><b>${esc(d.title)}</b><small>скопировать и изменить${(() => { const r = WR?.decks.get(d.title); return r && r.games >= MIN_GAMES ? ` · побед ${Math.round((r.wins / r.games) * 100)}% из ${r.games}` : ''; })()}</small></div>`).join('')}</div>
     </div>`;
     root.querySelector('[data-back]').onclick = () => { sfx.click(); onBack(); };
     root.querySelector('[data-new]').onclick = () => { sfx.select(); pickLeader(); };
     root.querySelectorAll('[data-edit]').forEach((e) => { e.onclick = () => { sfx.select(); const k = Number(e.dataset.edit); editor({ ...decks[k], cards: [...decks[k].cards] }, k); }; });
+    if (FEATURES.community) {
+      loadCommunityDecks().then((list) => {
+        const box = root.querySelector('.bld-comm'); if (!box) return;
+        const wr = (t) => { const r = WR?.decks.get(t); return r && r.games >= MIN_GAMES ? ` · побед ${Math.round((r.wins / r.games) * 100)}%` : ''; };
+        box.innerHTML = list.length ? list.map((d, k) => `<div class="bld-tile" data-comm="${k}"><div class="face" style="background-image:url('${CARDS[d.leader]?.img}')"></div><b>${esc(d.name)}</b><small>${esc(d.author || 'Игрок')} · ${d.cards.length} карт${wr(d.name)} · скопировать</small></div>`).join('') : '<p class="bld-note">Пока никто не опубликовал колоду. Соберите свою и нажмите «Опубликовать».</p>';
+        box.querySelectorAll('[data-comm]').forEach((e) => { e.onclick = () => { sfx.select(); const d = list[Number(e.dataset.comm)]; editor({ name: d.name + ' — копия', leader: d.leader, cards: [...d.cards].filter((id) => CARDS[id]) }, -1); }; });
+      }).catch(() => { const box = root.querySelector('.bld-comm'); if (box) box.innerHTML = '<p class="bld-note">Колоды сообщества сейчас недоступны.</p>'; });
+    }
     root.querySelectorAll('[data-copy]').forEach((e) => { e.onclick = () => { sfx.select(); const d = DECKS[e.dataset.copy]; editor({ name: d.title + ' — моя', leader: d.leader, cards: [...d.main] }, -1); }; });
   }
 
@@ -130,6 +140,7 @@ export function renderBuilder(root, store, onBack, opts = {}) {
             <div class="bld-actions">
               <button class="btn primary" data-save ${ok ? '' : 'disabled'} data-tip="${ok ? 'Сохранить|Колода появится в выборе героя.' : `Ещё ${MIN - n} карт|Колода должна быть не меньше ${MIN} карт.`}">💾 Сохранить</button>
               ${opts.onPlay ? `<button class="btn" data-play ${ok ? '' : 'disabled'}>⚔ Сыграть с компьютером</button>` : ''}
+              ${FEATURES.community ? `<button class="btn small" data-publish ${ok ? '' : 'disabled'} data-tip="Опубликовать|Колода появится в «Колодах сообщества», и её смогут скопировать другие игроки.">🌐 Опубликовать</button>` : ''}
               <button class="btn small" data-clear>Очистить</button>
               ${editIndex >= 0 ? '<button class="btn small danger" data-del>Удалить колоду</button>' : ''}
             </div>
@@ -165,6 +176,8 @@ export function renderBuilder(root, store, onBack, opts = {}) {
       };
       const pl = root.querySelector('[data-play]');
       if (pl) pl.onclick = () => { sfx.confirm(); opts.onPlay({ name: cur.name, leader: cur.leader, cards: [...cur.cards] }); };
+      const pub = root.querySelector('[data-publish]');
+      if (pub) pub.onclick = async () => { pub.disabled = true; const okp = await publishDeck({ name: cur.name, leader: cur.leader, cards: cur.cards }, opts.author?.() || ''); flash(okp ? 'Колода опубликована в «Колодах сообщества»' : 'Не получилось опубликовать — попробуйте позже'); pub.disabled = false; };
       root.querySelector('[data-clear]').onclick = () => { if (!cur.cards.length || confirm('Убрать все карты из колоды?')) { cur.cards = []; draw(); } };
       const del = root.querySelector('[data-del]');
       if (del) del.onclick = () => { if (confirm('Удалить эту колоду?')) { decks.splice(editIndex, 1); save(); gallery(); } };

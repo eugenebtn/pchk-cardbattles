@@ -203,3 +203,17 @@
 .pf-daily.done { box-shadow: inset 0 0 0 1.5px #8fe0a0; }
 .pf-ach { display: flex; flex-wrap: wrap; gap: 8px; }
 .pf-ach span { padding: 4px 10px; border-radius: 6px; background: rgba(246, 215, 122, .12); box-shadow: inset 0 0 0 1px #d9c48a; font: 600 15px 'Fira Sans Extra Condensed', sans-serif; }
+
+/* Tournament */
+.tour { text-align: left; }
+.tour-players { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 14px; }
+.tour-players span { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 3px; border-radius: 20px; background: rgba(255, 255, 255, .06); }
+.tour-players i { width: 28px; height: 28px; border-radius: 50%; background: center 30% / auto 165%; box-shadow: 0 0 0 1.5px #d9c48a; }
+.tour-bracket { display: flex; gap: 18px; overflow-x: auto; padding: 6px 0 12px; }
+.tour-round { display: flex; flex-direction: column; justify-content: space-around; gap: 10px; min-width: 190px; }
+.tour-round > b { font: 800 14px 'Fira Sans Extra Condensed', sans-serif; text-transform: uppercase; letter-spacing: .06em; color: #f6d77a; }
+.tour-match { position: relative; display: grid; gap: 2px; padding: 6px 10px; border-radius: 8px; background: rgba(15, 10, 6, .6); box-shadow: inset 0 0 0 1px rgba(217, 196, 138, .35); }
+.tour-match.live { box-shadow: inset 0 0 0 1.5px #f6d77a; }
+.tour-match span.win { color: #8fe0a0; font-weight: 800; }
+.tour-match .btn { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); }
+.tour-champ { color: #f6d77a; }

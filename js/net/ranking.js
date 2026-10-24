@@ -71,3 +71,12 @@ export async function loadCardStats() {
   const rows = await get('card_winrate?select=card,games,wins&limit=1000');
   return new Map(rows.map((r) => [r.card, { games: r.games, wins: r.wins }]));
 }
+/** Колоды сообщества (needs tools/community_decks.sql). */
+export async function loadCommunityDecks() {
+  return get('community_decks?select=id,created_at,author,name,leader,cards&order=created_at.desc&limit=200');
+}
+export async function publishDeck(d, author) {
+  const res = await fetch(URL + 'community_decks', { method: 'POST', headers: { ...HEAD, Prefer: 'return=minimal' },
+    body: JSON.stringify({ player_id: playerId(), author: String(author || 'Игрок').slice(0, 24), name: String(d.name || 'Колода').slice(0, 40), leader: d.leader, cards: d.cards.slice(0, 80) }) });
+  return res.ok;
+}
