@@ -42,7 +42,8 @@ function toast(text, ms = 3000) {
 // ---------- settings ----------
 const opt = {
   sound: store.get('sound', true), bonus: store.get('bonus', false), botLevel: ['auto', 'novice', 'normal', 'strong'].includes(store.get('botLevel', 'auto')) ? store.get('botLevel', 'auto') : 'auto',
-  autopass: (() => { const v = store.get('autopass', 'smart'); return v === true ? true : v === 'always' || v === false ? 'always' : 'smart'; })(),
+  // Old versions saved true/false; false (the old «ask») becomes the new default «only when aimed at me».
+  autopass: (() => { const v = store.get('autopass', 'smart'); return v === true ? true : v === 'always' ? 'always' : 'smart'; })(),
   name: store.get('name', ''), speed: store.get('speed', 1), music: store.get('music', true), board: store.get('board', 'random'),
 };
 setSound(opt.sound); setMusic(opt.music); FX.setSpeed(opt.speed);
