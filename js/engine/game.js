@@ -721,21 +721,29 @@ export class Game {
     // Quiet moments: only ask when a card from hand can be played (abilities alone don't open them).
     const quiet = !this.cfg.options?.allWindows && ['turnStart', 'turnEnd', 'maneuver', 'regionEnd', 'battleEnd'].includes(kind);
     for (;;) {
-      if (quiet && !this.fastOptions(i).some((o) => o.kind === 'play')) return;
+      if (quiet && !this.fastOptions(i).some((o) => o.kind === 'play')) { this.fakeStop(i); return; }
       if (!(yield* this.offerPriority(i, kind))) return;
     }
+  }
+  /**
+   * Online games: when a player is NOT asked (nothing to answer with), sometimes still show the opponent a short
+   * «может ответить» pause, so a real stop does not give away that they hold a card with Опережение.
+   */
+  fakeStop(i) {
+    if (!this.cfg.options?.fakeStops?.[i] || this.s.over) return;
+    if (this.rand() < 0.22) this.emit('pause', { player: i, ms: Math.round(500 + this.rand() * 800) });
   }
   *offerPriority(i, kind = 'stack') {
     if (this.s.over) return false;
     const opts = this.fastOptions(i);
-    if (!opts.length) return false;
+    if (!opts.length) { this.fakeStop(i); return false; }
     if (this.cfg.options?.autoPass?.[i]) return false;
     // Answering the stack: by default ask only when a card from hand can be played, or when the item
     // targets this player's cards (then a Leader ability like a buff or protection matters).
     if (kind === 'stack' && !this.cfg.options?.allWindows && !opts.some((o) => o.kind === 'play')) {
       const top = this.s.stack[this.s.stack.length - 1];
       const mine = top && top.ctx.targets.some((u) => this.card(u)?.ctrl === i);
-      if (!mine) return false;
+      if (!mine) { this.fakeStop(i); return false; }
     }
     const a = yield* this.ask(i, {
       type: 'priority', prompt: this.s.stack.length ? `Опередить «${this.s.stack[this.s.stack.length - 1].label}»?` : 'Можно сыграть карту с Опережением',

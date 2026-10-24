@@ -210,7 +210,7 @@ class Session {
     const autoPass = [false, false];
     this.controllers.forEach((c, i) => { if (c === 'human' && opt.autopass) autoPass[i] = true; });
     const seed = (Math.random() * 2 ** 31) | 0;
-    this.game = new Game({ seed, players: this.cfgPlayers, options: { mulliganBonus: opt.bonus, autoPass, previews: true } });
+    this.game = new Game({ seed, players: this.cfgPlayers, options: { mulliganBonus: opt.bonus, autoPass, previews: true, fakeStops: this.controllers.includes('remote') ? [true, true] : null } });
     this.hook();
   }
   hook() {
@@ -243,7 +243,7 @@ class Session {
     const q = this.game.pending;
     const batch = this.remoteQueue.splice(0);
     batch.push({ ev: { type: 'sync' }, view: this.game.view(1) });
-    this.remote.send({ t: 'events', batch, pending: q && q.player === 1 ? q : null, waiting: !!q && q.player !== 1 });
+    this.remote.send({ t: 'events', batch, pending: q && q.player === 1 ? q : null, waiting: q && q.player !== 1 ? (q.type === 'priority' ? 'priority' : true) : false });
   }
   async pump() {
     if (this.busy) return;
@@ -458,7 +458,7 @@ class GuestSession {
         this.ui.setPending(null);
         await this.ui.playEvents(msg.batch);
         if (msg.pending) this.ui.setPending(msg.pending);
-        else if (msg.waiting) this.ui.setPending({ player: 0, type: 'wait', options: [] });
+        else if (msg.waiting) this.ui.setPending({ player: 0, type: msg.waiting === 'priority' ? 'priority' : 'wait', options: [] });
       });
     } else if (msg.t === 'emote') {
       this.ui?.showEmote(0, String(msg.text).slice(0, 160));

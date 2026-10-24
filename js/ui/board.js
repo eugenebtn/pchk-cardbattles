@@ -900,6 +900,7 @@ export class BoardUI {
     // A short heading in the card-name style + one line in the italic of card quotes, with a gold icon medal.
     let ico = 'scroll-unfurled', title = '', sub = '';
     if (v.over) title = '';
+    else if (this._fakeWait || (q && q.player !== me && q.type === 'priority')) { ico = 'bolt-shield'; title = 'Соперник может ответить'; sub = 'Ждём, ответит ли он Опережением.'; }
     else if (!q || q.player !== me) {
       if (v.phase === 'battle') { ico = 'crossed-swords'; title = 'Сражение'; sub = 'Союзники бьют друг друга; если напротив пусто — удар по Лидеру.'; }
       else if (v.phase === 'turn' && v.turn !== me) { ico = 'hourglass'; title = 'Ход соперника'; sub = 'Если сможете ответить Опережением — игра спросит.'; }
@@ -1259,6 +1260,14 @@ ${optHtml}</div></div>
     if (ev.type === 'declare' || ev.type === 'resolve') this._actId = ev.id ?? this.cardIdOf(ev.uid) ?? this._actId;
     if (ev.type === 'declareAbility' || ev.type === 'ability') this._actId = this.cardIdOf(ev.uid) ?? this._actId;
     switch (ev.type) {
+      case 'pause': {
+        // The opponent «may answer» (real or not — it looks the same, so stops don't reveal their hand).
+        if (ev.player === this.me) break;
+        this._fakeWait = true; this.updateHint();
+        await W(ev.ms || 1000);
+        this._fakeWait = false; this.updateHint();
+        break;
+      }
       case 'declare': case 'declareAbility': {
         const id = ev.id ?? this.cardIdOf(ev.uid);
         this.announce(ev, id);
