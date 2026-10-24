@@ -1049,13 +1049,26 @@ ${optHtml}</div></div>
     const src = pic(ref.src), tg = (ref.tgts || []).filter((t) => !ref.src || t.uid !== ref.src.uid).map(pic).join('');
     return `<span class="lr">${src}${src && tg ? '<span class="lr-arrow">➜</span>' : ''}${tg}</span>`;
   }
+  /** Big «who → whom» for the hover popup: large cards with names and who they belong to. */
+  logRefBigHtml(ref, text) {
+    const fig = (r, role) => {
+      const d = r && CARDS[r.id];
+      if (!d?.img) return '';
+      const side = r.ctrl === this.me ? 'mine' : 'theirs';
+      return `<figure class="lrb ${side}"><figcaption>${role}</figcaption><span class="lrb-card" style="background-image:url('${d.img}')"></span><b>${esc(d.name)}</b><small>${side === 'mine' ? 'ваша карта' : 'карта соперника'}</small></figure>`;
+    };
+    const tg = (ref.tgts || []).filter((t) => !ref.src || t.uid !== ref.src.uid);
+    const src = fig(ref.src, tg.length ? 'Кто' : 'Карта');
+    const tgts = tg.map((t) => fig(t, 'Против кого')).join('');
+    return `<div class="lrb-text">${esc(text || '')}</div><div class="lrb-row">${src}${src && tgts ? '<span class="lrb-arrow">➜</span>' : ''}${tgts}</div>`;
+  }
   /** Hovering a history line: show the cards next to the history and point at them on the board. */
   showLogRef(ref, anchor) {
     this.hideLogRef();
     if (!ref) return;
     const el = document.createElement('div');
     el.className = 'logref-pop';
-    el.innerHTML = this.logRefHtml(ref);
+    el.innerHTML = this.logRefBigHtml(ref, anchor.textContent);
     this.overlay().appendChild(el);
     const r = anchor.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight;
     el.style.left = Math.max(8, r.left - w - 14) + 'px';
@@ -1233,6 +1246,7 @@ ${optHtml}</div></div>
     pv.innerHTML = `${d.img ? `<img src="${d.img}" alt="">` : `<div class="gen-card">${GEN_EMOJI[id] || '✨'}<br>${esc(d.name)}<br><small>${d.atk ?? ''}/${d.hp ?? ''}</small></div>`}
       <div class="pv-info"><b>${esc(d.name)}</b> — ${TYPE_RU[d.type] || ''}${d.subtypes?.length ? ' · ' + d.subtypes.join(', ').toLowerCase() : ''}${statLine}
       ${kws.map((k) => `<div><b>${KW_NAME[k]}</b>: ${KW_HELP[k]}</div>`).join('')}
+      ${this.fxHtml(c, d)}
       ${!d.img && d.text ? `<div>${esc(d.text)}</div>` : ''}</div>`;
     pv.classList.remove('hidden');
     const r = el.getBoundingClientRect();
@@ -1242,6 +1256,21 @@ ${optHtml}</div></div>
     const y = Math.max(8, (window.innerHeight - h) / 2);
     pv.style.left = x + 'px'; pv.style.top = y + 'px';
   }
+  /** «Что на карте сейчас» (changes against the printed card) and «Что с ней было» (the effects noted by noteFx). */
+  fxHtml(c, d) {
+    if (!c || c.uid == null) return '';
+    const now = [];
+    if (c.atk != null && d.atk != null && c.atk !== d.atk) now.push(`⚔️ атака ${c.atk} (на карте ${d.atk})`);
+    if (c.maxHp != null && d.hp != null && c.maxHp !== d.hp) now.push(`❤️ здоровье до ${c.maxHp} (на карте ${d.hp})`);
+    if (c.hp != null && c.maxHp != null && c.hp < c.maxHp) now.push(`🩸 ранена: ${c.maxHp - c.hp}`);
+    if (c.stunned) now.push('💫 оглушена — не атакует');
+    const extra = (c.kws || []).filter((k) => KW_NAME[k] && !(d.kw || []).includes(k));
+    if (extra.length) now.push(`✨ получила: ${extra.map((k) => KW_NAME[k]).join(', ')}`);
+    const hist = (this.cardFx?.get(c.uid) || []).slice().reverse();
+    if (!now.length && !hist.length) return '';
+    return `<div class="pv-fx">${now.length ? `<div class="pv-fx-h">Сейчас на карте</div>${now.map((t) => `<div>${esc(t)}</div>`).join('')}` : ''}
+      ${hist.length ? `<div class="pv-fx-h">Что с ней было</div>${hist.map((h) => `<div><span>${h.icon}</span> ${esc(h.text)}${h.round ? ` <small>· раунд ${h.round}</small>` : ''}</div>`).join('')}` : ''}</div>`;
+  }
   hidePreview() { this.previewEl.classList.add('hidden'); }
 
   // ---------- event animations ----------
@@ -1250,6 +1279,7 @@ ${optHtml}</div></div>
       const { ev, view } = batch[k];
       if (!this.introDone && view && view.players?.[0]?.leader && !this.noIntro) await this.intro(view);
       try { this.tally(ev, view); } catch (e) { console.warn(e); }
+      try { this.noteFx(ev); } catch (e) { console.warn(e); }
       try { await this.pre(ev, batch, k); } catch (e) { console.warn(e); }
       this.render(view);
       try { await this.post(ev); } catch (e) { console.warn(e); }
@@ -1620,6 +1650,37 @@ ${optHtml}</div></div>
     if (el) el.style.opacity = '';
   }
   /** Match statistics for the end screen, counted from the events as they are shown. */
+  /** What happened to each card while it is in play (shown when you hover it). Cleared when it leaves play. */
+  noteFx(ev) {
+    const fx = this.cardFx || (this.cardFx = new Map());
+    // Played actions leave the board fast, so remember their ids to name them as the source.
+    const ids = this.fxIds || (this.fxIds = new Map());
+    if (ev.uid != null && ev.id != null) ids.set(ev.uid, ev.id);
+    const nm = (uid) => { const id = uid != null ? this.cardIdOf(uid) ?? ids.get(uid) : null; return id != null && CARDS[id] ? `«${CARDS[id].name}»` : ''; };
+    const add = (uid, icon, text, src) => {
+      if (uid == null) return;
+      const list = fx.get(uid) || [];
+      const by = src != null && src !== uid ? nm(src) : '';
+      list.push({ icon, text: text + (by ? ` — от ${by}` : ''), round: this.view?.round });
+      fx.set(uid, list.slice(-10));
+    };
+    const sign = (n) => (n >= 0 ? '+' : '') + n;
+    switch (ev.type) {
+      case 'buff': add(ev.uid, ev.atk < 0 || ev.hp < 0 ? '🔻' : '🔺', `${sign(ev.atk)}/${sign(ev.hp)}`, ev.src); break;
+      case 'grant': add(ev.uid, '✨', `получает «${KW_NAME[ev.kw] || ev.kw}»`, ev.src); break;
+      case 'stun': add(ev.uid, '💫', 'оглушение', ev.src); break;
+      case 'damage': if (ev.amount > 0) add(ev.tgt, '🩸', `${ev.amount} ${plural(ev.amount, 'рана', 'раны', 'ран')}${ev.combat ? ' в бою' : ''}`, ev.src); break;
+      case 'heal': add(ev.uid, '💚', `лечение ${ev.amount}`, ev.src); break;
+      case 'tokens': add(ev.uid, TOK_ICON[ev.type] || '●', `${sign(ev.n)} ${TOK_ICON[ev.type] ? '' : ev.type}`.trim()); break;
+      case 'control': add(ev.uid, '🔁', 'сменила хозяина'); break;
+      case 'flip': add(ev.uid, '🔃', 'перевёрнута'); break;
+      case 'move': add(ev.uid, '➡️', 'перемещена'); break;
+      case 'declare': case 'declareAbility':
+        for (const t of ev.targets || []) { const u = typeof t === 'object' ? t?.uid : t; if (u != null && u !== ev.uid) add(u, '🎯', ev.type === 'declare' ? `цель карты «${CARDS[ev.id]?.name || '?'}»` : `цель свойства «${ev.name}» ${nm(ev.uid)}`); }
+        break;
+      case 'death': case 'exiled': case 'toHand': case 'discard': fx.delete(ev.uid); break;
+    }
+  }
   tally(ev, view) {
     const st = this.stats || (this.stats = { dmg: [0, 0], face: [0, 0], kills: [0, 0], played: [0, 0], best: null, byCard: new Map() });
     const ctrl = (uid) => {
@@ -1676,6 +1737,7 @@ ${optHtml}</div></div>
             ${bestCard ? `<div class="ov-high"><span class="ov-pic" style="background-image:url('${CARDS[bestCard.id]?.img || ''}')"></span><div><b>Ваша лучшая карта</b>«${esc(CARDS[bestCard.id]?.name.split(',')[0] || '')}» — ${bestCard.v} ${plural(bestCard.v, 'рана', 'раны', 'ран')} за партию</div></div>` : ''}
           </div>
           <div class="ov-rank">${this._rankHtml || (this.noRank ? '' : '<span class="ov-wait">Обновляем мировой рейтинг…</span>')}</div>
+          <a class="ov-buy" href="https://cardbattles.cc" target="_blank" rel="noopener">Понравилось? Купите настоящую коробку на cardbattles.cc</a>
           <div class="ov-btns"><button class="ov-btn gold" data-again>Реванш</button><button class="ov-btn" data-rank>Рейтинг</button><button class="ov-btn" data-menu>В меню</button></div>
         </div>`;
       this.overlay().appendChild(o);

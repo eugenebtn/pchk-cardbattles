@@ -72,7 +72,7 @@ setTimeout(() => preload([20, 41, 62, 63, 117, 118]), 300);
 // ---------- scene behind the splash, menu and hero select: velvet, leader art slices, a fan of leader cards ----------
 const LEADER_IDS = [62, 117, 41, 20, 118, 63];
 (function scene() {
-  $('#scene-slices').innerHTML = [20, 41, 63, 62, 117, 118].map((id) => `<div class="sl" style="background-image:url('${CARDS[id].img}')"></div>`).join('');
+  $('#scene-slices').innerHTML = [20, 41, 63, 62, 117, 118].map((id) => `<div class="sl" style="background-image:url('assets/leaders/${id}.webp')"></div>`).join('');
   document.querySelectorAll('[data-fan]').forEach((fan) => {
     const n = LEADER_IDS.length;
     fan.innerHTML = LEADER_IDS.map((id, i) => `<div class="fan-card" style="--k:${i - (n - 1) / 2};--i:${i};background-image:url('${CARDS[id].img}')"></div>`).join('');
@@ -102,7 +102,9 @@ $('#menu [data-act=settings]')?.addEventListener('click', () => { $('#menu-opts'
 // What each Leader does, in plain words for a first game, and how hard the deck is to play.
 // Where the face is on each Leader card (for round portraits).
 const FOCUS = { 20: '71% 25%', 41: '32% 21%', 62: '50% 24%', 63: '54% 21%', 117: '41% 25%', 118: '50% 21%' };
-const focus = (id) => FOCUS[id] || '50% 26%';
+// The Leader's painting alone, large and cleaned up (tools/enhance-cards.py); the face sits at the same x as on the card.
+const art = (id) => `assets/leaders/${id}.webp`;
+const artFocus = (id) => (FOCUS[id] || '50%').split(' ')[0] + ' 40%';
 const DIFF_RU = { 1: '★ Просто — для первой партии', 2: '★★ Средне', 3: '★★★ Сложно — для опытных' };
 const LEADER_PLAIN = {
   20: { d: 1, t: ['Каждый ход получает +2 монеты', 'За 2 монеты делает союзника сильнее на +1/+1 — даже в ход соперника'] },
@@ -146,9 +148,9 @@ function pickDecks(steps) {
         root.innerHTML = `<div class="hero-select">
           ${steps.length > 1 ? `<div class="hs-step s${step}">Шаг ${step + 1} из ${steps.length}</div>` : ''}
           <div class="hs-title">${esc(st.title)}</div>
-          ${chosen.length ? `<div class="hs-chosen">${chosen.map((c, k) => `<span><i style="background-image:url('${CARDS[c.leader].img}');background-position:${focus(c.leader)}"></i>${k === 0 ? 'Ваш выбор' : 'Выбор ' + (k + 1)}: <b>${esc(c.title)}</b> ✓</span>`).join('')}</div>` : ''}
+          ${chosen.length ? `<div class="hs-chosen">${chosen.map((c, k) => `<span><i class="la" style="background-image:url('${art(c.leader)}');background-position:${artFocus(c.leader)}"></i>${k === 0 ? 'Ваш выбор' : 'Выбор ' + (k + 1)}: <b>${esc(c.title)}</b> ✓</span>`).join('')}</div>` : ''}
           <div class="hs-main">
-            <div class="hs-portrait art" style="background-image:url('${L ? L.img : CARDS[63].img}')${sel.random ? ';filter:brightness(.35) blur(2px)' : `;background-position:${focus(sel.leader)}`}">${L ? `<div class="hs-port-name">${esc(L.name.split(',')[0])}</div>` : ''}${sel.random ? '<div style="position:absolute;inset:0;display:grid;place-items:center;font-size:120px;filter:none">🎲</div>' : ''}</div>
+            <div class="hs-portrait art la" style="background-image:url('${art(L ? sel.leader : 63)}')${sel.random ? ';filter:brightness(.35) blur(2px)' : `;background-position:${artFocus(sel.leader)}`}">${L ? `<div class="hs-port-name">${esc(L.name.split(',')[0])}</div>` : ''}${sel.random ? '<div style="position:absolute;inset:0;display:grid;place-items:center;font-size:120px;filter:none">🎲</div>' : ''}</div>
             <div class="hs-info">
               <div class="hs-name">${esc(sel.random ? 'Случайный соперник' : L.name)}</div>
               <div class="hs-sub">${sel.random ? 'Компьютер возьмёт любую стартовую колоду' : `${esc(sel.title)} · ${sel.official ? 'стартовая скрижаль' : 'своя колода'} · ${sel.cards.length} карт`}</div>
@@ -159,7 +161,7 @@ function pickDecks(steps) {
             </div>
           </div>
           <div class="hs-roster"><div class="hs-medal newdeck" data-new><div class="m">＋</div>Своя колода<div class="tag">собрать</div></div>${list.map((d) => `<div class="hs-medal ${d === sel ? 'sel' : ''} ${d.random ? 'random' : ''}" data-key="${d.key}">
-            <div class="m" ${d.random ? '' : `style="background-image:url('${CARDS[d.leader].img}');background-position:${focus(d.leader)}"`}>${d.random ? '🎲' : ''}</div>
+            <div class="m ${d.random ? '' : 'la'}" ${d.random ? '' : `style="background-image:url('${art(d.leader)}');background-position:${artFocus(d.leader)}"`}>${d.random ? '🎲' : ''}</div>
             ${esc(d.random ? 'Случайный' : d.title)}${!d.random && !d.official ? '<div class="tag">своя</div>' : ''}</div>`).join('')}</div>
           <div class="hs-bar"><button class="btn" data-back>← Назад</button><button class="btn hs-go" data-go>${esc(step === steps.length - 1 ? (st.goLabel || 'В бой!') : 'Далее')}</button></div>
         </div>`;
@@ -183,7 +185,7 @@ function pickDecks(steps) {
           // A short pause that shows the choice was taken, then the next step slides in.
           const box = root.querySelector('.hero-select');
           box.classList.add('picked');
-          box.insertAdjacentHTML('beforeend', `<div class="hs-picked"><div class="hs-picked-in"><i style="background-image:url('${CARDS[d.leader].img}');background-position:${focus(d.leader)}"></i><span>Выбрано: <b>${esc(d.title)}</b></span><small>Теперь: ${esc(steps[step].title)}</small></div></div>`);
+          box.insertAdjacentHTML('beforeend', `<div class="hs-picked"><div class="hs-picked-in"><i class="la" style="background-image:url('${art(d.leader)}');background-position:${artFocus(d.leader)}"></i><span>Выбрано: <b>${esc(d.title)}</b></span><small>Теперь: ${esc(steps[step].title)}</small></div></div>`);
           root.querySelectorAll('button').forEach((b) => { b.disabled = true; });
           setTimeout(() => { draw(); root.querySelector('.hero-select')?.classList.add('step-in'); }, 1300);
         };

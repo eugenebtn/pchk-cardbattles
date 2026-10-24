@@ -150,7 +150,7 @@
 #stage.land .prompt.wait { display: none; }
 .hint-bar .hint-ico { font-size: 20px; }
 #stage.port .hint-bar { font-size: 24px; }
-.log-panel { background: rgba(10, 8, 6, .72) !important; border: none !important; border-radius: 8px; box-shadow: inset 0 0 0 1.5px rgba(217, 196, 138, .4) !important; font-family: var(--cond); font-size: 15px; color: #cbbd9c; }
+.log-panel { background: rgba(10, 8, 6, .72) !important; border: none !important; border-radius: 8px; box-shadow: inset 0 0 0 1.5px rgba(217, 196, 138, .4) !important; font-family: var(--cond); font-size: 17px; color: #cbbd9c; }
 .power { border-radius: 8px; padding: 6px 12px 6px 6px; font-family: var(--cond); font-weight: 700; font-size: 18px; filter: saturate(.5) brightness(.8); }
 .power .pw-ico { background: radial-gradient(circle at 34% 28%, #fff1c0, #d6a948 45%, #7a5212) !important; border: none !important; box-shadow: 0 0 0 2px #5a3e10; }
 .power .pw-ico .ico { filter: brightness(0) opacity(.7); }
@@ -266,9 +266,18 @@
 .lr-card { display: inline-block; width: 46px; height: 64px; border-radius: 5px; background-size: cover; background-position: center; box-shadow: 0 0 0 2px #0f1418, 0 0 0 3.5px #8fb8e8; }
 .lr-card.theirs { box-shadow: 0 0 0 2px #0f1418, 0 0 0 3.5px #e8907a; }
 .lr-arrow { color: #f6d77a; font-size: 22px; text-shadow: 0 2px 2px #000; }
-.logref-pop { position: fixed; z-index: 260; pointer-events: none; padding: 10px 12px; border-radius: 10px; background: #0f1418; box-shadow: inset 0 0 0 1.5px #d9c48a, 0 14px 30px rgba(0, 0, 0, .7); animation: fadein .15s; }
-.logref-pop .lr-card { width: 110px; height: 153px; border-radius: 8px; }
-.logref-pop .lr-arrow { font-size: 34px; margin: 0 4px; }
+.logref-pop { position: fixed; z-index: 260; pointer-events: none; padding: 14px 18px 16px; border-radius: 14px; background: #0f1418; max-width: min(760px, 70vw);
+  box-shadow: inset 0 0 0 2px #d9c48a, 0 18px 40px rgba(0, 0, 0, .8); animation: fadein .15s; }
+.lrb-text { font-family: 'PT Serif', serif; font-size: 19px; line-height: 1.3; color: #f3e6c4; text-align: center; margin-bottom: 12px; }
+.lrb-row { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; }
+.lrb { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 5px; width: clamp(150px, 13vw, 210px); text-align: center; }
+.lrb figcaption { font-family: var(--cond); font-size: 15px; letter-spacing: .08em; text-transform: uppercase; padding: 2px 12px; border-radius: 4px; color: #fff; background: #2f6fb0; }
+.lrb.theirs figcaption { background: #a8402e; }
+.lrb-card { display: block; width: 100%; aspect-ratio: 5 / 7; border-radius: 10px; background-size: cover; background-position: center; box-shadow: 0 0 0 3px #0f1418, 0 0 0 5px #8fb8e8, 0 8px 18px rgba(0, 0, 0, .6); }
+.lrb.theirs .lrb-card { box-shadow: 0 0 0 3px #0f1418, 0 0 0 5px #e8907a, 0 8px 18px rgba(0, 0, 0, .6); }
+.lrb b { font-family: var(--cond); font-size: 18px; color: #fff; line-height: 1.15; }
+.lrb small { font-size: 14px; color: #b9ab88; }
+.lrb-arrow { font-size: 46px; color: #f6d77a; text-shadow: 0 2px 3px #000; }
 .card.logfocus .frame { box-shadow: 0 0 0 4px #f6d77a, 0 0 26px rgba(246, 215, 122, .9) !important; }
 #game .log-full .log-line { display: flex; align-items: center; gap: 10px; padding: 4px 0; border-bottom: 1px solid rgba(217, 196, 138, .12); }
 #game .log-full .lr-card { width: 38px; height: 53px; }
@@ -445,3 +454,9 @@
 .ov-btn.gold { background: linear-gradient(rgba(255, 255, 255, .14), rgba(0, 0, 0, .2)), #9a2420; }
 .ov-btn:hover { filter: brightness(1.15); }
 @media (max-width: 700px) { .over2 .ov-side { width: 60vw; opacity: .5; } .ov-stats { font-size: 16px; } }
+
+/* Card hover: what is on the card now and what happened to it. */
+.pv-fx { margin-top: 8px; padding: 8px 10px; border-radius: 8px; background: rgba(217, 196, 138, .1); box-shadow: inset 0 0 0 1px rgba(217, 196, 138, .35); font-size: 15px; line-height: 1.35; }
+.pv-fx-h { font-family: var(--cond); font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: #f6d77a; margin: 4px 0 2px; }
+.pv-fx-h:first-child { margin-top: 0; }
+.pv-fx small { color: #9d917a; }
