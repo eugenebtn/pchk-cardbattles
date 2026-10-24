@@ -36,6 +36,8 @@ let canvas, c2d, layer, stageEl;
 const parts = [];
 let running = false;
 export let speed = 1; // animation speed multiplier (higher = faster)
+// Particle density: the card-style look wants a few precise sparks, not clouds.
+const calm = 0.45;
 export function setSpeed(s) { speed = s; }
 const wait = (ms) => new Promise((r) => setTimeout(r, ms / speed));
 export { wait };
@@ -134,7 +136,7 @@ function add(p) {
 
 // ---------- primitives ----------
 export function burst(x, y, o = {}) {
-  const n = o.count ?? 24;
+  const n = Math.max(1, Math.round((o.count ?? 24) * calm));
   for (let i = 0; i < n; i++) {
     const a = (o.angle ?? 0) + (o.spread ?? Math.PI * 2) * (Math.random() - (o.spread ? 0.5 : 0));
     const sp = (o.speed ?? 6) * (0.3 + Math.random());
@@ -149,7 +151,7 @@ export function burst(x, y, o = {}) {
   }
 }
 export function ring(x, y, color = '#ffd27a', size = 20, life = 600, grow = 4, width = 5) { add({ x, y, shape: 'ring', color, size, life, grow, width, drag: 1 }); }
-export function glow(x, y, color, size = 80, life = 500) { add({ x, y, size, color, core: color, life, grow: 0.6, drag: 1, alpha: 0.85 }); }
+export function glow(x, y, color, size = 80, life = 500) { add({ x, y, size: size * 0.8, color, core: color, life, grow: 0.5, drag: 1, alpha: 0.4 }); }
 /** Textured burst helpers. */
 export function smoke(x, y, o = {}) {
   burst(x, y, { shape: 'tex', tex: ['smoke_01', 'smoke_02', 'smoke_03', 'smoke_04', 'smoke_05', 'smoke_06', 'smoke_07'], color: o.color || ['#4a4038', '#6b5f55', '#2e2722'], count: o.count ?? 10, speed: o.speed ?? 1.6, size: o.size ?? 46, grow: o.grow ?? 1.1, add: false, alpha: o.alpha ?? 0.75, life: o.life ?? 1300, gravity: o.gravity ?? -0.03, spin: 0.04, jitter: o.jitter ?? 30, drag: 0.96 });
@@ -240,6 +242,7 @@ export function splat(x, y, text, heal = false) {
   el.animate([{ transform: 'translate(-50%,-50%) scale(0) rotate(-20deg)' }, { transform: 'translate(-50%,-50%) scale(1.15) rotate(0deg)', offset: 0.25 }, { transform: 'translate(-50%,-50%) scale(1)', opacity: 1, offset: 0.8 }, { transform: 'translate(-50%,-50%) scale(1)', opacity: 0 }], { duration: 1000 / speed }).onfinish = () => el.remove(); setTimeout(() => el.remove(), 2500);
 }
 export function shake(power = 1) {
+  power *= 0.6;
   const b = stageEl.querySelector('#board');
   b.animate([
     { transform: 'translate(0,0)' }, { transform: `translate(${-6 * power}px,${3 * power}px)` }, { transform: `translate(${7 * power}px,${-4 * power}px)` },
@@ -248,9 +251,9 @@ export function shake(power = 1) {
 }
 export function flash(color = 'rgba(255,255,255,.7)', dur = 300) {
   const el = document.createElement('div');
-  el.style.cssText = `position:absolute;inset:0;background:${color};pointer-events:none;z-index:84`;
+  el.style.cssText = `position:absolute;inset:0;background:${color};pointer-events:none;z-index:84;opacity:.55`;
   layer.appendChild(el);
-  el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur / speed }).onfinish = () => el.remove(); setTimeout(() => el.remove(), 2500);
+  el.animate([{ opacity: 0.55 }, { opacity: 0 }], { duration: dur / speed }).onfinish = () => el.remove(); setTimeout(() => el.remove(), 2500);
 }
 export async function banner(text, cls = '', dur = 1100) {
   const el = document.createElement('div');
@@ -278,13 +281,10 @@ export function streak(a, b, kind = 'gold') {
 /** Heavy impact: flash, shockwave, sparks, debris. */
 export function impact(x, y, kind = 'gold') {
   const col = PAL[kind] || PAL.gold;
-  flare(x, y, col[1], 150, 320);
-  slashFx(x, y, col[0], 120);
+  flare(x, y, col[1], 110, 260);
+  slashFx(x, y, col[0], 110);
   sparks(x, y, { color: col.slice(0, 2), count: 16 });
-  glow(x, y, col[1], 120, 260);
-  add({ x, y, size: 60, color: col[0], core: '#ffffff', life: 140, drag: 1, grow: 0.5 });
-  ring(x, y, col[0], 16, 420, 5, 6);
-  burst(x, y, { color: col, shape: 'spark', count: 34, speed: 13, life: 520 });
+  burst(x, y, { color: col, shape: 'spark', count: 30, speed: 12, life: 480 });
   burst(x, y, { color: ['#6b5440', '#a88a6a'], shape: 'shard', count: 10, speed: 6, gravity: 0.35, add: false, size: 5, spin: 0.4, life: 700 });
 }
 /** Dust cloud when something lands on the table. */
@@ -297,7 +297,7 @@ export function dust(x, y, power = 1) {
 /** Rotating light rays (legendary arrivals). */
 export function rays(x, y, color = '#ffd84a') {
   const el = document.createElement('div');
-  el.style.cssText = `position:absolute;left:${x - 220}px;top:${y - 220}px;width:440px;height:440px;pointer-events:none;z-index:44;border-radius:50%;background:repeating-conic-gradient(from 0deg, ${color}55 0 5deg, transparent 5deg 20deg);-webkit-mask:radial-gradient(circle,#000 0 15%,transparent 62%);mask:radial-gradient(circle,#000 0 15%,transparent 62%);mix-blend-mode:screen`;
+  el.style.cssText = `position:absolute;left:${x - 220}px;top:${y - 220}px;width:440px;height:440px;pointer-events:none;z-index:44;border-radius:50%;background:repeating-conic-gradient(from 0deg, ${color}2a 0 5deg, transparent 5deg 20deg);-webkit-mask:radial-gradient(circle,#000 0 15%,transparent 62%);mask:radial-gradient(circle,#000 0 15%,transparent 62%);mix-blend-mode:screen`;
   layer.appendChild(el);
   el.animate([{ transform: 'scale(.3) rotate(0deg)', opacity: 0 }, { transform: 'scale(1) rotate(40deg)', opacity: 1, offset: 0.3 }, { transform: 'scale(1.2) rotate(110deg)', opacity: 0 }], { duration: 1500 / speed, easing: 'ease-out' });
   setTimeout(() => el.remove(), 1550 / speed);

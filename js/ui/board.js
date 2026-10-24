@@ -21,6 +21,16 @@ const GEN_EMOJI = { 901: '🤡', 902: '🧌' };
 const TOK_TIP = { blood: 'Кровь 🩸', goods: 'Товары 📦', star: 'Тайная магия ✨', web: 'Паутина 🕸️', coins: 'Монеты 💰' };
 
 export const cardDef = (id) => CARDS[id];
+// Old board themes now map to Place cards whose painting fills the battlefield.
+const PLACE_THEME = { tavern: 160, castle: 8, dungeon: 33 };
+// Short Leader names for the ribbon on the board.
+const LEADER_SHORT = { 20: 'Лёвенхарт', 41: 'Крыса Лариса', 62: 'Дан Балан', 63: 'Граф Влад', 117: 'Эрик Пэнисов', 118: 'София' };
+/** Background CSS that fits the painted part of a card scan (x 6–94%, y 12–50% — above the name ribbon on every card type) into a w×h box. */
+export function artCover(img, w, h, fy = 0.2) {
+  const s = Math.max(w / 0.88, h / 0.53);
+  const x = -(s * 0.06) - (s * 0.88 - w) * 0.5, y = -(s * 0.167) - (s * 0.53 - h) * fy;
+  return `background-image:url('${img}');background-size:${s}px auto;background-position:${x}px ${y}px;background-repeat:no-repeat`;
+}
 
 export class BoardUI {
   constructor(stage, { me, onAnswer, onMenu, hotseat = false, theme = 'tavern' }) {
@@ -74,11 +84,10 @@ export class BoardUI {
     const L = this.L;
     const b = this.board;
     b.innerHTML = '';
-    const mat = (cls, [x, y, w, h]) => `<div class="mat ${cls}" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px"></div>`;
-    b.insertAdjacentHTML('beforeend', mat('opp', L.mats.opp) + mat('me', L.mats.me) + `<div class="midline" style="top:${L.midY - 3}px;left:${L.colX(0) - 16}px;width:${L.colX(4) + L.colW - L.colX(0) + 32}px"></div>`);
-    for (const [x, y] of L.torches) {
-      b.insertAdjacentHTML('beforeend', `<div class="torch" style="left:${x}px;top:${y}px"><div class="glow"></div><div class="bracket"></div><div class="flame"></div></div>`);
-    }
+    // The battlefield is one big Place card: black frame, the place's painting inside, a blue name ribbon.
+    const [fx, fy, fw, fh] = L.field;
+    b.insertAdjacentHTML('beforeend', `<div class="field" style="left:${fx}px;top:${fy}px;width:${fw}px;height:${fh}px"><div class="field-art"></div><div class="field-shade"></div></div>
+      <div class="field-ribbon rib place" style="left:${fx + fw / 2 - 210}px;top:${fy - 22}px"></div>`);
     this.cols = [];
     this.slots = { ally: [[], []], place: [[], []] };
     const colTop = L.y.oppPlace - 6, colH = L.y.myPlace + L.place.h + 6 - colTop;
@@ -325,6 +334,7 @@ export class BoardUI {
     const mode = w.mode;
     const cls = ['card', mode === 'small' ? `small ${d.type}` : mode];
     if (d.legend) cls.push('legend');
+    if (d.rarity === 'Золото') cls.push('gold');
     if (c.created) cls.push('created');
     const kws = c.kws || [];
     for (const k of ['defense', 'indestructible', 'breakthrough', 'deathtouch']) if (kws.includes(k)) cls.push(k);
@@ -342,14 +352,14 @@ export class BoardUI {
     }
     const kwIcons = kws.filter((k) => KW_ICON[k] && k !== 'defense' && k !== 'ward').map((k) => `<div class="kw" data-tip="${KW_NAME[k]}|${KW_HELP[k]}">${KW_SVG[k] || KW_ICON[k]}</div>`).join('');
     const toks = Object.entries(c.tok || {}).filter(([, n]) => n > 0).map(([t, n]) => `<div class="tok ${t}" data-tip="${TOK_TIP[t] || 'Фишки'}|${n} шт. Тратятся на свойства этой карты.">${TOK_SVG[t] || TOK_ICON[t] || t}<b>${n}</b></div>`).join('');
-    const showName = mode !== 'leader';
+    const showName = mode !== 'small';
     el.innerHTML = `
       <div class="shadow"></div>
       ${kws.includes('defense') && mode !== 'leader' ? '<div class="taunt"></div>' : ''}
       <div class="frame"></div>
       <div class="face" style="${bg}">${gen}</div><div class="shade"></div>
-      ${d.legend && mode === 'ally' ? '<div class="crown"></div>' : ''}
-      ${showName ? `<div class="nm">${d.name.split(',')[0]}</div>` : ''}
+      ${d.legend && mode !== 'leader' ? '<div class="legend-medal" data-tip="Легенда|У вас на поле не может быть двух Легенд с одним именем."></div>' : ''}
+      ${showName ? `<div class="nm rib ${d.type}">${mode === 'leader' ? (LEADER_SHORT[c.id] || d.name.split(',')[0]) : d.name.split(',')[0]}</div>` : ''}
       ${stats}
       ${kwIcons ? `<div class="kw-row">${kwIcons}</div>` : ''}
       ${toks ? `<div class="tok-row">${toks}</div>` : ''}
@@ -658,24 +668,13 @@ export class BoardUI {
   }
 
   applyTheme() {
-    const t = this.theme || 'tavern';
-    this.stage.classList.remove('theme-tavern', 'theme-castle', 'theme-dungeon');
-    this.stage.classList.add('theme-' + t);
-    if (this.L.name !== 'land') return;
-    const b = this.board;
-    const props = {
-      tavern: [['🍺', 1268, 214, 'mug'], ['🎲', 1480, 236, 'd20'], ['🐔', 1290, 600, 'chicken']],
-      castle: [['🗡️', 1268, 220, 'sword'], ['🐀', 1488, 236, 'rat'], ['🛡️', 1290, 600, 'crest']],
-      dungeon: [['🍲', 1268, 214, 'curry'], ['💀', 1488, 236, 'skull'], ['🕯️', 1290, 600, 'candle']],
-    }[t] || [];
-    for (const [e, x, y, kind] of props) {
-      const el = document.createElement('div');
-      el.className = 'prop emoji'; el.textContent = e; el.style.left = x + 'px'; el.style.top = y + 'px';
-      el.dataset.kind = kind;
-      el.addEventListener('click', (ev) => { ev.stopPropagation(); this.poke(el, kind); });
-      b.appendChild(el);
-      if (kind === 'chicken') this.wander(el);
-    }
+    const id = Number(PLACE_THEME[this.theme] ?? this.theme) || 160;
+    const d = CARDS[id];
+    const [, , fw, fh] = this.L.field;
+    const art = this.board.querySelector('.field-art');
+    if (art && d) art.style.cssText = artCover(d.img, fw - 24, fh - 24, 0.5);
+    const rib = this.board.querySelector('.field-ribbon');
+    if (rib && d) { rib.textContent = d.name; rib.setAttribute('data-tip', `${d.name}|Здесь идёт бой. Место можно выбрать в настройках.`); }
   }
   wander(el) {
     const spots = [[1290, 600], [1460, 620], [1500, 540], [1280, 520], [1420, 690]];
@@ -1207,33 +1206,30 @@ export class BoardUI {
         const p = this.stagePoint(el);
         const big = (d.cost ?? 0) >= 6 || d.legend;
         const type = d.type;
+        // The card is put down on the table: it comes in a little above, its shadow shrinks, a small puff on landing.
         el.animate([
-          { transform: 'translateY(-90px) scale(1.6)', opacity: 0, filter: 'brightness(2.2) drop-shadow(0 40px 20px rgba(0,0,0,.6))' },
-          { transform: 'translateY(-20px) scale(1.25)', opacity: 1, filter: 'brightness(1.5)', offset: 0.45 },
-          { transform: 'translateY(0) scale(.94)', filter: 'brightness(1.2)', offset: 0.72 },
-          { transform: 'scale(1)', filter: 'brightness(1)' },
-        ], { duration: 560 / FX.speed, easing: 'cubic-bezier(.5,0,.6,1)' });
+          { transform: 'translateY(-46px) scale(1.18) rotate(-2deg)', opacity: 0, filter: 'drop-shadow(0 46px 18px rgba(0,0,0,.45))' },
+          { transform: 'translateY(-30px) scale(1.12) rotate(-1deg)', opacity: 1, filter: 'drop-shadow(0 34px 16px rgba(0,0,0,.5))', offset: 0.35 },
+          { transform: 'translateY(0) scale(.98)', filter: 'drop-shadow(0 6px 6px rgba(0,0,0,.6))', offset: 0.8 },
+          { transform: 'scale(1)', filter: 'none' },
+        ], { duration: 520 / FX.speed, easing: 'cubic-bezier(.4,0,.6,1)' });
         await W(400);
         if (type === 'ally' || type === 'place') {
           sfx.land(big, p.x);
-          FX.dust(p.x, p.y + (type === 'ally' ? 70 : 34), big ? 1.6 : 1);
-          FX.ring(p.x, p.y + 30, d.legend ? '#ffd84a' : 'rgba(255,230,180,.75)', 24, 600, big ? 5 : 3, big ? 7 : 3);
-          FX.shake(big ? ((d.cost ?? 0) >= 9 ? 2.4 : 1.5) : 0.5);
+          FX.dust(p.x, p.y + (type === 'ally' ? 80 : 34), big ? 0.9 : 0.55);
+          if (big) FX.shake((d.cost ?? 0) >= 9 ? 1.4 : 0.8);
         } else {
           sfx.magic(p.x);
-          FX.glow(p.x, p.y, type === 'companion' ? 'rgba(190,120,255,.7)' : 'rgba(255,210,120,.7)', 90, 600);
-          FX.burst(p.x, p.y, { color: type === 'companion' ? ['#d6a8ff', '#8a4ab0', '#fff'] : ['#ffe08a', '#fff', '#c98a2a'], count: 24, speed: 4, size: 7, gravity: -0.06 });
+          FX.glow(p.x, p.y, type === 'companion' ? 'rgba(190,120,255,.45)' : 'rgba(255,210,120,.45)', 80, 500);
         }
         if (this._epicLanding) {
           this._epicLanding = false;
-          FX.shake(3); FX.scorch(p.x, p.y + 60, 120); FX.dust(p.x, p.y + 70, 2.2);
-          FX.ring(p.x, p.y + 30, '#ffd84a', 30, 800, 7, 8);
-          FX.burst(p.x, p.y + 40, { shape: 'tex', tex: ['star_01', 'spark_03'], color: ['#ffe08a', '#fff'], count: 40, speed: 9, size: 14, life: 1000, gravity: 0.1 });
+          FX.shake(1.4); FX.dust(p.x, p.y + 70, 1.4);
+          FX.stars(p.x, p.y, { count: 14 });
         }
         if (d.legend) {
           sfx.legend(p.x);
-          FX.rays(p.x, p.y, '#ffd84a');
-          FX.burst(p.x, p.y, { color: ['#ffd84a', '#fff1a8', '#ffffff'], count: 40, speed: 10, size: 7 });
+          el.classList.add('shine'); setTimeout(() => el.classList.remove('shine'), 1300);
         }
         if (ev.created && type === 'ally') sfx.animal(p.x);
         if (d.legend && d.flavor && (type === 'ally' || type === 'companion')) this.bubbleAt(p.x - 60, p.y - (this.L.name === 'port' ? 130 : 100), `«${d.flavor}»`, 2800);
@@ -1356,9 +1352,7 @@ export class BoardUI {
     await FX.wait(430);
     FX.flash('rgba(255,236,170,.65)', 420);
     FX.shake(2.6);
-    FX.rays(cx, cy, '#ffd84a'); FX.rays(cx, cy, '#fff2b0');
-    FX.ring(cx, cy, '#ffe9a8', 60, 900, 6, 10);
-    FX.ring(cx, cy, '#ffb347', 40, 1100, 9, 6);
+    FX.rays(cx, cy, '#ffd84a');
     FX.flare(cx, cy, '#ffd27a', 420, 700);
     FX.burst(cx, cy, { shape: 'tex', tex: ['star_01', 'star_04', 'spark_02'], color: ['#fff6c8', '#ffd84a', '#ffb347'], count: 70, speed: 14, size: 22, life: 1400, gravity: 0.12, spin: 0.3 });
     for (let k = 0; k < 4; k++) setTimeout(() => FX.burst(cx - W / 2 + Math.random() * W, -20, { shape: 'tex', tex: ['star_02', 'spark_01'], color: ['#ffe08a', '#fff'], count: 18, speed: 3, angle: Math.PI / 2, spread: 1, gravity: 0.18, size: 14, life: 1600 }), k * 160 / S);

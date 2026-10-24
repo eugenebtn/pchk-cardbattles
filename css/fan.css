@@ -1,0 +1,69 @@
+/* Start screen and menu: dark velvet, faded leader art in slanted slices, a fan of the six Leader cards. */
+:root { --velvet-1: #3e1424; --velvet-2: #14060c; --fan-gold: #f3c45a; --fan-cream: #efe2c4; --fan-line: rgba(243, 196, 90, .35); }
+
+/* ---------- shared background ---------- */
+.scene { background: var(--velvet-2); }
+.scene-velvet { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 40%, var(--velvet-1), var(--velvet-2) 72%); }
+.scene-velvet::after { content: ''; position: absolute; inset: 0; background: url('../assets/tex/leather.webp') center / 600px; opacity: .1; mix-blend-mode: overlay; }
+.scene-slices { position: absolute; inset: 0 -6%; display: flex; opacity: .3; }
+.scene-slices .sl { flex: 1; margin: 0 -2.2%; clip-path: polygon(22% 0, 100% 0, 78% 100%, 0 100%);
+  background-size: auto 232%; background-position: 50% 21%; background-repeat: no-repeat; }
+.scene-shade { position: absolute; inset: 0; background: radial-gradient(ellipse 55% 60% at 50% 42%, rgba(20, 6, 12, .2), rgba(20, 6, 12, .95) 80%); }
+.scene #menu-bg { opacity: .7; }
+
+/* ---------- splash + menu layout ---------- */
+#splash.active, #menu.active { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; overflow: hidden auto; }
+#menu, #splash { background: none !important; }
+.fan-sub { font-family: 'Cormorant SC', serif; font-weight: 600; letter-spacing: 4px; color: #d9b469; font-size: clamp(16px, 2.2vw, 24px); }
+#splash .fan-sub { position: absolute; top: calc(4vh + env(safe-area-inset-top)); left: 0; right: 0; }
+#menu .fan-sub { position: absolute; top: calc(3.2vh + env(safe-area-inset-top)); left: 3vw; }
+.fan-wrap { --cw: clamp(96px, min(15.5vw, 27vh), 260px); width: calc(var(--cw) * 3.6); height: calc(var(--cw) * 1.7); position: relative; margin-top: 4vh; }
+.fan { position: absolute; left: 50%; top: 0; width: 0; height: 0; }
+.fan-card { position: absolute; left: calc(var(--cw) / -2); top: 0; width: var(--cw); height: calc(var(--cw) * 1.39); border-radius: calc(var(--cw) * .055);
+  background-size: cover; background-position: center; transform-origin: 50% 160%;
+  transform: rotate(calc(var(--k) * 11deg)) translateY(calc(var(--k) * var(--k) * 4px));
+  box-shadow: 0 18px 36px rgba(0, 0, 0, .7), 0 0 0 1px rgba(255, 220, 150, .28);
+  transition: transform .35s cubic-bezier(.2, .8, .3, 1.2), box-shadow .3s; cursor: pointer;
+  animation: fanin .9s cubic-bezier(.2, .8, .3, 1) both; animation-delay: calc(var(--i) * 70ms); }
+.fan-card:hover { transform: rotate(calc(var(--k) * 11deg)) translateY(calc(var(--k) * var(--k) * 4px - 28px)); box-shadow: 0 28px 50px rgba(0, 0, 0, .8), 0 0 0 2px var(--fan-gold), 0 0 30px rgba(243, 196, 90, .45); z-index: 2; }
+@keyframes fanin { from { transform: rotate(0deg) translateY(40px); opacity: 0; } }
+.fan-logo { font-family: 'Ruslan Display', serif; font-weight: 400; line-height: 1; margin-top: 3vh; font-size: clamp(40px, 6.2vw, 92px);
+  background: linear-gradient(#fff6d8, #d9a640); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, .8)); }
+.press { margin-top: 5vh; font-family: 'Cormorant SC', serif; font-weight: 700; font-size: clamp(20px, 2.4vw, 28px); letter-spacing: 3px; color: var(--fan-cream); text-shadow: 0 2px 6px #000; animation: press 1.8s ease-in-out infinite; }
+
+/* Pill buttons */
+.menu-main { display: flex; align-items: center; justify-content: center; gap: clamp(14px, 3vw, 40px); margin-top: 5vh; flex-wrap: wrap; }
+.pill { display: inline-flex; align-items: center; justify-content: center; font-family: 'Cormorant SC', serif; font-weight: 700; letter-spacing: 2px; border-radius: 40px; cursor: pointer; transition: transform .15s, filter .2s, box-shadow .2s; }
+.pill:hover { transform: translateY(-2px); filter: brightness(1.12); }
+.pill:active { transform: translateY(1px); }
+.pill.gold { padding: 14px 56px; font-size: clamp(24px, 2.6vw, 32px); color: #2a0e08; border: none;
+  background: linear-gradient(#f6d27a, #c8902e); box-shadow: inset 0 0 0 1px #fff0c0, 0 8px 24px rgba(0, 0, 0, .5); }
+.pill.quiet { padding: 10px 28px; font-size: clamp(18px, 2vw, 24px); color: var(--fan-cream); background: rgba(0, 0, 0, .25); border: 1px solid var(--fan-line); }
+.pill.quiet:hover { border-color: var(--fan-gold); }
+
+/* Top navigation */
+.top-nav { position: absolute; top: calc(3.2vh + env(safe-area-inset-top)); right: 3vw; display: flex; gap: clamp(12px, 1.8vw, 26px); }
+.top-nav button { background: none; border: none; border-bottom: 2px solid transparent; padding: 2px 0 4px; cursor: pointer;
+  font-family: 'Cormorant SC', serif; font-weight: 700; letter-spacing: 1.5px; font-size: clamp(15px, 1.3vw, 19px); color: var(--fan-cream); }
+.top-nav button:hover { color: var(--fan-gold); border-color: var(--fan-gold); }
+
+#menu .menu-opts { margin-top: 3vh; max-width: min(560px, 92vw); text-align: left; background: rgba(14, 4, 9, .9); border: 1px solid var(--fan-line); }
+#menu .credits { margin: 3vh 16px 2vh; font-size: 12px; color: #8a7a68; max-width: 640px; }
+#menu .join-banner { margin-top: 12vh; max-width: min(560px, 92vw); }
+
+/* Phones held upright: nav wraps under the subtitle, fan a bit smaller. */
+@media (max-width: 760px) {
+  #splash .fan-sub, #menu .fan-sub { top: calc(2.5vh + env(safe-area-inset-top)); left: 0; right: 0; }
+  .fan-logo { font-size: clamp(30px, 9vw, 46px); }
+  .top-nav { left: 0; right: 0; top: calc(2.5vh + env(safe-area-inset-top) + 30px); justify-content: center; flex-wrap: wrap; gap: 4px 14px; padding: 0 12px; }
+  .top-nav button { font-size: 15px; letter-spacing: .5px; }
+  .fan-wrap { --cw: clamp(84px, min(24vw, 24vh), 150px); margin-top: 6vh; }
+  .fan-card { transform: rotate(calc(var(--k) * 9deg)) translateY(calc(var(--k) * var(--k) * 3px)); }
+  .menu-main { gap: 12px; }
+  .pill.gold { order: -1; flex-basis: 100%; max-width: 280px; margin: 0 auto; }
+}
+@media (max-height: 520px) {
+  .fan-wrap { --cw: clamp(70px, 22vh, 120px); margin-top: 7vh; }
+  .fan-logo { margin-top: 1vh; }
+  .menu-main, .press { margin-top: 2vh; }
+}

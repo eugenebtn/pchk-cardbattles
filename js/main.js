@@ -25,7 +25,6 @@ function show(id) {
   document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('active', s.id === id));
   FX.ambient(id === 'game');
   $('#scene').classList.toggle('off', id === 'game');
-  if (scene3d) { if (id === 'game') scene3d.pause(); else scene3d.resume(); }
   if (audioStarted) playMusic(id === 'game' ? (Math.random() < 0.5 ? 'musicGame' : 'musicGame2') : 'musicMenu');
 }
 function toast(text, ms = 3000) {
@@ -65,14 +64,16 @@ const myName = () => opt.name || 'Игрок';
 // Preload card art.
 setTimeout(() => { for (const c of Object.values(CARDS)) if (c.img) { const i = new Image(); i.src = c.img; } }, 300);
 
-// ---------- animated scene (splash, menu, hero select) ----------
+// ---------- scene behind the splash, menu and hero select: velvet, leader art slices, a fan of leader cards ----------
+const LEADER_IDS = [62, 117, 41, 20, 118, 63];
 (function scene() {
-  const strip = $('#scene-strip');
-  const ids = [20, 41, 62, 63, 117, 118, 15, 40, 112, 158, 1, 29, 164, 88];
-  const html = ids.map((id) => `<div class="sa" style="background-image:url('${CARDS[id].img}')"></div>`).join('');
-  strip.innerHTML = html + html;
+  $('#scene-slices').innerHTML = [20, 41, 63, 62, 117, 118].map((id) => `<div class="sl" style="background-image:url('${CARDS[id].img}')"></div>`).join('');
+  document.querySelectorAll('[data-fan]').forEach((fan) => {
+    const n = LEADER_IDS.length;
+    fan.innerHTML = LEADER_IDS.map((id, i) => `<div class="fan-card" style="--k:${i - (n - 1) / 2};--i:${i};background-image:url('${CARDS[id].img}')"></div>`).join('');
+  });
   const cv = $('#menu-bg'), c = cv.getContext('2d');
-  const embers = Array.from({ length: 80 }, () => ({ x: Math.random(), y: Math.random(), s: 1 + Math.random() * 3, v: 0.0006 + Math.random() * 0.0018, w: Math.random() * 6 }));
+  const embers = Array.from({ length: 40 }, () => ({ x: Math.random(), y: Math.random(), s: 0.8 + Math.random() * 2, v: 0.0004 + Math.random() * 0.001, w: Math.random() * 6 }));
   function frame(t) {
     if ($('#scene').classList.contains('off')) { requestAnimationFrame(frame); return; }
     if (cv.width !== cv.clientWidth) { cv.width = cv.clientWidth; cv.height = cv.clientHeight; }
@@ -81,24 +82,12 @@ setTimeout(() => { for (const c of Object.values(CARDS)) if (c.img) { const i = 
       e.y -= e.v; if (e.y < -0.05) { e.y = 1.05; e.x = Math.random(); }
       const x = (e.x + Math.sin(t / 1000 + e.w) * 0.012) * cv.width, y = e.y * cv.height;
       const g = c.createRadialGradient(x, y, 0, x, y, e.s * 4);
-      g.addColorStop(0, 'rgba(255,220,140,.9)'); g.addColorStop(0.4, 'rgba(255,120,30,.5)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      g.addColorStop(0, 'rgba(255,224,160,.7)'); g.addColorStop(0.4, 'rgba(230,150,60,.3)'); g.addColorStop(1, 'rgba(0,0,0,0)');
       c.fillStyle = g; c.beginPath(); c.arc(x, y, e.s * 4, 0, 7); c.fill();
     }
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
-})();
-// Real 3D tavern behind the menu (falls back to the art collage if WebGL is missing).
-let scene3d = null;
-(async () => {
-  try {
-    const c = document.createElement('canvas');
-    if (!(c.getContext('webgl2') || c.getContext('webgl'))) return;
-    const { startScene } = await import('./ui/scene3d.js');
-    scene3d = startScene($('#scene3d'), { cardImages: [20, 41, 62, 63, 117, 118].map((id) => CARDS[id].img) });
-    $('#scene').classList.add('has3d');
-    if ($('#game').classList.contains('active')) scene3d.pause();
-  } catch (e) { console.warn('3D scene off:', e); }
 })();
 // Splash: the first click also turns the sound on.
 $('#splash').addEventListener('click', () => { sfx.confirm(); show('menu'); });
@@ -295,8 +284,8 @@ class Session {
 let current = null;
 function startBoard(session) {
   show('game');
-  const themes = ['tavern', 'castle', 'dungeon'];
-  const theme = opt.board === 'random' || !themes.includes(opt.board) ? themes[Math.floor(Math.random() * themes.length)] : opt.board;
+  const themes = ['160', '8', '33', '5', '125', '130', '116'];
+  const theme = themes.includes(String(opt.board)) ? String(opt.board) : themes[Math.floor(Math.random() * themes.length)];
   const ui = new BoardUI($('#stage'), {
     me: session.me, theme,
     onAnswer: (q, a) => session.answer(q, a),
@@ -499,6 +488,9 @@ $('#splash').addEventListener('click', () => {
   }, 700);
 });
 
+// Test shortcut: ?screen=menu opens a screen directly.
+const screenParam = new URLSearchParams(location.search).get('screen');
+if (screenParam) show(screenParam);
 // ---------- quick start for testing: ?quick=deckA,deckB ----------
 const quick = new URLSearchParams(location.search).get('quick');
 if (quick) {

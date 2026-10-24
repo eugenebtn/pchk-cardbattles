@@ -1,6 +1,6 @@
-// Sound engine: recorded CC0 samples (Kenney, OpenGameArt) layered through a small mixing desk —
-// compressor, hall reverb, stereo position by board location, random pitch/volume per hit,
-// plus a synthesised sub-bass layer for weight on heavy impacts. Background music loops.
+// Sound engine: recorded CC0 samples (Kenney, OpenGameArt) through a small mixing desk —
+// compressor, a short room reverb (a table in a tavern, not a cathedral), stereo position by board location,
+// random pitch/volume per hit. Cards, wood, paper and coins first; synth layers only as a faint touch.
 let ctx = null, master, sfxBus, musicBus, verb, verbSend, comp;
 let enabled = true, musicOn = true;
 let manifest = null;
@@ -18,11 +18,11 @@ function ac() {
     master = ctx.createGain(); master.gain.value = 0.9;
     comp.connect(master); master.connect(ctx.destination);
     sfxBus = ctx.createGain(); sfxBus.gain.value = 0.85; sfxBus.connect(comp);
-    musicBus = ctx.createGain(); musicBus.gain.value = 0.22; musicBus.connect(master);
+    musicBus = ctx.createGain(); musicBus.gain.value = 0.16; musicBus.connect(master);
     // Hall reverb from a generated impulse response.
     verb = ctx.createConvolver();
-    verb.buffer = impulse(2.4, 2.8);
-    verbSend = ctx.createGain(); verbSend.gain.value = 0.32;
+    verb.buffer = impulse(0.9, 3.5);
+    verbSend = ctx.createGain(); verbSend.gain.value = 0.2;
     verbSend.connect(verb); verb.connect(comp);
     loadAll();
   }
@@ -98,6 +98,7 @@ function play(group, o = {}) {
 // Synth layers for weight and shimmer.
 function sub(freq = 70, dur = 0.45, vol = 0.6, delay = 0) {
   const c = ac(); if (!c || !enabled) return;
+  vol *= 0.35;
   const t = c.currentTime + delay;
   const o = c.createOscillator(), g = c.createGain();
   o.type = 'sine'; o.frequency.setValueAtTime(freq, t); o.frequency.exponentialRampToValueAtTime(freq * 0.45, t + dur);
@@ -122,6 +123,7 @@ function air(dur = 0.4, from = 600, to = 3000, vol = 0.18, delay = 0, pan = 0) {
 }
 function shimmer(notes = [1318, 1760, 2093, 2637], vol = 0.035, delay = 0) {
   const c = ac(); if (!c || !enabled) return;
+  vol *= 0.35;
   notes.forEach((f, k) => {
     const t = c.currentTime + delay + k * 0.05;
     const o = c.createOscillator(), g = c.createGain();
@@ -129,6 +131,40 @@ function shimmer(notes = [1318, 1760, 2093, 2637], vol = 0.035, delay = 0) {
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.2);
     o.connect(g); const sd = c.createGain(); sd.gain.value = 1.2; g.connect(sd); sd.connect(verbSend); g.connect(sfxBus);
     o.start(t); o.stop(t + 1.3);
+  });
+}
+// Plucked string (Karplus–Strong): a lute/harp note made from a burst of noise in a short feedback loop.
+const luteCache = new Map();
+function luteBuf(freq) {
+  const key = Math.round(freq);
+  if (luteCache.has(key)) return luteCache.get(key);
+  const rate = ctx.sampleRate, len = Math.floor(rate * 1.8), N = Math.max(2, Math.round(rate / freq));
+  const buf = ctx.createBuffer(1, len, rate), d = buf.getChannelData(0);
+  const line = new Float32Array(N);
+  for (let i = 0; i < N; i++) line[i] = (Math.random() * 2 - 1) * (1 - i / N * 0.5);
+  let prev = 0;
+  for (let i = 0; i < len; i++) {
+    const k = i % N, v = line[k];
+    const nv = 0.5 * (v + line[(k + 1) % N]) * 0.9965;
+    line[k] = nv; d[i] = v * 0.7 + prev * 0.3; prev = v;
+  }
+  luteCache.set(key, buf);
+  return buf;
+}
+const NOTE = (n) => 440 * Math.pow(2, (n - 69) / 12);
+/** Strum notes (MIDI numbers) one after another, like fingers on a lute. */
+function lute(notes, { gap = 0.07, vol = 0.32, delay = 0, pan = 0 } = {}) {
+  const c = ac(); if (!c || !enabled) return;
+  notes.forEach((n, k) => {
+    const t = c.currentTime + delay + k * gap;
+    const s = c.createBufferSource(); s.buffer = luteBuf(NOTE(n));
+    const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 3200;
+    const g = c.createGain(); g.gain.value = vol;
+    const p = c.createStereoPanner ? c.createStereoPanner() : null;
+    s.connect(f); f.connect(g);
+    if (p) { p.pan.value = pan; g.connect(p); p.connect(sfxBus); } else g.connect(sfxBus);
+    const sd = c.createGain(); sd.gain.value = 0.5; g.connect(sd); sd.connect(verbSend);
+    s.start(t);
   });
 }
 const P = (x) => (x == null ? 0 : Math.max(-1, Math.min(1, (x - 800) / 700)));
@@ -164,55 +200,54 @@ export function duckMusic(amount = 0.35, seconds = 1.6) {
   if (!ctx || !musicBus) return;
   const t = ctx.currentTime;
   musicBus.gain.cancelScheduledValues(t);
-  musicBus.gain.setTargetAtTime(0.22 * amount, t, 0.05);
-  musicBus.gain.setTargetAtTime(0.22, t + seconds, 0.6);
+  musicBus.gain.setTargetAtTime(0.16 * amount, t, 0.05);
+  musicBus.gain.setTargetAtTime(0.16, t + seconds, 0.6);
 }
 
 // ---------- named effects ----------
 export const sfx = {
-  click(x) { play('click', { vol: 0.35, verb: 0.1, x }); },
-  hover() { play('tick', { vol: 0.12, verb: 0.05, rate: 1.4 }); },
-  select(x) { play('select', { vol: 0.4, verb: 0.15, x }); },
-  confirm() { play('confirm', { vol: 0.45, verb: 0.2 }); },
-  draw(x) { play('draw', { vol: 0.7, verb: 0.2, x }); },
-  shuffle() { play('shuffle', { vol: 0.6 }); },
-  play(x) { play('play', { vol: 0.8, x, verb: 0.2 }); air(0.5, 400, 2400, 0.12, 0.05, P(x)); },
-  reveal() { play('cardFan', { vol: 0.5, verb: 0.3 }); },
+  click(x) { play('wood', { vol: 0.22, rate: 1.7, verb: 0.05, x, dur: 0.12 }); },
+  hover() {},
+  select(x) { play('book', { vol: 0.3, rate: 1.3, verb: 0.08, x, dur: 0.25 }); },
+  confirm() { lute([62, 69], { gap: 0.06, vol: 0.22 }); },
+  draw(x) { play('book', { vol: 0.45, rate: 1.25, verb: 0.08, x }); },
+  shuffle() { play('book', { vol: 0.5, rate: 1.1 }); play('book', { vol: 0.4, rate: 1.3, delay: 0.12 }); },
+  play(x) { play('whoosh', { vol: 0.3, rate: 0.9, x, verb: 0.1 }); },
+  reveal() { play('book', { vol: 0.45, verb: 0.15 }); },
   land(big = false, x) {
-    play(big ? 'landStone' : 'land', { vol: big ? 1 : 0.8, rate: big ? 0.75 : 0.95, x, verb: big ? 0.6 : 0.35 });
-    play('cardPlace', { vol: 0.6, x, verb: 0.1 });
-    sub(big ? 55 : 80, big ? 0.8 : 0.35, big ? 0.9 : 0.45);
-    if (big) play('stones', { vol: 0.5, delay: 0.08, x, verb: 0.4 });
+    play('book', { vol: 0.6, rate: 0.85, x, verb: 0.1 });
+    play('wood', { vol: big ? 0.6 : 0.35, rate: big ? 0.8 : 1, x, verb: 0.2, delay: 0.02 });
+    if (big) sub(60, 0.5, 0.7);
   },
-  legend(x) { play('bell', { vol: 0.5, rate: 0.8, verb: 0.9, x }); shimmer([523, 784, 1046, 1568, 2093], 0.05, 0.05); play('jingleWin', { vol: 0.35, delay: 0.1, verb: 0.5 }); },
+  legend(x) { lute([62, 66, 69, 74, 78], { gap: 0.09, vol: 0.3, pan: P(x) }); },
   swing(x) { play('whoosh', { vol: 0.6, rate: 1.1, x, verb: 0.2 }); air(0.32, 500, 3500, 0.2, 0, P(x)); },
   hit(n = 3, x) {
     const heavy = n >= 4;
-    play(heavy ? 'punch' : 'punchMed', { vol: Math.min(1, 0.55 + n * 0.08), x, verb: 0.35 });
-    play(heavy ? 'metal' : 'metalMed', { vol: Math.min(0.7, 0.25 + n * 0.06), x, rate: 0.9 + Math.random() * 0.2, verb: 0.5 });
-    sub(heavy ? 60 : 90, heavy ? 0.5 : 0.25, Math.min(0.9, 0.25 + n * 0.1));
+    play(heavy ? 'punch' : 'punchMed', { vol: Math.min(0.9, 0.5 + n * 0.07), x, verb: 0.2 });
+    play('wood', { vol: 0.25, x, rate: 1.1, verb: 0.15, delay: 0.01 });
+    if (heavy) sub(60, 0.4, 0.8);
   },
-  face(n = 3, x) { play('plate', { vol: Math.min(1, 0.6 + n * 0.06), x, verb: 0.55 }); sub(50, 0.6, Math.min(1, 0.35 + n * 0.08)); },
+  face(n = 3, x) { play('plate', { vol: Math.min(0.9, 0.5 + n * 0.06), x, verb: 0.3 }); sub(50, 0.5, 0.8); },
   slash(x) { play('blade', { vol: 0.75, x, verb: 0.35 }); },
-  heal(x) { play('magic', { vol: 0.45, rate: 1.25, x, verb: 0.7, hp: 400 }); shimmer([880, 1108, 1318, 1760], 0.04); },
-  buff(x) { play('gem', { vol: 0.55, x, verb: 0.5 }); shimmer([659, 830, 988, 1318], 0.03, 0.03); },
+  heal(x) { play('magic', { vol: 0.35, rate: 1.25, x, verb: 0.35, hp: 400 }); },
+  buff(x) { play('gem', { vol: 0.42, x, verb: 0.25 }); },
   debuff(x) { play('slime', { vol: 0.5, x, verb: 0.4, rate: 0.85 }); sub(140, 0.4, 0.2); },
-  death(x) { play('die', { vol: 0.55, x, verb: 0.5, rate: 0.95 }); play('glass', { vol: 0.5, x, verb: 0.6, rate: 0.8 }); play('stones', { vol: 0.5, x, delay: 0.06, verb: 0.4 }); sub(65, 0.7, 0.55); },
+  death(x) { play('book', { vol: 0.55, x, verb: 0.2, rate: 0.8 }); play('die', { vol: 0.35, x, verb: 0.3, rate: 0.95, delay: 0.05 }); },
   coin(x) { play('coins', { vol: 0.55, x, verb: 0.25 }); },
-  coinStack(x) { play('chips', { vol: 0.5, x, verb: 0.2 }); },
+  coinStack(x) { play('coins', { vol: 0.4, x, verb: 0.15 }); },
   fire(x) { play(Math.random() < 0.4 ? 'fireball' : 'fire', { vol: 0.85, x, verb: 0.55 }); sub(70, 0.5, 0.35, 0.1); },
-  magic(x) { play('spell', { vol: 0.6, x, verb: 0.7 }); play('magic', { vol: 0.35, x, verb: 0.8, delay: 0.05 }); },
-  dark(x) { play('monster', { vol: 0.45, x, verb: 0.8, rate: 0.75, lp: 2500 }); play('spell', { vol: 0.4, rate: 0.6, x, verb: 0.9 }); sub(45, 0.9, 0.5); },
-  explosion(x) { play('boom', { vol: 1, x, verb: 0.7 }); play('bang', { vol: 0.5, x, delay: 0.03, verb: 0.6 }); sub(40, 1.1, 1); duckMusic(0.3, 1.5); },
-  shield(x) { play('bell', { vol: 0.45, rate: 1.4, x, verb: 0.8 }); play('glassLight', { vol: 0.4, x, verb: 0.6 }); },
+  magic(x) { play('spell', { vol: 0.5, x, verb: 0.4 }); },
+  dark(x) { play('spell', { vol: 0.45, rate: 0.6, x, verb: 0.45 }); play('monster', { vol: 0.25, x, verb: 0.4, rate: 0.75, lp: 2500 }); },
+  explosion(x) { play('boom', { vol: 0.8, x, verb: 0.4 }); sub(40, 0.9, 0.9); duckMusic(0.4, 1.2); },
+  shield(x) { play('bell', { vol: 0.35, rate: 1.4, x, verb: 0.4 }); },
   stun(x) { play('bell', { vol: 0.4, rate: 1.8, x, verb: 0.6 }); play('glassLight', { vol: 0.3, delay: 0.12, x, rate: 1.3 }); },
   drum() { sub(60, 0.5, 0.9); play('soft', { vol: 0.7, rate: 0.7, verb: 0.6 }); },
-  battle() { duckMusic(0.25, 3); play('jingleBattle', { vol: 0.7, verb: 0.5 }); [0, 0.22, 0.44].forEach((d) => { sub(55, 0.5, 0.9, d); play('soft', { vol: 0.6, rate: 0.6, delay: d, verb: 0.5 }); }); play('chain', { vol: 0.4, delay: 0.5, verb: 0.6 }); },
-  turn() { duckMusic(0.5, 1.6); play('jingleTurn', { vol: 0.55, verb: 0.5 }); },
-  win() { stopMusic(true); play('jingleWin', { vol: 0.8, verb: 0.6 }); shimmer([523, 659, 784, 1046, 1318, 1568], 0.05, 0.2); },
-  lose() { stopMusic(true); play('jingleLose', { vol: 0.7, verb: 0.6 }); sub(50, 1.5, 0.5); },
-  error() { play('error', { vol: 0.4, verb: 0.1 }); },
-  flip(x) { play('cardFan', { vol: 0.6, x, verb: 0.3 }); air(0.3, 800, 3000, 0.1); },
+  battle() { duckMusic(0.35, 2.5); play('blade', { vol: 0.5, verb: 0.2 }); sub(55, 0.5, 0.9); lute([50, 53, 57, 62], { gap: 0.05, vol: 0.3, delay: 0.15 }); },
+  turn() { duckMusic(0.6, 1.4); lute([62, 69, 74], { gap: 0.09, vol: 0.28 }); },
+  win() { stopMusic(true); lute([62, 66, 69, 74, 78, 81, 86], { gap: 0.11, vol: 0.34 }); lute([50, 57, 62], { gap: 0.02, vol: 0.3, delay: 0.85 }); },
+  lose() { stopMusic(true); lute([69, 65, 62, 57, 50], { gap: 0.18, vol: 0.3 }); },
+  error() { play('wood', { vol: 0.35, rate: 0.6, verb: 0.05, dur: 0.2 }); },
+  flip(x) { play('book', { vol: 0.5, rate: 1.15, x, verb: 0.15 }); },
   animal(x) { play('creature', { vol: 0.45, x, verb: 0.4, rate: 1.1 }); },
   monster(x) { play('monster', { vol: 0.6, x, verb: 0.6 }); },
   blood(x) { play('slime', { vol: 0.55, x, verb: 0.35 }); },

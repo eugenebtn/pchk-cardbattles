@@ -11,7 +11,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='52' font-size='52'>⚔️</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Ruslan+Display&family=PT+Sans+Narrow:wght@400;700&family=Cormorant+SC:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Ruslan+Display&family=PT+Sans+Narrow:wght@400;700&family=Cormorant+SC:wght@500;600;700&family=Fira+Sans+Extra+Condensed:wght@600;700;800&family=PT+Serif:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/board.css">
 <link rel="stylesheet" href="css/ui2.css">
@@ -19,56 +19,54 @@
 <link rel="stylesheet" href="css/builder.css">
 <link rel="stylesheet" href="css/powers.css">
 <link rel="stylesheet" href="css/premium.css">
+<link rel="stylesheet" href="css/fan.css">
+<link rel="stylesheet" href="css/cardskin.css">
 </head>
 <body>
 <div id="app">
   <!-- Animated background shared by the splash, menu and hero select -->
   <div id="scene" class="scene">
-    <div class="scene-art"><div class="scene-strip" id="scene-strip"></div></div>
-    <div id="scene3d" class="scene3d"></div>
-    <div class="scene-fog f1"></div><div class="scene-fog f2"></div>
+    <div class="scene-velvet"></div>
+    <div class="scene-slices" id="scene-slices"></div>
+    <div class="scene-shade"></div>
     <canvas id="menu-bg"></canvas>
-    <div class="scene-vignette"></div>
   </div>
 
   <!-- Splash -->
   <section id="splash" class="screen active">
-    <div class="splash-box">
-      <div class="crest"><span>⚔</span></div>
-      <h1 class="logo big-logo"><span>Карточные</span><span>битвы</span><small>Подземелья Чикен Карри</small></h1>
-      <div class="press">Нажмите, чтобы начать</div>
-    </div>
+    <div class="fan-sub">Подземелья Чикен Карри</div>
+    <div class="fan-wrap"><div class="fan" data-fan></div></div>
+    <h1 class="fan-logo">Карточные битвы</h1>
+    <div class="press">Нажмите, чтобы начать</div>
   </section>
 
   <!-- Menu -->
   <section id="menu" class="screen">
-    <div class="menu-box">
-      <h1 class="logo"><span>Карточные</span><span>битвы</span><small>Подземелья Чикен Карри</small></h1>
-      <div id="join-banner" class="join-banner hidden"></div>
-      <div class="menu-buttons">
-        <button class="plaque main" data-act="bot"><span class="pl-ico"><span class="gi" style="-webkit-mask-image:url(assets/icons/crossed-swords.svg);mask-image:url(assets/icons/crossed-swords.svg)"></span></span><span class="pl-txt">Играть с компьютером<small>Тренировка против бота</small></span></button>
-        <button class="plaque main" data-act="host"><span class="pl-ico"><span class="gi" style="-webkit-mask-image:url(assets/icons/swords-emblem.svg);mask-image:url(assets/icons/swords-emblem.svg)"></span></span><span class="pl-txt">Играть с другом<small>Отправьте ссылку — и в бой</small></span></button>
-        <div class="plaque-row two">
-          <button class="plaque" data-act="tutorial"><span class="pl-ico"><span class="gi" style="-webkit-mask-image:url(assets/icons/open-book.svg);mask-image:url(assets/icons/open-book.svg)"></span></span><span class="pl-txt">Обучение<small>7 шагов и учебная партия</small></span></button>
-          <button class="plaque" data-act="hotseat"><span class="pl-ico"><span class="gi" style="-webkit-mask-image:url(assets/icons/beer-stein.svg);mask-image:url(assets/icons/beer-stein.svg)"></span></span><span class="pl-txt">Вдвоём за экраном<small>Передавайте устройство</small></span></button>
-        </div>
-        <div class="plaque-row">
-          <button class="plaque small" data-act="decks"><span class="pl-ico"><span class="gi" style="-webkit-mask-image:url(assets/icons/card-draw.svg);mask-image:url(assets/icons/card-draw.svg)"></span></span><span class="pl-txt">Колоды</span></button>
-          <button class="plaque small" data-act="stats"><span class="pl-ico"><span class="gi" style="-webkit-mask-image:url(assets/icons/trophy.svg);mask-image:url(assets/icons/trophy.svg)"></span></span><span class="pl-txt">Статистика</span></button>
-          <button class="plaque small" data-act="rules"><span class="pl-ico"><span class="gi" style="-webkit-mask-image:url(assets/icons/scroll-unfurled.svg);mask-image:url(assets/icons/scroll-unfurled.svg)"></span></span><span class="pl-txt">Правила</span></button>
-          <button class="plaque small" data-act="settings"><span class="pl-ico"><span class="gi" style="-webkit-mask-image:url(assets/icons/cog.svg);mask-image:url(assets/icons/cog.svg)"></span></span><span class="pl-txt">Настройки</span></button>
-        </div>
-      </div>
-      <div class="menu-opts hidden" id="menu-opts">
-        <label><input type="checkbox" id="opt-sound" checked> Звук</label>
-        <label><input type="checkbox" id="opt-music" checked> Музыка</label>
-        <label><input type="checkbox" id="opt-bonus"> Тест-правило: +1 💰 за каждую карту меньше 5 после муллигана</label>
-        <label><input type="checkbox" id="opt-autopass"> Не спрашивать об Опережении (авто-пас)</label>
-        <label class="name-row">Ваше имя: <input type="text" id="opt-name" maxlength="20" placeholder="Игрок"></label>
-        <label class="name-row">Поле: <select id="opt-board"><option value="random">Случайное</option><option value="tavern">Таверна «Кайф»</option><option value="castle">Замок Вёрджинвальд</option><option value="dungeon">Подземелье</option></select></label>
-      </div>
-      <p class="credits">Фанатская версия для игры с друзьями. Карты, персонажи и арты — «Подземелья Чикен Карри». 3D-модели — Poly Haven, иконки — game-icons.net (CC BY 3.0).</p>
+    <div class="fan-sub">Подземелья Чикен Карри</div>
+    <nav class="top-nav">
+      <button data-act="tutorial">Обучение</button>
+      <button data-act="hotseat">Вдвоём</button>
+      <button data-act="stats">Статистика</button>
+      <button data-act="rules">Правила</button>
+      <button data-act="settings">Настройки</button>
+    </nav>
+    <div id="join-banner" class="join-banner hidden"></div>
+    <div class="fan-wrap"><div class="fan" data-fan></div></div>
+    <h1 class="fan-logo">Карточные битвы</h1>
+    <div class="menu-main">
+      <button class="pill quiet" data-act="host">С другом</button>
+      <button class="pill gold" data-act="bot">Играть</button>
+      <button class="pill quiet" data-act="decks">Колоды</button>
     </div>
+    <div class="menu-opts hidden" id="menu-opts">
+      <label><input type="checkbox" id="opt-sound" checked> Звук</label>
+      <label><input type="checkbox" id="opt-music" checked> Музыка</label>
+      <label><input type="checkbox" id="opt-bonus"> Тест-правило: +1 💰 за каждую карту меньше 5 после муллигана</label>
+      <label><input type="checkbox" id="opt-autopass"> Не спрашивать об Опережении (авто-пас)</label>
+      <label class="name-row">Ваше имя: <input type="text" id="opt-name" maxlength="20" placeholder="Игрок"></label>
+      <label class="name-row">Поле: <select id="opt-board"><option value="random">Случайное место</option><option value="160">Таверна «Кайф»</option><option value="8">Замок Вёрджинвальд</option><option value="33">Пороховой склад</option><option value="5">Кёнигпон</option><option value="125">Подземный тайник</option><option value="130">Рыночная площадь</option><option value="116">Замок Нассератт</option></select></label>
+    </div>
+    <p class="credits">Фанатская версия для игры с друзьями. Карты, персонажи и арты — «Подземелья Чикен Карри». Иконки — game-icons.net (CC BY 3.0).</p>
   </section>
 
   <!-- Hero select -->
