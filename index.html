@@ -2,7 +2,11 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0b0604">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Карточные битвы ПЧК</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='52' font-size='52'>⚔️</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,12 +18,14 @@
 <link rel="stylesheet" href="css/menu.css">
 <link rel="stylesheet" href="css/builder.css">
 <link rel="stylesheet" href="css/powers.css">
+<link rel="stylesheet" href="css/premium.css">
 </head>
 <body>
 <div id="app">
   <!-- Animated background shared by the splash, menu and hero select -->
   <div id="scene" class="scene">
     <div class="scene-art"><div class="scene-strip" id="scene-strip"></div></div>
+    <div id="scene3d" class="scene3d"></div>
     <div class="scene-fog f1"></div><div class="scene-fog f2"></div>
     <canvas id="menu-bg"></canvas>
     <div class="scene-vignette"></div>
@@ -40,17 +46,17 @@
       <h1 class="logo"><span>Карточные</span><span>битвы</span><small>Подземелья Чикен Карри</small></h1>
       <div id="join-banner" class="join-banner hidden"></div>
       <div class="menu-buttons">
-        <button class="plaque main" data-act="bot"><span class="pl-ico">⚔️</span><span class="pl-txt">Играть с компьютером<small>Тренировка против бота</small></span></button>
-        <button class="plaque main" data-act="host"><span class="pl-ico">🌐</span><span class="pl-txt">Играть с другом<small>Отправьте ссылку — и в бой</small></span></button>
+        <button class="plaque main" data-act="bot"><span class="pl-ico"><span class="gi" style="-webkit-mask-image:url(assets/icons/crossed-swords.svg);mask-image:url(assets/icons/crossed-swords.svg)"></span></span><span class="pl-txt">Играть с компьютером<small>Тренировка против бота</small></span></button>
+        <button class="plaque main" data-act="host"><span class="pl-ico"><span class="gi" style="-webkit-mask-image:url(assets/icons/swords-emblem.svg);mask-image:url(assets/icons/swords-emblem.svg)"></span></span><span class="pl-txt">Играть с другом<small>Отправьте ссылку — и в бой</small></span></button>
         <div class="plaque-row two">
-          <button class="plaque" data-act="tutorial"><span class="pl-ico">🎓</span><span class="pl-txt">Обучение<small>7 шагов и учебная партия</small></span></button>
-          <button class="plaque" data-act="hotseat"><span class="pl-ico">🪑</span><span class="pl-txt">Вдвоём за экраном<small>Передавайте устройство</small></span></button>
+          <button class="plaque" data-act="tutorial"><span class="pl-ico"><span class="gi" style="-webkit-mask-image:url(assets/icons/open-book.svg);mask-image:url(assets/icons/open-book.svg)"></span></span><span class="pl-txt">Обучение<small>7 шагов и учебная партия</small></span></button>
+          <button class="plaque" data-act="hotseat"><span class="pl-ico"><span class="gi" style="-webkit-mask-image:url(assets/icons/beer-stein.svg);mask-image:url(assets/icons/beer-stein.svg)"></span></span><span class="pl-txt">Вдвоём за экраном<small>Передавайте устройство</small></span></button>
         </div>
         <div class="plaque-row">
-          <button class="plaque small" data-act="decks"><span class="pl-ico">📜</span><span class="pl-txt">Колоды</span></button>
-          <button class="plaque small" data-act="stats"><span class="pl-ico">📊</span><span class="pl-txt">Статистика</span></button>
-          <button class="plaque small" data-act="rules"><span class="pl-ico">📖</span><span class="pl-txt">Правила</span></button>
-          <button class="plaque small" data-act="settings"><span class="pl-ico">⚙️</span><span class="pl-txt">Настройки</span></button>
+          <button class="plaque small" data-act="decks"><span class="pl-ico"><span class="gi" style="-webkit-mask-image:url(assets/icons/card-draw.svg);mask-image:url(assets/icons/card-draw.svg)"></span></span><span class="pl-txt">Колоды</span></button>
+          <button class="plaque small" data-act="stats"><span class="pl-ico"><span class="gi" style="-webkit-mask-image:url(assets/icons/trophy.svg);mask-image:url(assets/icons/trophy.svg)"></span></span><span class="pl-txt">Статистика</span></button>
+          <button class="plaque small" data-act="rules"><span class="pl-ico"><span class="gi" style="-webkit-mask-image:url(assets/icons/scroll-unfurled.svg);mask-image:url(assets/icons/scroll-unfurled.svg)"></span></span><span class="pl-txt">Правила</span></button>
+          <button class="plaque small" data-act="settings"><span class="pl-ico"><span class="gi" style="-webkit-mask-image:url(assets/icons/cog.svg);mask-image:url(assets/icons/cog.svg)"></span></span><span class="pl-txt">Настройки</span></button>
         </div>
       </div>
       <div class="menu-opts hidden" id="menu-opts">
@@ -61,7 +67,7 @@
         <label class="name-row">Ваше имя: <input type="text" id="opt-name" maxlength="20" placeholder="Игрок"></label>
         <label class="name-row">Поле: <select id="opt-board"><option value="random">Случайное</option><option value="tavern">Таверна «Кайф»</option><option value="castle">Замок Вёрджинвальд</option><option value="dungeon">Подземелье</option></select></label>
       </div>
-      <p class="credits">Фанатская версия для игры с друзьями. Карты, персонажи и арты — «Подземелья Чикен Карри».</p>
+      <p class="credits">Фанатская версия для игры с друзьями. Карты, персонажи и арты — «Подземелья Чикен Карри». 3D-модели — Poly Haven, иконки — game-icons.net (CC BY 3.0).</p>
     </div>
   </section>
 
@@ -101,6 +107,7 @@
     <div id="preview" class="preview hidden"></div>
       </section>
 </div>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }</script>
 <script src="vendor/peerjs.min.js"></script>
 <script type="module" src="js/main.js"></script>
 </body>

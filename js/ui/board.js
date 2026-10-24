@@ -1224,6 +1224,12 @@ export class BoardUI {
           FX.glow(p.x, p.y, type === 'companion' ? 'rgba(190,120,255,.7)' : 'rgba(255,210,120,.7)', 90, 600);
           FX.burst(p.x, p.y, { color: type === 'companion' ? ['#d6a8ff', '#8a4ab0', '#fff'] : ['#ffe08a', '#fff', '#c98a2a'], count: 24, speed: 4, size: 7, gravity: -0.06 });
         }
+        if (this._epicLanding) {
+          this._epicLanding = false;
+          FX.shake(3); FX.scorch(p.x, p.y + 60, 120); FX.dust(p.x, p.y + 70, 2.2);
+          FX.ring(p.x, p.y + 30, '#ffd84a', 30, 800, 7, 8);
+          FX.burst(p.x, p.y + 40, { shape: 'tex', tex: ['star_01', 'spark_03'], color: ['#ffe08a', '#fff'], count: 40, speed: 9, size: 14, life: 1000, gravity: 0.1 });
+        }
         if (d.legend) {
           sfx.legend(p.x);
           FX.rays(p.x, p.y, '#ffd84a');
@@ -1315,11 +1321,69 @@ export class BoardUI {
     const verb = ev.type === 'declare' ? (mine ? 'играете' : 'играет') : (mine ? 'используете' : 'использует');
     this.caption(`<span class="cap-who ${mine ? 'me' : 'opp'}">${who}</span> ${verb} ${nm}${tg ? ` → ${tg}` : ''}`, mine ? 1800 : 3200);
   }
+  /** Gold cards (and expensive Legends) get a cinematic entrance like legendaries in Hearthstone. */
+  isEpic(d) { return d && (d.rarity === 'Золото' || (d.legend && (d.cost ?? 0) >= 5)); }
+  async legendaryEntrance(d, from, player) {
+    const fx = this.stage.querySelector('#fx-layer');
+    const { W, H } = this.L;
+    const cx = W / 2, cy = this.L.name === 'port' ? H * 0.42 : H / 2 - 20;
+    const cw = this.L.name === 'port' ? 520 : 340, ch = cw / 0.72;
+    const dim = document.createElement('div');
+    dim.className = 'epic-dim';
+    fx.appendChild(dim);
+    const card = document.createElement('div');
+    card.className = 'epic-card';
+    card.style.cssText = `left:${cx - cw / 2}px;top:${cy - ch / 2}px;width:${cw}px;height:${ch}px;background-image:url('${d.img || ''}')`;
+    card.innerHTML = '<div class="epic-shine"></div>';
+    const title = document.createElement('div');
+    title.className = 'epic-title';
+    title.style.top = (cy - ch / 2 - (this.L.name === "port" ? 130 : 100)) + 'px';
+    title.innerHTML = `<span>Легендарная</span>`;
+    const nm = document.createElement('div');
+    nm.className = 'epic-name';
+    nm.style.top = (cy + ch / 2 + 52) + 'px';
+    nm.textContent = d.name;
+    fx.append(card, title, nm);
+    const S = FX.speed;
+    dim.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260 / S, fill: 'forwards' });
+    sfx.legend(); sfx.explosion();
+    const dx = from.x - cx, dy = from.y - cy;
+    card.animate([
+      { transform: `translate(${dx}px,${dy}px) scale(.25) rotateY(${player === this.me ? 0 : 180}deg)`, filter: 'brightness(3)' },
+      { transform: 'translate(0,0) scale(1.18) rotateY(360deg)', filter: 'brightness(1.8)', offset: 0.55 },
+      { transform: 'translate(0,0) scale(1) rotateY(360deg)', filter: 'brightness(1)' },
+    ], { duration: 820 / S, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'forwards' });
+    await FX.wait(430);
+    FX.flash('rgba(255,236,170,.65)', 420);
+    FX.shake(2.6);
+    FX.rays(cx, cy, '#ffd84a'); FX.rays(cx, cy, '#fff2b0');
+    FX.ring(cx, cy, '#ffe9a8', 60, 900, 6, 10);
+    FX.ring(cx, cy, '#ffb347', 40, 1100, 9, 6);
+    FX.flare(cx, cy, '#ffd27a', 420, 700);
+    FX.burst(cx, cy, { shape: 'tex', tex: ['star_01', 'star_04', 'spark_02'], color: ['#fff6c8', '#ffd84a', '#ffb347'], count: 70, speed: 14, size: 22, life: 1400, gravity: 0.12, spin: 0.3 });
+    for (let k = 0; k < 4; k++) setTimeout(() => FX.burst(cx - W / 2 + Math.random() * W, -20, { shape: 'tex', tex: ['star_02', 'spark_01'], color: ['#ffe08a', '#fff'], count: 18, speed: 3, angle: Math.PI / 2, spread: 1, gravity: 0.18, size: 14, life: 1600 }), k * 160 / S);
+    title.animate([{ transform: 'translateX(-50%) scale(2)', opacity: 0 }, { transform: 'translateX(-50%) scale(1)', opacity: 1 }], { duration: 380 / S, fill: 'forwards', easing: 'cubic-bezier(.2,.8,.3,1.3)' });
+    nm.animate([{ transform: 'translateX(-50%) translateY(20px)', opacity: 0 }, { transform: 'translateX(-50%)', opacity: 1 }], { duration: 420 / S, delay: 120 / S, fill: 'forwards' });
+    await FX.wait(1250);
+    for (const e of [title, nm, dim]) e.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300 / S, fill: 'forwards' });
+    card.animate([{ transform: 'scale(1) rotateY(360deg)', opacity: 1 }, { transform: 'scale(.35) translateY(60px) rotateY(360deg)', opacity: 0 }], { duration: 320 / S, fill: 'forwards', easing: 'ease-in' });
+    this._spawnFrom = { x: cx, y: cy };
+    this._epicLanding = true;
+    await FX.wait(300);
+    for (const e of [card, title, nm, dim]) e.remove();
+  }
   async showStageCard(uid, id, player, targets = []) {
     const d = CARDS[id];
     if (!d) return;
     const el = this.els.get(uid);
     const from = el ? this.stagePoint(el) : (player === this.me ? { x: 800, y: 850 } : { x: 800, y: 0 });
+    if (this.isEpic(d) && d.type !== 'action') {
+      if (el) el.style.opacity = '0';
+      await this.legendaryEntrance(d, from, player);
+      for (const t of targets || []) this.arrow({ x: this.L.W / 2, y: this.L.H / 2 }, this.pointOf(t), player === this.me ? '#7fd4ff' : '#ff8a6a');
+      if (el) el.style.opacity = '';
+      return;
+    }
     const sc = document.createElement('div');
     sc.className = 'stage-card';
     sc.style.backgroundImage = d.img ? `url('${d.img}')` : '';

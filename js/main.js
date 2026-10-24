@@ -25,6 +25,7 @@ function show(id) {
   document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('active', s.id === id));
   FX.ambient(id === 'game');
   $('#scene').classList.toggle('off', id === 'game');
+  if (scene3d) { if (id === 'game') scene3d.pause(); else scene3d.resume(); }
   if (audioStarted) playMusic(id === 'game' ? (Math.random() < 0.5 ? 'musicGame' : 'musicGame2') : 'musicMenu');
 }
 function toast(text, ms = 3000) {
@@ -86,6 +87,18 @@ setTimeout(() => { for (const c of Object.values(CARDS)) if (c.img) { const i = 
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
+})();
+// Real 3D tavern behind the menu (falls back to the art collage if WebGL is missing).
+let scene3d = null;
+(async () => {
+  try {
+    const c = document.createElement('canvas');
+    if (!(c.getContext('webgl2') || c.getContext('webgl'))) return;
+    const { startScene } = await import('./ui/scene3d.js');
+    scene3d = startScene($('#scene3d'), { cardImages: [20, 41, 62, 63, 117, 118].map((id) => CARDS[id].img) });
+    $('#scene').classList.add('has3d');
+    if ($('#game').classList.contains('active')) scene3d.pause();
+  } catch (e) { console.warn('3D scene off:', e); }
 })();
 // Splash: the first click also turns the sound on.
 $('#splash').addEventListener('click', () => { sfx.confirm(); show('menu'); });
