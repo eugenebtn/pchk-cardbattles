@@ -1,6 +1,8 @@
 // App shell: menu, deck choice, game sessions (bot, hot-seat, online host/guest), builder, rules.
 import { Game } from './engine/game.js';
-import { botAnswer } from './engine/bot.js';
+import { botAnswer, randomAnswer } from './engine/bot.js';
+import { checkAchievements } from './ui/achievements.js';
+import { levelAnswer, LEVEL_RU, adaptiveLevel, adaptiveAfterGame } from './engine/botlevels.js';
 import { CARDS } from './data/cards.js';
 import { DECKS } from './data/decks.js';
 import { BoardUI, esc } from './ui/board.js';
@@ -39,7 +41,8 @@ function toast(text, ms = 3000) {
 
 // ---------- settings ----------
 const opt = {
-  sound: store.get('sound', true), bonus: store.get('bonus', false), autopass: store.get('autopass', false),
+  sound: store.get('sound', true), bonus: store.get('bonus', false), botLevel: ['auto', 'novice', 'normal', 'strong'].includes(store.get('botLevel', 'auto')) ? store.get('botLevel', 'auto') : 'auto',
+  autopass: (() => { const v = store.get('autopass', 'smart'); return v === true ? true : v === 'always' || v === false ? 'always' : 'smart'; })(),
   name: store.get('name', ''), speed: store.get('speed', 1), music: store.get('music', true), board: store.get('board', 'random'),
 };
 setSound(opt.sound); setMusic(opt.music); FX.setSpeed(opt.speed);
@@ -54,13 +57,13 @@ document.addEventListener('pointerdown', () => {
 }, { capture: true });
 $('#opt-sound').checked = opt.sound;
 $('#opt-bonus').checked = opt.bonus;
-$('#opt-autopass').checked = opt.autopass;
+$('#opt-autopass').value = opt.autopass === true ? 'never' : opt.autopass;
 $('#opt-name').value = opt.name;
 $('#opt-board').value = opt.board;
 $('#opt-board').addEventListener('change', (e) => { opt.board = e.target.value; store.set('board', opt.board); });
 $('#opt-sound').addEventListener('change', (e) => { opt.sound = e.target.checked; setSound(opt.sound); store.set('sound', opt.sound); });
 $('#opt-bonus').addEventListener('change', (e) => { opt.bonus = e.target.checked; store.set('bonus', opt.bonus); });
-$('#opt-autopass').addEventListener('change', (e) => { opt.autopass = e.target.checked; store.set('autopass', opt.autopass); });
+$('#opt-autopass').addEventListener('change', (e) => { opt.autopass = e.target.value === 'never' ? true : e.target.value; store.set('autopass', opt.autopass); });
 $('#opt-name').addEventListener('input', (e) => { opt.name = e.target.value.trim(); store.set('name', opt.name); });
 const myName = () => opt.name || 'Игрок';
 
@@ -163,6 +166,7 @@ function pickDecks(steps) {
           <div class="hs-roster"><div class="hs-medal newdeck" data-new><div class="m">＋</div>Своя колода<div class="tag">собрать</div></div>${list.map((d) => `<div class="hs-medal ${d === sel ? 'sel' : ''} ${d.random ? 'random' : ''}" data-key="${d.key}">
             <div class="m ${d.random ? '' : 'la'}" ${d.random ? '' : `style="background-image:url('${art(d.leader)}');background-position:${artFocus(d.leader)}"`}>${d.random ? '🎲' : ''}</div>
             ${esc(d.random ? 'Случайный' : d.title)}${!d.random && !d.official ? '<div class="tag">своя</div>' : ''}</div>`).join('')}</div>
+          ${st.level ? `<div class="hs-level"><span>Сложность:</span>${['auto', 'novice', 'normal', 'strong'].map((l) => `<button class="hs-lv ${opt.botLevel === l ? 'on' : ''}" data-lv="${l}">${l === 'auto' ? `Подстраиваться <small>сейчас: ${LEVEL_RU[adaptiveLevel()]}</small>` : LEVEL_RU[l]}</button>`).join('')}<div class="hs-lv-help">${esc(LEVEL_HELP[opt.botLevel])}</div></div>` : ''}
           <div class="hs-bar"><button class="btn" data-back>← Назад</button><button class="btn hs-go" data-go>${esc(step === steps.length - 1 ? (st.goLabel || 'В бой!') : 'Далее')}</button></div>
         </div>`;
         root.querySelectorAll('.hs-medal').forEach((m) => m.addEventListener('click', () => {
@@ -170,6 +174,7 @@ function pickDecks(steps) {
           if (!d || d === sel) return; // «＋ Своя колода» has its own handler
           sel = d; draw.last = d.key; sfx.select(); sfx.reveal(); paint();
         }));
+        root.querySelectorAll('[data-lv]').forEach((b) => b.addEventListener('click', () => { sfx.select(); opt.botLevel = b.dataset.lv; store.set('botLevel', opt.botLevel); paint(); }));
         root.querySelector('[data-new]').onclick = () => {
           sfx.select();
           openBuilder({ startNew: true, back: () => { const fresh = allDecks(); decks.length = 0; decks.push(...fresh); draw.last = fresh[fresh.length - 1]?.key; show('heroes'); draw(); } });
@@ -212,7 +217,7 @@ class Session {
   }
   newGame() {
     const autoPass = [false, false];
-    this.controllers.forEach((c, i) => { if (c === 'human' && opt.autopass) autoPass[i] = true; });
+    this.controllers.forEach((c, i) => { if (c === 'human') autoPass[i] = AP_ENGINE(opt.autopass); });
     const seed = (Math.random() * 2 ** 31) | 0;
     this.game = new Game({ seed, players: this.cfgPlayers, options: { mulliganBonus: opt.bonus, autoPass, previews: true, fakeStops: this.controllers.includes('remote') ? [true, true] : null } });
     this.hook();
@@ -267,8 +272,7 @@ class Session {
           const fast = q.type === 'priority' || q.type === 'draw';
           this.ui.setPending(q);
           await FX.wait(fast ? 250 : 650);
-          const a = botAnswer(g, q);
-          if (!g.respond(q.player, a)) g.respond(q.player, q.options[0]?.id ?? null);
+          this.botRespond(g, q);
           continue;
         }
         if (who === 'remote') { this.ui.setPending(q); break; }
@@ -278,7 +282,26 @@ class Session {
         this.ui.setPending(q);
         break;
       }
+    } catch (e) {
+      // Never leave the game frozen: report and keep going.
+      console.error('pump', e);
+      setTimeout(() => this.pump(), 400);
     } finally { this.busy = false; }
+  }
+  /** The computer's answer. Never gets stuck: on an error or an invalid answer it tries simpler answers. */
+  botRespond(g, q) {
+    // The same request over and over in one phase means a loop (play → cancel → play …): take the way out.
+    const key = `${q.player}|${q.type}|${q.prompt}|${g.s.phaseId}`;
+    this.loopN = this.loopKey === key ? (this.loopN || 0) + 1 : 0; this.loopKey = key;
+    const out = () => (q.type === 'priority' ? 'pass' : q.type === 'main' ? 'end' : null);
+    if (this.loopN > 12) { for (const a of [out(), q.options?.[0]?.id]) if (g.pending === q && g.respond(q.player, a)) return; }
+    const tries = [() => levelAnswer(g, q, this.botLevel || 'normal'), () => botAnswer(g, q), () => randomAnswer(g, q), () => (q.type === 'priority' ? 'pass' : q.type === 'main' ? 'end' : null), () => q.options?.[0]?.id];
+    for (const t of tries) {
+      let a;
+      try { a = t(); } catch (e) { console.warn('bot', e); continue; }
+      if (g.pending === q && g.respond(q.player, a)) return;
+    }
+    console.error('bot could not answer', q);
   }
   async switchSeat(p) {
     this.me = p;
@@ -310,6 +333,10 @@ class Session {
 }
 
 let current = null;
+// Опережение modes: 'smart' (only when aimed at me, default), 'always', true (never). The engine gets false for 'always'.
+const AP_ENGINE = (m) => (m === 'always' ? false : m);
+const AP_NEXT = { smart: 'always', always: true, true: 'smart' };
+const AP_TOAST = { smart: 'Опережение: игра спросит, только когда соперник целится в ваши карты', always: 'Опережение: игра спрашивает при каждой возможности', true: 'Опережение выключено: игра не спрашивает' };
 function startBoard(session) {
   preload((session.cfgPlayers || []).flatMap((p) => [p.leader, ...(p.deck || [])]));
   show('game');
@@ -331,11 +358,20 @@ function startBoard(session) {
     if (session.controllers && session.controllers[session.me] !== 'human') { ui.noRank = true; return; } // bot vs bot
     if (session.hotseat) { ui.noRank = true; return; }
     const me = session.me, P = view.players;
+    if (session.adaptive && !session.remote && !session.conn && winner !== 'draw') {
+      const was = session.botLevel, next = adaptiveAfterGame(winner === me);
+      ui.levelNote = next === was ? `Следующий компьютер: ${LEVEL_RU[next]}` : `Следующий компьютер будет ${next === 'strong' || (next === 'normal' && was === 'novice') ? 'сильнее' : 'слабее'}: ${LEVEL_RU[next]}`;
+    }
     recordGame({
       mode: session.remote || session.conn ? 'online' : 'bot',
       myLeader: P[me].leader.id, oppLeader: P[1 - me].leader.id, oppName: P[1 - me].name,
-      result: winner === 'draw' ? 'draw' : winner === me ? 'win' : 'loss', rounds: view.round, played,
+      result: winner === 'draw' ? 'draw' : winner === me ? 'win' : 'loss', rounds: view.round, played, level: session.botLevel || null,
     });
+    try {
+      const st = ui.stats || {};
+      ui.newAch = checkAchievements({ won: winner === me, mode: session.remote || session.conn ? 'online' : 'bot', level: session.botLevel, myLeader: P[me].leader.id,
+        myHp: P[me].leader.hp, round: view.round, best: st.best && st.best.side === me ? st.best.amount : 0, oppKills: st.kills ? st.kills[1 - me] : 0 });
+    } catch (e) { console.warn(e); }
     // World ranking (draws are not sent): place and wins before and after this game, shown on the end screen.
     if (winner === 'draw') { ui.setRankInfo('<span class="ov-wait">Ничьи в мировой рейтинг не идут.</span>'); return; }
     const titleOf = (i) => session.cfgPlayers?.[i]?.title || Object.values(DECKS).find((d) => d.leader === P[i].leader.id)?.title || CARDS[P[i].leader.id]?.name;
@@ -343,7 +379,7 @@ function startBoard(session) {
     const mine = (list) => { const k = (list || []).findIndex((x) => x.player_id === playerId()); return k < 0 ? null : { place: k + 1, wins: list[k].wins, games: list[k].games, winrate: list[k].winrate, total: list.length }; };
     (async () => {
       let before = null; try { before = mine(await loadPlayers(mode)); } catch { /* offline */ }
-      const ok = await submitResult({ name: myName(), deck: titleOf(me), leader: P[me].leader.id, oppName: P[1 - me].name, oppDeck: titleOf(1 - me), mode, won: winner === me, rounds: view.round });
+      const ok = await submitResult({ name: myName(), deck: titleOf(me), leader: P[me].leader.id, oppName: P[1 - me].name, oppDeck: titleOf(1 - me), mode, won: winner === me, rounds: view.round, cards: session.cfgPlayers?.[me]?.deck });
       let after = null; if (ok) { try { after = mine(await loadPlayers(mode)); } catch { /* offline */ } }
       const where = mode === 'online' ? 'с друзьями' : 'против компьютера';
       if (!ok || !after) { ui.setRankInfo('<span class="ov-wait">Мировой рейтинг сейчас недоступен — результат сохранён в вашей статистике.</span>'); return; }
@@ -354,15 +390,15 @@ function startBoard(session) {
   const wire = () => {
     const spd = $('#btn-speed'), snd = $('#btn-sound'), fst = $('#btn-fast'), mus = $('#btn-music');
     const ap = () => session.game?.cfg.options.autoPass;
-    const drawFast = () => { const on = ap() ? !ap()[session.me] : !session.autoPass; fst.style.opacity = on ? '1' : '.4'; };
+    const drawFast = () => { const m = opt.autopass; fst.style.opacity = m === true ? '.4' : '1'; fst.title = AP_TOAST[m]; fst.classList.toggle('ap-always', m === 'always'); };
     fst.onclick = () => {
-      if (!session.game && session.conn) { session.autoPass = !session.autoPass; session.conn.send({ t: 'autopass', on: session.autoPass }); drawFast(); toast(session.autoPass ? 'Авто-пас включён: игра не будет спрашивать про Опережение' : 'Игра будет предлагать Опережение', 1800); return; }
+      opt.autopass = AP_NEXT[opt.autopass]; store.set('autopass', opt.autopass); $('#opt-autopass').value = opt.autopass === true ? 'never' : opt.autopass;
+      drawFast(); toast(AP_TOAST[opt.autopass], 2200);
+      if (!session.game && session.conn) { session.conn.send({ t: 'autopass', on: AP_ENGINE(opt.autopass) }); return; }
       const a = ap(); if (!a) return;
-      a[session.me] = !a[session.me];
-      opt.autopass = a[session.me]; store.set('autopass', opt.autopass); $('#opt-autopass').checked = opt.autopass;
-      drawFast(); toast(a[session.me] ? 'Авто-пас включён: игра не будет спрашивать про Опережение' : 'Игра будет предлагать сыграть Опережение', 1800);
+      a[session.me] = AP_ENGINE(opt.autopass);
       const q = session.game?.pending;
-      if (a[session.me] && q && q.type === 'priority' && q.player === session.me) session.answer(q, 'pass');
+      if (a[session.me] === true && q && q.type === 'priority' && q.player === session.me) session.answer(q, 'pass');
     };
     drawFast();
     const speeds = [1, 1.6, 2.5];
@@ -384,11 +420,19 @@ function startBoard(session) {
 }
 const playerCfg = (d, name) => ({ name, leader: d.leader, deck: d.cards, title: d.title });
 
+const LEVEL_HELP = {
+  auto: 'Компьютер становится сильнее после ваших побед и слабее после поражений.',
+  novice: 'Играет просто, часто ошибается и не отвечает Опережением. Для первых партий.',
+  normal: 'Играет по правилам здравого смысла, иногда отвечает на ваши ходы.',
+  strong: 'Перед каждым ходом просчитывает варианты до конца раунда и выбирает лучший.',
+};
 async function startBot() {
-  const r = await pickDecks([{ title: 'Ваша колода' }, { title: 'Колода компьютера', allowRandom: true }]);
+  const r = await pickDecks([{ title: 'Ваша колода' }, { title: 'Колода компьютера', allowRandom: true, level: true }]);
   if (!r) return;
   const [mine, bot] = r;
-  const s = new Session({ players: [playerCfg(mine, myName()), playerCfg(bot, `Компьютер (${bot.title})`)], controllers: ['human', 'bot'], me: 0 });
+  const adaptive = opt.botLevel === 'auto', level = adaptive ? adaptiveLevel() : opt.botLevel;
+  const s = new Session({ players: [playerCfg(mine, myName()), playerCfg(bot, `Компьютер · ${LEVEL_RU[level]} (${bot.title})`)], controllers: ['human', 'bot'], me: 0 });
+  s.botLevel = level; s.adaptive = adaptive;
   startBoard(s);
 }
 async function startHotseat() {
@@ -430,6 +474,7 @@ async function startHost() {
       const guestDeck = { leader: hello.deck.leader, cards: hello.deck.cards, title: String(hello.deck.title || '').slice(0, 40) };
       if (!validDeck(guestDeck)) { room.send({ t: 'error', text: 'Колода не подходит' }); return; }
       session = new Session({ players: [playerCfg(mine, myName()), playerCfg(guestDeck, hello.name || 'Друг')], controllers: ['human', 'remote'], me: 0, remote: room });
+      session.game.cfg.options.autoPass[1] = hello.autopass === true ? true : hello.autopass === false ? false : 'smart';
       room.send({ t: 'start', me: 1 });
       startBoard(session);
     },
@@ -437,7 +482,7 @@ async function startHost() {
       if (!session) return;
       if (msg.t === 'answer') session.remoteAnswer(msg.a);
       if (msg.t === 'emote' && session.ui) session.ui.showEmote(1, String(msg.text).slice(0, 160));
-      if (msg.t === 'autopass') { session.game.cfg.options.autoPass[1] = !!msg.on; const q = session.game.pending; if (msg.on && q && q.player === 1 && q.type === 'priority') session.remoteAnswer('pass'); }
+      if (msg.t === 'autopass') { session.game.cfg.options.autoPass[1] = msg.on === 'smart' ? 'smart' : !!msg.on; const q = session.game.pending; if (msg.on === true && q && q.player === 1 && q.type === 'priority') session.remoteAnswer('pass'); }
     },
     onClose() { toast('Друг отключился. Ждём переподключения по той же ссылке…', 5000); },
     onError(e) { ob.innerHTML = `Ошибка соединения: ${esc(e.type || e.message || e)}. Попробуйте ещё раз.`; },
@@ -482,7 +527,7 @@ async function startJoin(code) {
   $('#picker-list').innerHTML = '';
   const ob = $('#picker-online'); ob.classList.remove('hidden'); ob.textContent = 'Соединяемся с другом…';
   let gs = null;
-  const conn = joinRoom(code, { name: myName(), deck: { leader: d.leader, cards: d.cards, title: d.title } }, {
+  const conn = joinRoom(code, { name: myName(), autopass: AP_ENGINE(opt.autopass), deck: { leader: d.leader, cards: d.cards, title: d.title } }, {
     onOpen() { ob.textContent = 'Соединено! Ждём начала…'; },
     onMessage(msg) {
       if (msg.t === 'start' || (msg.t === 'sync' && !gs)) {

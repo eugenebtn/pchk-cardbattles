@@ -62,12 +62,12 @@
       <button class="pill gold" data-act="bot">Играть</button>
       <button class="pill quiet" data-act="decks">Колоды</button>
     </div>
-    <a class="buy-real" href="https://cardbattles.cc" target="_blank" rel="noopener"><span class="buy-ico"></span>Купить настоящую игру<small>cardbattles.cc — поддержите авторов</small></a>
+    <a class="buy-real" href="https://cardbattles.cc" target="_blank" rel="noopener">Купить настоящую игру ↗</a>
     <div class="menu-opts hidden" id="menu-opts">
       <label><input type="checkbox" id="opt-sound" checked> Звук</label>
       <label><input type="checkbox" id="opt-music" checked> Музыка</label>
       <label><input type="checkbox" id="opt-bonus"> Тест-правило: +1 💰 за каждую карту меньше 5 после муллигана</label>
-      <label><input type="checkbox" id="opt-autopass"> Не спрашивать об Опережении (авто-пас)</label>
+      <label class="name-row">Опережение: <select id="opt-autopass"><option value="smart">спрашивать, только когда целятся в мои карты</option><option value="always">спрашивать всегда</option><option value="never">не спрашивать</option></select></label>
       <label class="name-row">Ваше имя: <input type="text" id="opt-name" maxlength="20" placeholder="Игрок"></label>
       <label class="name-row">Поле: <select id="opt-board"><option value="random">Случайное место</option><option value="160">Таверна «Кайф»</option><option value="8">Замок Вёрджинвальд</option><option value="33">Пороховой склад</option><option value="5">Кёнигпон</option><option value="125">Подземный тайник</option><option value="130">Рыночная площадь</option><option value="116">Замок Нассератт</option></select></label>
     </div>

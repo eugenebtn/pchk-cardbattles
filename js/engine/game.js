@@ -11,7 +11,7 @@ export const HAND_LIMIT = 10;
 class GameOver extends Error { constructor() { super('game over'); } }
 
 // Small seeded RNG (mulberry32) so games can be replayed and shared.
-function rng(seed) {
+export function rng(seed) {
   let a = seed >>> 0;
   return () => {
     a |= 0; a = (a + 0x6D2B79F5) | 0;
@@ -137,6 +137,8 @@ export class Game {
   *ask(player, req) {
     req.player = player;
     if (!req.type) req.type = 'pick';
+    if (req.src == null && this.acting) req.src = this.acting.uid;
+    if (req.srcId == null) req.srcId = this.acting && this.acting.uid === req.src ? this.acting.id : req.src != null ? this.card(req.src)?.id : undefined;
     if (req.type === 'pick' && req.options.length === 0) return null;
     if (req.type === 'pick' && req.options.length === 1 && req.auto !== false && !req.cancel) return req.options[0].id;
     return yield req;
@@ -439,7 +441,7 @@ export class Game {
       const P = this.P(pl);
       if (P.hand.length > HAND_LIMIT) {
         const n = P.hand.length - HAND_LIMIT;
-        const pick = yield* this.ask(pl, { type: 'multi', min: n, max: n, prompt: `Сбросьте ${n} карт(ы) до лимита 10`, options: P.hand.map((c) => ({ id: c.uid })) });
+        const pick = yield* this.ask(pl, { type: 'multi', min: n, max: n, prompt: `В руке больше 10 карт. Выберите ${n}, ${n === 1 ? "которая уйдёт" : "которые уйдут"} на кладбище`, options: P.hand.map((c) => ({ id: c.uid })) });
         for (const uid of pick) yield* this.discard(pl, this.card(uid));
       }
     }
@@ -621,7 +623,14 @@ export class Game {
   }
 
   /** Collect choices for a card, pay, put it on the stack and resolve the stack. */
-  *declareCard(i, c, side, { free = false, noCancel = false } = {}) {
+  // The card whose choices are being asked right now, so the request can show its picture.
+  *withActing(uid, id, gen) {
+    const prev = this.acting;
+    this.acting = { uid, id };
+    try { return yield* gen; } finally { this.acting = prev; }
+  }
+  *declareCard(i, c, side, opts = {}) { return yield* this.withActing(c.uid, side, this.declareCardInner(i, c, side, opts)); }
+  *declareCardInner(i, c, side, { free = false, noCancel = false } = {}) {
     const p = this.P(i);
     const d = defOf(side), sc = SCRIPTS[side] || {};
     const ctx = { player: i, self: c, side, targets: [], specs: [], cancel: !noCancel, free };
@@ -675,7 +684,8 @@ export class Game {
     yield* this.resolveStack();
   }
 
-  *declareAbility(i, c, k) {
+  *declareAbility(i, c, k) { return yield* this.withActing(c.uid, c.id, this.declareAbilityInner(i, c, k)); }
+  *declareAbilityInner(i, c, k) {
     const ab = this.script(c).abilities[k];
     const ctx = { player: i, self: c, targets: [], specs: [], ab: k, cancel: true };
     if (ab.plan) {
@@ -745,7 +755,14 @@ export class Game {
     if (this.s.over) return false;
     const opts = this.fastOptions(i);
     if (!opts.length) { this.fakeStop(i); return false; }
-    if (this.cfg.options?.autoPass?.[i]) return false;
+    // autoPass: true = never ask; 'smart' = ask only when the opponent's card or ability aims at this player's cards.
+    const ap = this.cfg.options?.autoPass?.[i];
+    if (ap === true) return false;
+    if (ap === 'smart') {
+      const top = this.s.stack[this.s.stack.length - 1];
+      const aimed = top && top.player !== i && top.ctx.targets.some((u) => this.card(u)?.ctrl === i);
+      if (!aimed) { this.fakeStop(i); return false; }
+    }
     // Answering the stack: by default ask only when a card from hand can be played, or when the item
     // targets this player's cards (then a Leader ability like a buff or protection matters).
     if (kind === 'stack' && !this.cfg.options?.allWindows && !opts.some((o) => o.kind === 'play')) {
@@ -796,7 +813,8 @@ export class Game {
     return true;
   }
 
-  *resolveItem(item) {
+  *resolveItem(item) { return yield* this.withActing(item.inst.uid, item.inst.id, this.resolveItemInner(item)); }
+  *resolveItemInner(item) {
     const { ctx } = item;
     if (!this.legal(item)) {
       this.emit('fizzle', { uid: item.inst.uid, log: `«${item.label}» не срабатывает: цель или место больше недоступны.` });

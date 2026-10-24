@@ -19,6 +19,7 @@ export const ICON = {
   star: svg(`<path d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 16.9 5.9 20.4l1.5-6.8L2.2 9l6.9-.7z" fill="#b48cff" stroke="#3a1460" stroke-width="1.2"/>`),
   web: svg(`<g stroke="#e6e6f0" stroke-width="1.1" fill="none"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1"/><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="9"/></g>`),
   crown: svg(`<path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z" fill="#ffd84a" stroke="#6a4a00" stroke-width="1.3" stroke-linejoin="round"/>`),
+  report: svg(`<path d="M4 5h16v11H9l-5 4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 8v3.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="13.6" r="1.2" fill="currentColor"/>`),
   help: svg(`<circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.2 9a3 3 0 115.2 2c-.9.9-2.4 1.4-2.4 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17.5" r="1.3" fill="currentColor"/>`),
   menu: svg(`<path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>`),
   hourglass: svg(`<path d="M6 2h12M6 22h12M7 2c0 6 10 6 10 10S7 16 7 22M17 2c0 6-10 6-10 10s10 4 10 10" stroke="#e6d5ae" stroke-width="1.6" fill="none"/>`),

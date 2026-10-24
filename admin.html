@@ -42,6 +42,7 @@ button:disabled { opacity: .5; cursor: default; }
 details { margin-top: 8px; } summary { cursor: pointer; font: 700 15px 'Fira Sans Extra Condensed', sans-serif; color: #5a4a30; }
 pre { white-space: pre-wrap; font-size: 13px; background: rgba(0, 0, 0, .06); padding: 8px; border-radius: 6px; max-height: 300px; overflow: auto; }
 .err { color: #ff9a84; margin: 8px 0; }
+.shot { max-width: 100%; max-height: 420px; border-radius: 8px; margin-top: 6px; }
 </style>
 </head>
 <body>
@@ -102,7 +103,8 @@ function card(x) {
       ${t.reason ? `<p><b>Почему:</b> ${esc(t.reason)}</p>` : ''}
       ${t.cards?.length ? `<div class="cards">${t.cards.filter((id) => CARDS[id]).map((id) => `<span title="${esc(CARDS[id].name)}" style="background-image:url('${CARDS[id].img}')"></span>`).join('')}</div>` : ''}
     </div>` : '<p class="none">Ещё не разобрано. Скажите Claude «разбери отзывы».</p>';
-  const ctx = x.context?.game ? `<details><summary>Ход партии, приложенный игроком</summary><pre>${esc(JSON.stringify(x.context.game, null, 1))}</pre></details>` : '';
+  const shot = x.context?.shot && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(x.context.shot) ? `<details open><summary>Снимок экрана</summary><a href="${x.context.shot}" target="_blank"><img class="shot" src="${x.context.shot}" alt=""></a></details>` : '';
+  const ctx = shot + (x.context?.game ? `<details><summary>Ход партии, приложенный игроком</summary><pre>${esc(JSON.stringify(x.context.game, null, 1))}</pre></details>` : '');
   return `<div class="item">
     <div class="head"><span class="kind ${x.kind}">${KIND[x.kind] || x.kind}</span><span class="st">${STATUS[x.status] || x.status}</span>
       <span class="meta">№${x.id} · ${new Date(x.created_at).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}${x.author ? ' · ' + esc(x.author) : ''}${x.context?.screen ? ' · экран ' + esc(x.context.screen) : ''}</span></div>

@@ -4,6 +4,8 @@ import { DECKS } from '../data/decks.js';
 import { esc } from './board.js';
 import { linkTerms } from './glossary.js';
 import { sfx } from './sound.js';
+import { loadCardStats, loadDecks } from '../net/ranking.js';
+import { loadGames } from './stats.js';
 
 const TYPE_RU = { ally: 'Союзники', place: 'Места', action: 'Действия', item: 'Предметы', companion: 'Напарники' };
 const TYPE_ICO = { ally: '⚔️', place: '🏰', action: '✨', item: '🎒', companion: '🤝' };
@@ -12,6 +14,28 @@ const MIN = 40, MAX_COPIES = 3;
 
 export function loadCustomDecks(store) { return store.get('decks', []); }
 const costNum = (c) => (typeof c.cost === 'number' ? c.cost : 0);
+
+// Win rates for the builder: world numbers from the shared ranking (players' games), else your own games.
+const MIN_GAMES = 5;
+let WR = null; // { cards: Map(id → {games, wins}), decks: Map(title → {games, wins}), world: bool }
+async function loadWinRates() {
+  if (WR) return WR;
+  let cards = null, decks = new Map();
+  try { cards = await loadCardStats(); } catch { cards = null; }
+  try { for (const d of await loadDecks('all')) decks.set(d.deck, { games: d.games, wins: d.wins }); } catch { /* offline */ }
+  const world = !!(cards && cards.size);
+  if (!world) {
+    cards = new Map();
+    for (const g of loadGames()) for (const id of new Set(g.played || [])) { const r = cards.get(id) || { games: 0, wins: 0 }; r.games++; if (g.result === 'win') r.wins++; cards.set(id, r); }
+  }
+  WR = { cards, decks, world };
+  return WR;
+}
+const wrBadge = (r) => {
+  if (!r || r.games < MIN_GAMES) return '';
+  const p = Math.round((r.wins / r.games) * 100);
+  return `<div class="wr ${p >= 55 ? 'hi' : p <= 45 ? 'lo' : ''}" data-tip="Процент побед|${p}%: колоды с этой картой выиграли ${r.wins} из ${r.games} партий.">${p}%</div>`;
+};
 
 /**
  * opts: { onPlay(deck) — start a game with the deck, startNew: true — open a new deck at once }
@@ -25,6 +49,7 @@ export function renderBuilder(root, store, onBack, opts = {}) {
   // ---------- gallery ----------
   function gallery() {
     decks = loadCustomDecks(store);
+    if (!WR) loadWinRates().then(() => { if (root.querySelector('.bld-gal')) gallery(); });
     root.innerHTML = `<div class="bld">
       <div class="bld-top"><button class="btn" data-back>← Назад</button><h2>Мои колоды</h2><span></span></div>
       <div class="bld-gal">
@@ -33,7 +58,7 @@ export function renderBuilder(root, store, onBack, opts = {}) {
           <b>${esc(d.name)}</b><small>${esc((CARDS[d.leader]?.name || '').split(',')[0])} · ${d.cards.length} карт ${d.cards.length >= MIN ? '✔' : '⚠'}</small></div>`).join('')}
       </div>
       <h3 class="bld-h3">Начать со стартовой скрижали</h3>
-      <div class="bld-gal small">${Object.values(DECKS).map((d) => `<div class="bld-tile" data-copy="${d.key}"><div class="face" style="background-image:url('${CARDS[d.leader].img}')"></div><b>${esc(d.title)}</b><small>скопировать и изменить</small></div>`).join('')}</div>
+      <div class="bld-gal small">${Object.values(DECKS).map((d) => `<div class="bld-tile" data-copy="${d.key}"><div class="face" style="background-image:url('${CARDS[d.leader].img}')"></div><b>${esc(d.title)}</b><small>скопировать и изменить${(() => { const r = WR?.decks.get(d.title); return r && r.games >= MIN_GAMES ? ` · побед ${Math.round((r.wins / r.games) * 100)}% из ${r.games}` : ''; })()}</small></div>`).join('')}</div>
     </div>`;
     root.querySelector('[data-back]').onclick = () => { sfx.click(); onBack(); };
     root.querySelector('[data-new]').onclick = () => { sfx.select(); pickLeader(); };
@@ -52,14 +77,18 @@ export function renderBuilder(root, store, onBack, opts = {}) {
 
   // ---------- editor ----------
   function editor(cur, editIndex) {
-    const f = { type: '', set: '', cost: null, q: '' };
+    const f = { type: '', set: '', cost: null, q: '', sort: 'cost' };
+    if (!WR) loadWinRates().then(() => draw());
     let tab = 'cards';
     const count = (id) => cur.cards.filter((x) => x === id).length;
     const draw = () => {
       const list = pool.filter((c) => (!f.type || c.type === f.type) && (!f.set || c.deck === f.set)
         && (f.cost == null || (f.cost === 7 ? costNum(c) >= 7 : costNum(c) === f.cost))
         && (!f.q || (c.name + ' ' + c.text + ' ' + c.subtypes.join(' ')).toLowerCase().includes(f.q.toLowerCase())))
-        .sort((a, b) => costNum(a) - costNum(b) || a.name.localeCompare(b.name));
+        .sort((a, b) => {
+          if (f.sort === 'wr') { const r = (c) => { const x = WR?.cards.get(c.id); return x && x.games >= MIN_GAMES ? x.wins / x.games : -1; }; return r(b) - r(a) || costNum(a) - costNum(b); }
+          return costNum(a) - costNum(b) || a.name.localeCompare(b.name);
+        });
       const by = {};
       for (const id of cur.cards) by[id] = (by[id] || 0) + 1;
       const rows = Object.keys(by).map((id) => CARDS[id]).sort((a, b) => costNum(a) - costNum(b) || a.name.localeCompare(b.name));
@@ -82,11 +111,13 @@ export function renderBuilder(root, store, onBack, opts = {}) {
               <input data-q value="${esc(f.q)}" placeholder="🔍 Поиск: имя, текст, тип (например «вампир»)">
               <div class="chips">${Object.entries(TYPE_RU).map(([k, v]) => `<button class="chip ${f.type === k ? 'on' : ''}" data-type="${k}">${TYPE_ICO[k]} ${v}</button>`).join('')}</div>
               <div class="chips">${[0, 1, 2, 3, 4, 5, 6, 7].map((c) => `<button class="chip cost ${f.cost === c ? 'on' : ''}" data-cost="${c}">${c === 7 ? '7+' : c}</button>`).join('')}
-                <select data-set><option value="">Все наборы</option>${Object.entries(DECK_RU).map(([k, v]) => `<option value="${k}" ${f.set === k ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
+                <select data-set><option value="">Все наборы</option>${Object.entries(DECK_RU).map(([k, v]) => `<option value="${k}" ${f.set === k ? 'selected' : ''}>${v}</option>`).join('')}</select>
+                <select data-sort><option value="cost" ${f.sort === 'cost' ? 'selected' : ''}>По цене</option><option value="wr" ${f.sort === 'wr' ? 'selected' : ''}>Сначала самые победные</option></select></div>
+              <div class="bld-wrnote">${!WR ? 'Загружаем проценты побед…' : WR.world ? `Процент на карте — как часто выигрывали колоды с ней (мировой рейтинг, от ${MIN_GAMES} партий).` : `Процент на карте — по вашим партиям (от ${MIN_GAMES}). Мировые цифры появятся, когда наберётся статистика.`}</div>
             </div>
             <div class="bld-grid">${list.map((c) => {
               const k = count(c.id);
-              return `<div class="bcard2 ${k ? 'in' : ''} ${k >= MAX_COPIES ? 'full' : ''}" data-id="${c.id}"><img src="${c.img}" loading="lazy" alt="">
+              return `<div class="bcard2 ${k ? 'in' : ''} ${k >= MAX_COPIES ? 'full' : ''}" data-id="${c.id}"><img src="${c.img}" loading="lazy" alt="">${wrBadge(WR?.cards.get(c.id))}
                 ${k ? `<div class="cnt">${k}/${MAX_COPIES}</div><button class="minus" data-minus="${c.id}" data-tip="Убрать одну копию">−</button>` : ''}</div>`;
             }).join('') || '<p class="bld-note">Ничего не найдено.</p>'}</div>
           </div>
@@ -112,6 +143,7 @@ export function renderBuilder(root, store, onBack, opts = {}) {
       $$('[data-type]').forEach((b) => { b.onclick = () => { f.type = f.type === b.dataset.type ? '' : b.dataset.type; draw(); }; });
       $$('[data-cost]').forEach((b) => { b.onclick = () => { const v = Number(b.dataset.cost); f.cost = f.cost === v ? null : v; draw(); }; });
       root.querySelector('[data-set]').onchange = (e) => { f.set = e.target.value; draw(); };
+      root.querySelector('[data-sort]').onchange = (e) => { f.sort = e.target.value; draw(); };
       const q = root.querySelector('[data-q]');
       q.oninput = (e) => { f.q = e.target.value; clearTimeout(draw.t); draw.t = setTimeout(() => { draw(); const nq = root.querySelector('[data-q]'); nq.focus(); nq.setSelectionRange(nq.value.length, nq.value.length); }, 250); };
       $$('.bcard2').forEach((e) => {

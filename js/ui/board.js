@@ -150,6 +150,7 @@ export class BoardUI {
       ${L.log ? `<div class="log-panel" id="log" style="left:${L.log.x}px;top:${L.log.y}px;width:${L.log.w}px;height:${L.log.h}px"></div>` : '<div class="log-panel hidden" id="log"></div>'}
       <div class="stack-panel" id="stack"></div>
       <div class="top-btns">
+        <button class="icon-btn" id="btn-report" data-tip="Ошибка или отзыв|Сообщить разработчику: снимок экрана и ход партии приложатся сами.">${ICON.report}</button>
         <button class="icon-btn" id="btn-help" data-tip="Как играть|Правила, значки и подсказки.">${ICON.help}</button>
         <button class="icon-btn" id="btn-fast" data-tip="Опережение ⚡|Включить или выключить вопросы «ответить картой с Опережением?».">${ICON.bolt}</button>
         <button class="icon-btn" id="btn-opts" data-tip="Меню|Журнал, скорость, музыка, звук, выход.">${ICON.menu}</button>
@@ -162,7 +163,10 @@ export class BoardUI {
         <button class="btn" id="btn-sound">🔊 Звук</button>
         <button class="btn danger" id="btn-menu">🚪 Выйти в меню</button>
       </div>
-      <div class="prompt" id="prompt" style="top:${L.midY + 6}px"></div>
+      ${L.name === 'land'
+    // Wide screens: the prompt sits in the right column (over the hint), so it never covers cards and their health.
+    ? `<div class="prompt side" id="prompt" style="left:${L.hint.x + L.hint.w / 2}px;top:${L.hint.y - 8}px"></div>`
+    : `<div class="prompt" id="prompt" style="top:${L.midY + 6}px"></div>`}
       <div class="hero-powers" id="powers" style="left:${L.powers.x}px;top:${L.powers.y}px;width:${L.powers.w}px"></div>
       <button class="emote-btn" id="btn-emote" style="left:${L.powers.emote.x}px;top:${L.powers.emote.y}px" data-tip="Реплики|Сказать что-нибудь сопернику.">💬</button>`;
     this.endBtn = u.querySelector('#end-turn');
@@ -173,6 +177,7 @@ export class BoardUI {
     this.promptEl = u.querySelector('#prompt');
     u.querySelector('#btn-menu').addEventListener('click', () => this.onMenu && this.onMenu());
     u.querySelector('#btn-help').addEventListener('click', () => this.showHelp());
+    u.querySelector('#btn-report').addEventListener('click', () => this.onFeedback?.());
     this.powersEl = u.querySelector('#powers');
     u.querySelector('#btn-emote').addEventListener('click', (e) => { e.stopPropagation(); this.openEmotes(); });
     u.querySelector('#btn-log').addEventListener('click', () => { this.showLog(); u.querySelector('#opts-pop').classList.add('hidden'); });
@@ -270,6 +275,14 @@ export class BoardUI {
     }
     if (this.oppHandCount) this.oppHandCount.innerHTML = `🂠 ${P[op].handCount}`;
     this.renderSide(view);
+    // More than 10 cards in hand: at the end of the turn the extra ones go to the graveyard (the player picks which).
+    const nHand = P[this.me]?.hand?.length || 0;
+    let lim = this.stage.querySelector('.hand-limit');
+    if (nHand > 10) {
+      if (!lim) { lim = document.createElement('div'); lim.className = 'hand-limit'; this.stage.appendChild(lim); }
+      lim.style.left = this.L.hand.cx + 'px'; lim.style.top = (this.L.hand.y - 34) + 'px';
+      lim.innerHTML = `В руке ${nHand} ${plural(nHand, 'карта', 'карты', 'карт')} — лимит 10. В конце вашего хода ${nHand - 10} ${plural(nHand - 10, 'лишняя уйдёт', 'лишние уйдут', 'лишних уйдут')} на кладбище: выберете сами.`;
+    } else lim?.remove();
     this.applyInteractivity();
     this.updateHint();
   }
@@ -531,12 +544,12 @@ export class BoardUI {
       }
     }
     if (q && q.player === this.me && q.focus != null) this.els.get(q.focus)?.classList.add('focus');
-    el.className = 'prompt';
+    el.className = this.L.name === 'land' ? 'prompt side' : 'prompt';
     el.innerHTML = '';
     if (!q) return;
     if (q.player !== this.me) {
       if (this.view?.phase === 'battle') { el.innerHTML = ''; return; }
-      el.className = 'prompt wait';
+      el.className = this.L.name === 'land' ? 'prompt side wait' : 'prompt wait';
       el.innerHTML = `<div class="ptext">${q.type === 'priority' ? 'Соперник может ответить…' : 'Соперник думает…'}</div>`;
       return;
     }
@@ -1180,7 +1193,7 @@ ${optHtml}</div></div>
   }
   /** A choice between options (modes of a card, yes/no, how many coins): a big window with the card and large buttons. */
   openPick(q) {
-    const id = this._actId;
+    const id = q.srcId;
     const img = id != null && CARDS[id]?.img;
     const numeric = q.options.every((o) => /^\d+$/.test(String(o.label ?? o.id)));
     const html = `<div class="pick-win ${img ? 'with-card' : ''}">
@@ -1318,6 +1331,18 @@ ${optHtml}</div></div>
           for (const t of ev.targets || []) this.arrow(p, this.pointOf(t), ev.player === this.me ? '#7fd4ff' : '#ff8a6a');
           sfx.magic(p?.x); await W(ev.player === this.me ? 320 : 700);
         }
+        break;
+      }
+      case 'shown': {
+        // The opponent shows cards from the hand: put them in front of you for a moment.
+        if (ev.player === this.me || !ev.ids?.length) break;
+        const w = document.createElement('div');
+        w.className = 'shown-pop';
+        w.innerHTML = `<div class="shown-title">Соперник показывает из руки</div><div class="shown-row">${ev.ids.map((id) => `<span class="shown-card" style="background-image:url('${CARDS[id]?.img || ''}')" title="${esc(CARDS[id]?.name || '')}"></span>`).join('')}</div>`;
+        this.overlay().appendChild(w);
+        sfx.reveal();
+        await FX.wait(2200);
+        w.classList.add('out'); setTimeout(() => w.remove(), 400);
         break;
       }
       case 'fx': {
@@ -1718,32 +1743,55 @@ ${optHtml}</div></div>
     let bestCard = null;
     for (const [k, v] of st.byCard) { const [side, id] = k.split(':').map(Number); if (side === me && CARDS[id]?.type !== 'leader' && (!bestCard || v > bestCard.v)) bestCard = { id, v }; }
     const name = (i) => esc(LEADER_SHORT[P[i].leader?.id] || CARDS[P[i].leader?.id]?.name.split(',')[0] || P[i].name);
-    const art = (i) => CARDS[P[i].leader?.id]?.img || '';
+    const art = (i) => (P[i].leader?.id != null ? `assets/leaders/${P[i].leader.id}.webp` : '');
     const row = (lbl, a, b) => `<tr><td>${lbl}</td><td class="${a > b ? 'up' : ''}">${a}</td><td class="${b > a ? 'up' : ''}">${b}</td></tr>`;
+    const fighter = (i) => {
+      const won = !draw && winner === i, hp = Math.max(0, P[i].leader?.hp ?? 0);
+      return `<div class="ov-fighter ${i === me ? 'me' : 'op'} ${draw ? '' : won ? 'won' : 'lost'}">
+        <div class="ov-port" style="background-image:url('${art(i)}')"></div>
+        ${won ? '<div class="ov-crown">Победитель</div>' : ''}
+        <div class="ov-plate"><b>${name(i)}</b><small>${esc(P[i].name)}${i === me ? ' · вы' : ''}</small><span class="ov-hp">❤ ${hp}</span></div>
+      </div>`;
+    };
     setTimeout(() => {
       document.querySelector('#game > .over-screen')?.remove();
       const o = document.createElement('div');
-      o.className = 'over-screen over2' + (win ? ' win' : draw ? ' draw' : ' lose');
+      o.className = 'over-screen over2 over3' + (win ? ' win' : draw ? ' draw' : ' lose');
+      const ach = (this.newAch || []).map((x) => `<div class="ov-ach"><span>${x.icon}</span><div><b>Новая награда: ${esc(x.title)}</b><small>${esc(x.text)}</small></div></div>`).join('');
       o.innerHTML = `
-        <div class="ov-side ov-me ${win || draw ? 'bright' : 'dim'}" style="background-image:url('${art(me)}')"></div>
-        <div class="ov-side ov-op ${!win || draw ? 'bright' : 'dim'}" style="background-image:url('${art(op)}')"></div>
-        <div class="ov-center">
-          <div class="ov-title">${draw ? 'Ничья' : win ? 'Победа' : 'Поражение'}</div>
-          <div class="ov-sub">${draw ? 'Оба Лидера пали одновременно' : `${name(win ? me : op)} побеждает ${esc(LEADER_ACC[P[win ? op : me].leader?.id] || name(win ? op : me))}`} · раунд ${this.view.round || 1}</div>
+        <div class="ov-vs">
+          ${fighter(me)}
+          <div class="ov-mid">
+            <div class="ov-title">${draw ? 'Ничья' : win ? 'Победа' : 'Поражение'}</div>
+            <div class="ov-vsword">VS</div>
+            <div class="ov-sub">${draw ? 'Оба Лидера пали одновременно' : `${name(win ? me : op)} побеждает ${esc(LEADER_ACC[P[win ? op : me].leader?.id] || name(win ? op : me))}`}<br>раунд ${this.view.round || 1}</div>
+          </div>
+          ${fighter(op)}
+        </div>
+        <div class="ov-bottom">
+          ${ach}
+          <div class="ov-rank">${this._rankHtml || (this.noRank ? '' : '<span class="ov-wait">Обновляем мировой рейтинг…</span>')}</div>
+          ${this.levelNote ? `<div class="ov-level">${esc(this.levelNote)}</div>` : ''}
+          <div class="ov-btns"><button class="ov-btn gold" data-again>Реванш</button><button class="ov-btn" data-stats>Статистика партии</button><button class="ov-btn" data-rank>Рейтинг и награды</button><button class="ov-btn" data-menu>В меню</button></div>
+          <a class="ov-buy" href="https://cardbattles.cc" target="_blank" rel="noopener">Понравилось? Настоящая коробка — на cardbattles.cc ↗</a>
+        </div>
+        <div class="ov-statpanel hidden"><div class="ov-statin">
           <table class="ov-stats"><tr><th></th><th>Вы</th><th>Соперник</th></tr>
             ${row('Нанесено ран', st.dmg[me], st.dmg[op])}${row('Из них Лидеру', st.face[me], st.face[op])}${row('Уничтожено союзников', st.kills[me], st.kills[op])}${row('Сыграно карт', st.played[me], st.played[op])}</table>
           <div class="ov-highs">
             ${st.best ? `<div class="ov-high"><span class="ov-pic" style="background-image:url('${CARDS[st.best.id]?.img || ''}')"></span><div><b>Самый сильный удар</b>«${esc(CARDS[st.best.id]?.name.split(',')[0] || '')}» — ${st.best.amount} ${plural(st.best.amount, 'рана', 'раны', 'ран')}${st.best.side === me ? '' : ' (соперник)'}</div></div>` : ''}
             ${bestCard ? `<div class="ov-high"><span class="ov-pic" style="background-image:url('${CARDS[bestCard.id]?.img || ''}')"></span><div><b>Ваша лучшая карта</b>«${esc(CARDS[bestCard.id]?.name.split(',')[0] || '')}» — ${bestCard.v} ${plural(bestCard.v, 'рана', 'раны', 'ран')} за партию</div></div>` : ''}
           </div>
-          <div class="ov-rank">${this._rankHtml || (this.noRank ? '' : '<span class="ov-wait">Обновляем мировой рейтинг…</span>')}</div>
-          <a class="ov-buy" href="https://cardbattles.cc" target="_blank" rel="noopener">Понравилось? Купите настоящую коробку на cardbattles.cc</a>
-          <div class="ov-btns"><button class="ov-btn gold" data-again>Реванш</button><button class="ov-btn" data-rank>Рейтинг</button><button class="ov-btn" data-menu>В меню</button></div>
-        </div>`;
+          <button class="ov-btn" data-stats-close>Закрыть</button>
+        </div></div>`;
       this.overlay().appendChild(o);
       o.querySelector('[data-menu]').addEventListener('click', () => this.onMenu && this.onMenu(true));
       o.querySelector('[data-again]').addEventListener('click', () => this.onAgain && this.onAgain());
       o.querySelector('[data-rank]').addEventListener('click', () => this.onRanking ? this.onRanking() : this.onMenu && this.onMenu(true));
+      const sp = o.querySelector('.ov-statpanel');
+      o.querySelector('[data-stats]').addEventListener('click', () => { sfx.click?.(); sp.classList.remove('hidden'); });
+      o.querySelector('[data-stats-close]').addEventListener('click', () => sp.classList.add('hidden'));
+      sp.addEventListener('click', (e) => { if (e.target === sp) sp.classList.add('hidden'); });
     }, 1300);
   }
 

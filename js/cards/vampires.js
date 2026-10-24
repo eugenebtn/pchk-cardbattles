@@ -186,6 +186,7 @@ export default {
         const shown = yield* g.pickFrom(self.ctrl, vamps, { min: 0, max: vamps.length, prompt: 'Отец рода: покажите карты Вампиров из руки (1 🩸 за каждую)' });
         if (!shown.length) return;
         g.fx('reveal', self, shown);
+        g.emit('shown', { player: self.ctrl, ids: shown.map((c) => c.id) });
         g.log(`${g.P(self.ctrl).name} показывает: ${shown.map((c) => `«${g.name(c)}»`).join(', ')}.`);
         yield* g.addTokens(self, 'blood', shown.length, self);
       },

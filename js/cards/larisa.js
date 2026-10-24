@@ -309,6 +309,7 @@ export default {
       const shown = hand.length <= n ? [...hand]
         : yield* g.pickFrom(opp, hand, { min: n, max: n, prompt: `Болтливая лошадь: покажите противнику ${n} карт(ы) из руки` });
       g.fx('horseGossip', self, shown);
+      g.emit('shown', { player: opp, ids: shown.map((c) => c.id) });
       g.log(`${g.P(opp).name} показывает: ${shown.map((c) => `«${g.name(c)}»`).join(', ')}.`);
       const [c] = yield* g.pickFrom(me, shown, { min: 1, max: 1, prompt: 'Болтливая лошадь: какую карту противник положит на кладбище?' });
       if (c) yield* g.discard(opp, c);

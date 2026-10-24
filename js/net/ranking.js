@@ -24,7 +24,11 @@ export async function submitResult(r) {
       opponent_name: r.oppName ? String(r.oppName).slice(0, 24) : null, opponent_deck: r.oppDeck ? String(r.oppDeck).slice(0, 40) : null,
       mode: r.mode, won: !!r.won, rounds: Math.max(0, Math.min(200, r.rounds | 0)),
     };
-    const res = await fetch(URL + 'results', { method: 'POST', headers: { ...HEAD, Prefer: 'return=minimal' }, body: JSON.stringify(row) });
+    const cards = Array.isArray(r.cards) ? r.cards.filter(Number.isInteger).slice(0, 80) : null;
+    const send = (body) => fetch(URL + 'results', { method: 'POST', headers: { ...HEAD, Prefer: 'return=minimal' }, body: JSON.stringify(body) });
+    let res = await send(cards?.length ? { ...row, cards } : row);
+    // Before tools/cards_stats.sql is run the table has no «cards» column: send without it.
+    if (!res.ok && cards?.length && res.status === 400) res = await send(row);
     return res.ok;
   } catch { return false; }
 }
@@ -34,14 +38,26 @@ async function get(path) {
   if (!res.ok) throw new Error('ranking ' + res.status);
   return res.json();
 }
-/** Players of one mode, best first. */
+/** Players of one mode ('online', 'bot' or 'all' = both added together), best first. */
 export async function loadPlayers(mode) {
-  const rows = await get(`leaderboard?select=*&mode=eq.${encodeURIComponent(mode)}&order=wins.desc,winrate.desc&limit=300`);
+  let rows;
+  if (mode === 'all') {
+    const both = await get('leaderboard?select=*&order=wins.desc&limit=600');
+    const m = new Map();
+    for (const r of both) {
+      const p = m.get(r.player_id);
+      if (!p) { m.set(r.player_id, { ...r, favGames: r.games }); continue; }
+      p.wins += r.wins; p.games += r.games;
+      if (r.last_game > p.last_game) { p.last_game = r.last_game; p.player_name = r.player_name; }
+      if (r.games > p.favGames) { p.fav_deck = r.fav_deck; p.favGames = r.games; }
+    }
+    rows = [...m.values()].map((p) => ({ ...p, winrate: p.games ? Math.round((p.wins / p.games) * 100) : 0 }));
+  } else rows = await get(`leaderboard?select=*&mode=eq.${encodeURIComponent(mode)}&order=wins.desc,winrate.desc&limit=300`);
   return rows.sort((a, b) => b.wins - a.wins || b.winrate - a.winrate || a.games - b.games);
 }
 /** Decks of one mode: games, wins and leader, counted from the latest results. */
 export async function loadDecks(mode) {
-  const rows = await get(`results?select=deck,leader,won&mode=eq.${encodeURIComponent(mode)}&order=created_at.desc&limit=1000`);
+  const rows = await get(`results?select=deck,leader,won${mode === 'all' ? '' : `&mode=eq.${encodeURIComponent(mode)}`}&order=created_at.desc&limit=1000`);
   const m = new Map();
   for (const r of rows) {
     const d = m.get(r.deck) || { deck: r.deck, leader: r.leader, games: 0, wins: 0 };
@@ -49,4 +65,9 @@ export async function loadDecks(mode) {
     m.set(r.deck, d);
   }
   return [...m.values()].sort((a, b) => b.wins / b.games - a.wins / a.games || b.games - a.games);
+}
+/** Every card: in how many finished games it was in the deck and how many of them were won (needs tools/cards_stats.sql). */
+export async function loadCardStats() {
+  const rows = await get('card_winrate?select=card,games,wins&limit=1000');
+  return new Map(rows.map((r) => [r.card, { games: r.games, wins: r.wins }]));
 }

@@ -4,6 +4,7 @@ import { loadPlayers, loadDecks, playerId } from '../net/ranking.js';
 import { DECKS } from '../data/decks.js';
 import { BALANCE } from '../data/balance.js';
 import { esc } from './board.js';
+import { achievementsHtml } from './achievements.js';
 
 const KEY = 'pchk_stats';
 const MODE_RU = { bot: 'с компьютером', online: 'с другом онлайн', hotseat: 'за одним экраном' };
@@ -41,7 +42,7 @@ function group(list, keyFn) {
 async function renderWorld(box, mode, name, setName) {
   const me = playerId();
   box.innerHTML = `<div class="rk-name">Ваше имя в рейтинге: <input type="text" maxlength="20" value="${esc(name())}" placeholder="Игрок"><button class="btn small" data-save>Сохранить</button></div>
-    <p class="st-note">${mode === 'online' ? 'Партии с друзьями по ссылке. Считаются победы; при равенстве выше тот, у кого больше процент побед.' : 'Партии против компьютера.'} Результат записывается сам после каждой партии.</p>
+    <p class="st-note">${mode === 'all' ? 'Все партии вместе: с друзьями и против компьютера.' : mode === 'online' ? 'Партии с друзьями по ссылке.' : 'Партии против компьютера.'} Считаются победы; при равенстве выше тот, у кого больше процент побед. Результат записывается сам после каждой партии.</p>
     <div class="rk-body"><p class="st-empty">Загружаем рейтинг…</p></div>`;
   box.querySelector('[data-save]').onclick = () => { setName(box.querySelector('input').value.trim()); box.querySelector('[data-save]').textContent = 'Сохранено'; };
   const body = box.querySelector('.rk-body');
@@ -62,7 +63,7 @@ async function renderWorld(box, mode, name, setName) {
 }
 
 export function renderStats(root, onBack, { tab: startTab = 'world', name = () => '', setName = () => {} } = {}) {
-  let tab = startTab, worldMode = 'online';
+  let tab = startTab, worldMode = 'all';
   const draw = () => {
     const games = loadGames();
     const human = games;
@@ -128,8 +129,8 @@ export function renderStats(root, onBack, { tab: startTab = 'world', name = () =
     root.innerHTML = `<div class="stats-box">
       <button class="btn small" data-back>← Назад</button>
       <h2>Статистика</h2>
-      <div class="st-tabs"><button class="btn small ${tab === 'world' ? 'primary' : ''}" data-tab="world">Мировой рейтинг</button><button class="btn small ${tab === 'mine' ? 'primary' : ''}" data-tab="mine">Мои партии</button><button class="btn small ${tab === 'bal' ? 'primary' : ''}" data-tab="bal">Баланс колод</button></div>
-      ${tab === 'world' ? `<div class="st-tabs sub"><button class="btn small ${worldMode === 'online' ? 'primary' : ''}" data-wm="online">С друзьями онлайн</button><button class="btn small ${worldMode === 'bot' ? 'primary' : ''}" data-wm="bot">Против компьютера</button></div><div class="rk-box"></div>` : tab === 'mine' ? mine : balance}
+      <div class="st-tabs"><button class="btn small ${tab === 'world' ? 'primary' : ''}" data-tab="world">Мировой рейтинг</button><button class="btn small ${tab === 'mine' ? 'primary' : ''}" data-tab="mine">Мои партии</button><button class="btn small ${tab === 'ach' ? 'primary' : ''}" data-tab="ach">Награды</button><button class="btn small ${tab === 'bal' ? 'primary' : ''}" data-tab="bal">Баланс колод</button></div>
+      ${tab === 'world' ? `<div class="st-tabs sub"><button class="btn small ${worldMode === 'all' ? 'primary' : ''}" data-wm="all">Общий</button><button class="btn small ${worldMode === 'online' ? 'primary' : ''}" data-wm="online">С друзьями онлайн</button><button class="btn small ${worldMode === 'bot' ? 'primary' : ''}" data-wm="bot">Против компьютера</button></div><div class="rk-box"></div>` : tab === 'mine' ? mine : tab === 'ach' ? achievementsHtml() : balance}
     </div>`;
     root.querySelector('[data-back]').onclick = onBack;
     root.querySelectorAll('[data-tab]').forEach((b) => { b.onclick = () => { tab = b.dataset.tab; draw(); }; });
