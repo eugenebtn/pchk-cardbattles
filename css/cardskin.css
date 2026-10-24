@@ -404,3 +404,6 @@
 #stage.port .hint-bar .hint-ico { width: 44px; height: 44px; }
 #stage.port .hint-bar .hint-txt b { font-size: 24px; }
 #stage.port .hint-bar .hint-txt em { font-size: 20px; }
+#stage.land .hint-bar { min-height: 96px; align-items: center; }
+#stage.land .hint-bar .hint-txt b { font-size: 17px; }
+#stage.land .hint-bar .hint-txt em { font-size: 14px; }
