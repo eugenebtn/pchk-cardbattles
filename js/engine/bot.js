@@ -1,5 +1,39 @@
-// Simple computer opponent. Works for any request the engine can make.
+// Computer opponent. Works for any request the engine can make. It reads what an effect does from the
+// prompt and the source card's text (destroy / N wounds / buff) so it does not waste cards on targets
+// that cannot be hurt (Нерушимость) and prefers targets it can actually kill.
 import { defOf } from './game.js';
+
+/** What a targeted effect does, guessed from the request and the card that makes it. */
+function intent(g, q, srcId) {
+  const prompt = (q.prompt || '').toLowerCase();
+  const src = q.src != null ? g.card(q.src) : null;
+  const text = ((srcId != null ? defOf(srcId)?.text : src ? g.def(src).text : '') || '').toLowerCase();
+  const m = prompt.match(/(\d+)\s*ран/) || text.match(/(\d+)\s*ран/);
+  const dmg = m ? Number(m[1]) : 0;
+  const destroy = /уничтож/.test(prompt) || (!dmg && /уничтожьте/.test(text));
+  return { destroy, dmg };
+}
+/** Score of hitting card c with an effect; -1 means useless. */
+function harmScore(g, c, it) {
+  if (g.has(c, 'indestructible') && it.destroy) return -1;
+  const v = value(g, c);
+  if (it.dmg) {
+    if (g.cardType(c) === 'leader') return g.hp(c) <= it.dmg ? 1000 : 2 + it.dmg;
+    return g.hp(c) <= it.dmg ? v * 2 + 5 : v * 0.5;
+  }
+  if (g.cardType(c) === 'leader') return 1;
+  return v;
+}
+/** Would playing this hand card (or using this ability) do anything useful right now? */
+function useful(g, me, specs, srcId) {
+  const first = Array.isArray(specs) ? specs[0] : specs;
+  if (!first || typeof first !== 'object' || first.optional || first.side === 'own' || first.hint === 'buff' || first.zone || !first.kind) return true;
+  let cands;
+  try { cands = g.targetCandidates(me, first).filter((c) => c.ctrl !== me); } catch { return true; }
+  if (!cands.length) return first.side !== 'enemy';
+  const it = intent(g, { prompt: first.prompt }, srcId);
+  return cands.some((c) => harmScore(g, c, it) > 0);
+}
 
 function value(g, c) {
   const d = g.def(c);
@@ -37,6 +71,7 @@ export function botAnswer(g, q, rand = Math.random, opts = {}) {
       let best = null, bestScore = 0;
       for (const o of plays) {
         const c = g.card(o.uid), d = defOf(o.side);
+        if (!useful(g, me, g.script({ id: o.side }).targets, o.side)) continue;
         let s = (typeof o.cost === 'number' ? o.cost : Math.max(1, p.coins - 1)) + 1;
         if (d.type === 'ally') s += 2;
         if (d.type === 'place' && g.s.round < 5) s += 3;
@@ -44,8 +79,9 @@ export function botAnswer(g, q, rand = Math.random, opts = {}) {
         s += rand();
         if (s > bestScore) { bestScore = s; best = o.id; }
       }
-      if (!best && abil.length && rand() < 0.5) {
-        const o = abil[Math.floor(rand() * abil.length)];
+      const goodAb = abil.filter((o) => { const c = g.card(o.uid); const ab = g.script(c).abilities?.[o.ab]; return !ab || useful(g, me, ab.targets, c.id); });
+      if (!best && goodAb.length && rand() < 0.6) {
+        const o = goodAb[Math.floor(rand() * goodAb.length)];
         const key = `${o.id}@${g.s.turnStamp}`;
         g._botAb = g._botAb || {};
         if ((g._botAb[key] || 0) < 2) { g._botAb[key] = (g._botAb[key] || 0) + 1; return o.id; }
@@ -53,9 +89,16 @@ export function botAnswer(g, q, rand = Math.random, opts = {}) {
       return best || 'end';
     }
     case 'priority': {
-      if (rand() < 0.85) return 'pass';
-      const o = q.options.filter((x) => x.id !== 'pass');
-      return o.length ? o[Math.floor(rand() * o.length)].id : 'pass';
+      // Answer only with something useful, and mostly when the opponent is acting against us.
+      const top = g.s.stack[g.s.stack.length - 1];
+      const threatened = top && top.player !== me && top.ctx.targets.some((u) => g.card(u)?.ctrl === me);
+      const o = q.options.filter((x) => x.id !== 'pass').filter((x) => {
+        if (x.kind === 'play') return useful(g, me, g.script({ id: x.side }).targets, x.side);
+        const c = g.card(x.uid); const ab = g.script(c).abilities?.[x.ab];
+        return !ab || useful(g, me, ab.targets, c.id);
+      });
+      if (!o.length || rand() < (threatened ? 0.4 : 0.9)) return 'pass';
+      return o[Math.floor(rand() * o.length)].id;
     }
     case 'region': {
       const ids = q.options.map((o) => o.id);
@@ -87,11 +130,15 @@ export function botAnswer(g, q, rand = Math.random, opts = {}) {
         const L = pool.find((c) => g.cardType(c) === 'leader');
         return (L || pool[0]).uid;
       }
-      pool = [...pool].sort((a, b) => value(g, b) - value(g, a));
-      if (hint === 'harm') {
-        const nonLeader = pool.filter((c) => g.cardType(c) !== 'leader');
-        if (nonLeader.length && rand() < 0.8) return nonLeader[0].uid;
+      if (hint === 'harm' && enemy.length) {
+        const it = intent(g, q);
+        const scored = enemy.map((c) => [harmScore(g, c, it) + rand() * 0.5, c]).sort((a, b) => b[0] - a[0]);
+        if (scored[0][0] > 0) return scored[0][1].uid;
+        // Nothing worth hitting: back out if allowed instead of wasting the card.
+        if (q.cancel) return null;
+        return scored[0][1].uid;
       }
+      pool = [...pool].sort((a, b) => value(g, b) - value(g, a));
       return pool[0].uid;
     }
     case 'pick': {

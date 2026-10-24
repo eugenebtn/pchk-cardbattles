@@ -109,7 +109,7 @@ export default {
   // Джей Зи, ученик Гуди
   60: {
     *onEnter(g, self) {
-      const cands = g.P(self.ctrl).grave.filter((c) => ['ally', 'companion'].includes(g.def(c).type) && g.def(c).legend);
+      const cands = g.P(self.ctrl).grave.filter((c) => ['ally', 'companion'].includes(g.def(c).type) && g.def(c).legend && !g.legendClash(self.ctrl, c));
       const t = yield* g.pickCard(self.ctrl, cands, 'Судьба лорда: вернуть Легенду из кладбища на поле', 'buff', { optional: true });
       if (!t) return;
       if (g.def(t).type === 'ally') {
@@ -201,7 +201,7 @@ export default {
         if (!mine(g, self, ev)) return;
         const borsch = g.items(self.ctrl).filter((c) => c.id === 56);
         if (!borsch.length) return;
-        const cands = g.P(self.ctrl).grave.filter((c) => g.def(c).type === 'ally' && (g.def(c).cost ?? 0) <= borsch.length);
+        const cands = g.P(self.ctrl).grave.filter((c) => g.def(c).type === 'ally' && (g.def(c).cost ?? 0) <= borsch.length && !g.legendClash(self.ctrl, c));
         if (!cands.length || !g.allyRegions(self.ctrl, cands[0], cands[0].id).length) return;
         const t = yield* g.pickCard(self.ctrl, cands, 'Материнская любовь: вернуть Союзника за Борщи', 'buff', { optional: true });
         if (!t) return;

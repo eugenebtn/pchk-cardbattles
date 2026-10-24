@@ -537,13 +537,13 @@ export default {
   // Шаманизм
   159: {
     canPlay(g, i, c) {
-      const al = g.P(i).grave.filter((x) => g.def(x).type === 'ally');
+      const al = g.P(i).grave.filter((x) => g.def(x).type === 'ally' && !g.legendClash(i, x));
       return al.some((x) => g.allyRegions(i, x, x.id).length > 0);
     },
     *plan(g, ctx) {
       const t = yield* g.chooseTarget(ctx, {
         zone: 'grave', hint: 'buff', prompt: 'Шаманизм: Союзник из вашего кладбища',
-        candidates: (g2, c) => g2.P(c.player).grave.filter((x) => g2.def(x).type === 'ally'),
+        candidates: (g2, c) => g2.P(c.player).grave.filter((x) => g2.def(x).type === 'ally' && !g2.legendClash(c.player, x)),
       });
       if (!t) return false;
     },

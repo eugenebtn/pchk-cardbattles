@@ -144,7 +144,16 @@ export class Game {
     const ev = { seq: ++this.seq, type, ...data };
     this.events.push(ev);
     if (this.events.length > 4000) this.events.splice(0, 1000);
-    if (data.log) { this.s.log.push(data.log); if (this.s.log.length > 300) this.s.log.shift(); }
+    if (data.log) {
+      this.s.log.push(data.log);
+      // Who acted and on whom, so the history can show the cards (kept in step with the text lines).
+      const ref = (u) => { const c = u != null ? this.card(u) : null; return c ? { uid: c.uid, id: c.id, ctrl: c.ctrl } : null; };
+      const src = data.src != null ? ref(data.src) : data.uid != null ? ref(data.uid) : null;
+      const tgts = [data.tgt, ...(data.targets || [])].map(ref).filter(Boolean);
+      if (!this.s.logRefs) this.s.logRefs = [];
+      this.s.logRefs.push(src || tgts.length ? { src: src || (data.id != null ? { id: data.id, ctrl: data.player } : null), tgts, type } : null);
+      if (this.s.log.length > 300) { this.s.log.shift(); this.s.logRefs.shift(); }
+    }
     return ev;
   }
   log(text) { this.emit('log', { log: text }); }
@@ -194,6 +203,8 @@ export class Game {
   /** Count your cards on the battlefield with a subtype (for «Разговор с …»). */
   countType(p, t) { return this.field(p).filter((c) => this.isType(c, t)).length; }
   isLegend(inst) { return this.def(inst).legend || this.hasGranted(inst, 'legend'); }
+  /** Would putting this card onto player i's field make two Legends with one name? (then don't offer it) */
+  legendClash(i, inst) { return this.isLegend(inst) && this.field(i).some((x) => x !== inst && this.def(x).name === this.def(inst).name); }
 
   statics() {
     // [{inst, s}] for every card on the battlefield with a static block, plus equipment.
@@ -908,7 +919,7 @@ export class Game {
     if (this.isLegend(c)) {
       const same = this.field(i).filter((x) => x !== c && this.def(x).name === d.name);
       if (same.length) {
-        const keep = yield* this.pickCard(i, [c, ...same], `Две Легенды «${d.name}»: оставьте одну`, 'buff');
+        const keep = yield* this.pickCard(i, [c, ...same], `На поле не может быть двух Легенд «${d.name}». Выберите, какую оставить — другая уйдёт на кладбище`, 'buff');
         for (const x of [c, ...same]) if (x !== keep) yield* this.toGrave(x);
         if (keep !== c) return false;
       }
@@ -1453,6 +1464,7 @@ export class Game {
         };
       }),
       log: s.log.slice(-60),
+      logRefs: (s.logRefs || []).slice(-60),
     };
   }
 }

@@ -247,7 +247,8 @@ export class BoardUI {
       if (fresh) {
         el = document.createElement('div');
         el.dataset.uid = uid;
-        el.addEventListener('click', (e) => { e.stopPropagation(); this.clickCard(Number(uid)); });
+        el.addEventListener('click', (e) => { e.stopPropagation(); if (el._justDragged) { el._justDragged = false; return; } this.clickCard(Number(uid)); });
+        el.addEventListener('pointerdown', (e) => this.dragStart(e, el, Number(uid)));
         el.addEventListener('mouseenter', () => { if (!this.touch()) this.showPreview(Number(uid), el); });
         el.addEventListener('mouseleave', () => { if (!this.touch()) this.hidePreview(); });
         const origin = this.originFor(w, uid);
@@ -439,7 +440,13 @@ export class BoardUI {
     for (let r = 0; r < 5; r++) this.cols[r].classList.toggle('fighting', view.battleRegion === r);
     // Log.
     const atBottom = this.logEl.scrollTop + this.logEl.clientHeight >= this.logEl.scrollHeight - 10;
-    this.logEl.innerHTML = view.log.slice(-40).map((l) => `<div>${esc(l)}</div>`).join('');
+    const refs = view.logRefs || [], base = view.log.length - Math.min(40, view.log.length);
+    this.logEl.innerHTML = view.log.slice(-40).map((l, k) => `<div ${refs[base + k] ? `data-r="${base + k}" class="has-ref"` : ''}>${esc(l)}</div>`).join('');
+    if (!this.logEl._hover) {
+      this.logEl._hover = true;
+      this.logEl.addEventListener('mouseover', (e) => { const d = e.target.closest('[data-r]'); if (d) this.showLogRef(this.view?.logRefs?.[Number(d.dataset.r)], d); });
+      this.logEl.addEventListener('mouseleave', () => this.hideLogRef());
+    }
     if (atBottom) this.logEl.scrollTop = this.logEl.scrollHeight;
     // Stack.
     this.stackEl.innerHTML = view.stack.length ? '<div style="font-size:13px;color:#9fd0ff">Стопка:</div>' + [...view.stack].reverse().map((it) => `<div class="stack-item ${it.player === me ? '' : 'p1'}">${esc(it.label)}</div>`).join('') : '';
@@ -447,6 +454,12 @@ export class BoardUI {
 
   // ---------- interaction ----------
   setPending(q) {
+    // A card dropped onto a slot answers the following «where?» question by itself.
+    const drop = this._dropRegion;
+    this._dropRegion = null;
+    if (q && drop != null && q.type === 'region' && q.player === this.me && q.options.some((o) => o.id === drop.region) && (q.row || 'ally') === drop.row) {
+      this.q = q; setTimeout(() => { if (this.q === q) this.answer(drop.region); }, 0); return;
+    }
     this.q = q;
     this.chosen.clear();
     this.closeModal();
@@ -562,6 +575,50 @@ export class BoardUI {
     sfx.click();
     this.answer(r);
   }
+  /** Mouse drag of a hand card onto the table: play it like in Hearthstone. Touch keeps tap-to-open. */
+  dragStart(e, el, uid) {
+    if (e.pointerType !== 'mouse' || e.button !== 0) return;
+    const q = this.q;
+    if (!q || q.player !== this.me || !(q.type === 'main' || q.type === 'priority')) return;
+    const plays = q.options.filter((o) => o.kind === 'play' && o.uid === uid);
+    if (!plays.length || !el.classList.contains('hand-card')) return;
+    const sr = () => this.stage.getBoundingClientRect();
+    const toStage = (ev) => { const r = sr(); return { x: (ev.clientX - r.left) / this.scale, y: (ev.clientY - r.top) / this.scale }; };
+    const start = toStage(e), x0 = parseFloat(el.style.left), y0 = parseFloat(el.style.top);
+    let dragging = false, overSlot = null;
+    const handTop = this.L.hand.y - 20;
+    const move = (ev) => {
+      const p = toStage(ev);
+      if (!dragging && Math.hypot(p.x - start.x, p.y - start.y) < 10) return;
+      if (!dragging) { dragging = true; el.classList.add('dragging'); el.style.transition = 'transform .15s'; this.hidePreview(); this.stage.classList.add('drag-on'); sfx.select(); }
+      el.style.left = (x0 + p.x - start.x) + 'px'; el.style.top = (y0 + p.y - start.y) + 'px';
+      el.style.transform = p.y < handTop ? 'scale(.75) rotate(0deg)' : 'scale(1) rotate(0deg)';
+      // Which slot is under the cursor?
+      el.style.pointerEvents = 'none';
+      const hit = document.elementFromPoint(ev.clientX, ev.clientY);
+      el.style.pointerEvents = '';
+      const slot = hit?.closest?.('.slot');
+      const ok = slot && Number(slot.dataset.side) === this.me ? slot : null;
+      if (overSlot !== ok) { overSlot?.classList.remove('drop-here'); ok?.classList.add('drop-here'); overSlot = ok; }
+      this.stage.classList.toggle('drop-ready', p.y < handTop);
+    };
+    const up = (ev) => {
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
+      this.stage.classList.remove('drag-on', 'drop-ready');
+      overSlot?.classList.remove('drop-here');
+      if (!dragging) return;
+      el._justDragged = true; setTimeout(() => { el._justDragged = false; }, 50);
+      el.classList.remove('dragging');
+      el.style.transition = 'left .3s cubic-bezier(.2,.8,.3,1), top .3s cubic-bezier(.2,.8,.3,1), transform .3s';
+      const p = toStage(ev);
+      if (p.y >= handTop || this.q !== q) { el.style.left = x0 + 'px'; el.style.top = y0 + 'px'; el.style.transform = ''; return; }
+      if (overSlot) this._dropRegion = { region: Number(overSlot.dataset.region), row: overSlot.dataset.row };
+      sfx.click();
+      if (plays.length === 1) this.answer(plays[0].id);
+      else { el.style.left = x0 + 'px'; el.style.top = y0 + 'px'; el.style.transform = ''; this.openChoiceMenu(uid, plays); }
+    };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  }
   clickCard(uid) {
     const q = this.q;
     const own = this.view?.players[this.me]?.leader;
@@ -602,16 +659,34 @@ export class BoardUI {
     if (d.type === 'place' && me.regions.every((r) => r.place)) return 'Во всех пяти регионах уже есть ваши Места.';
     return 'Сейчас нет подходящей цели или не выполнено условие карты.';
   }
+  /** One option as a picture with what you get: the side's art, price, stats and text (or the ability's text). */
+  choiceCardHtml(o, uid, k) {
+    if (o.kind === 'play') {
+      const d = CARDS[o.side];
+      const stats = d.type === 'ally' ? `<span class="ch-st atk">${d.atk}</span><span class="ch-st hp">${d.hp}</span>` : d.hp != null ? `<span class="ch-st hp">${d.hp}</span>` : '';
+      return `<button class="choice-card" data-k="${k}"><div class="ch-img" style="background-image:url('${d.img || ''}')"></div>
+        <div class="ch-name">${esc(d.name.split(',')[0])}</div>
+        <div class="ch-meta"><span class="ch-cost">${o.cost ?? d.cost} 💰</span>${stats}</div>
+        <div class="ch-text">${linkTerms(esc((d.text || '').split('\n').filter((l) => !/^\(.*обратн/i.test(l.trim())).slice(0, 3).join(' ')))}</div>
+        <div class="ch-go">Разыграть это</div></button>`;
+    }
+    const id = this.cardIdOf(uid), d = CARDS[id];
+    const line = (d?.text || '').split('\n').find((l) => l.startsWith(o.label)) || o.label;
+    return `<button class="choice-card" data-k="${k}"><div class="ch-img" style="background-image:url('${d?.img || ''}')"></div>
+      <div class="ch-name">${esc(o.label)}</div><div class="ch-meta"><span class="ch-cost">${esc(costText(o.abCost))}</span></div>
+      <div class="ch-text">${linkTerms(esc(line))}</div><div class="ch-go">Использовать</div></button>`;
+  }
   openChoiceMenu(uid, opts) {
-    const labels = opts.map((o) => o.kind === 'play' ? `Разыграть «${CARDS[o.side].name}»${o.cost != null ? ` — ${o.cost} 💰` : ''}` : `Свойство: ${o.label}`);
-    this.modal(`<h3>${esc(CARDS[this.cardIdOf(uid)]?.name || '')}</h3><div class="row-btns" style="flex-direction:column">${labels.map((l, k) => `<button class="btn" data-k="${k}">${esc(l)}</button>`).join('')}<button class="btn danger" data-k="-1">Отмена</button></div>`, (m) => {
-      m.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
-        const k = Number(b.dataset.k);
-        this.closeModal();
-        if (k >= 0) { sfx.click(); this.answer(opts[k].id); }
-      }));
+    const sides = opts.some((o) => o.kind === 'play' && o.side !== this.cardIdOf(uid)) || new Set(opts.filter((o) => o.kind === 'play').map((o) => o.side)).size > 1;
+    const title = sides ? 'Какую сторону карты разыграть?' : `Что сделать с «${esc(CARDS[this.cardIdOf(uid)]?.name.split(',')[0] || '')}»?`;
+    this.modal(`<h3>${title}</h3><div class="choice-row">${opts.map((o, k) => this.choiceCardHtml(o, uid, k)).join('')}</div>
+      <div class="row-btns"><button class="btn danger" data-cancel>Отмена</button></div>`, (m) => {
+      m.querySelector('.modal').classList.add('choice-modal');
+      m.querySelectorAll('.choice-card').forEach((b) => b.addEventListener('click', () => { const k = Number(b.dataset.k); this.closeModal(); sfx.click(); this.answer(opts[k].id); }));
+      m.querySelector('[data-cancel]').addEventListener('click', () => this.closeModal());
     });
   }
+
   cardIdOf(uid) {
     const v = this.view;
     if (!v) return null;
@@ -846,14 +921,23 @@ export class BoardUI {
     const optHtml = opts.map((o, k) => {
       if (o.kind === 'play') {
         const d = CARDS[o.side];
-        return `<button class="pri-card" data-k="${k}"><div class="pri-img" style="background-image:url('${d.img || ''}')"></div><span>${esc(d.name.split(',')[0])}<br><b>${o.cost} 💰</b></span></button>`;
+        return `<button class="pri-card" data-k="${k}"><div class="pri-img" style="background-image:url('${d.img || ''}')"></div><span>Сыграть «${esc(d.name.split(',')[0])}»<br><b>${o.cost} 💰</b></span></button>`;
       }
       const id = this.cardIdOf(o.uid);
       return `<button class="pri-card ab" data-k="${k}"><div class="pri-img" style="background-image:url('${CARDS[id]?.img || ''}')"></div><span>${esc(o.label)}<br><b>${costText(o.abCost)}</b></span></button>`;
     }).join('');
-    const html = `<div class="pri-head">⚡ Опережение — можно ответить</div>
+    // The situation as pictures: what is being used ➜ at whom (your cards in red), then your possible answers.
+    const tgs = ctx.kind === 'stack' ? (ctx.targets || []) : [];
+    const mineHit = tgs.some((t) => t.ctrl === me);
+    const pic = (id, cls, lbl) => CARDS[id]?.img ? `<div class="pri-vs"><div class="pri-vs-card ${cls}" style="background-image:url('${CARDS[id].img}')"></div><div class="pri-vs-lbl ${cls}">${lbl}</div></div>` : '';
+    const scene = ctx.kind === 'stack' ? `<div class="pri-scene">${pic(ctx.id, ctx.by === me ? 'mine' : 'enemy', ctx.by === me ? 'Ваше действие' : 'Соперник использует')}${tgs.length ? '<div class="pri-arrow">➜</div>' + tgs.map((t) => pic(t.id, t.ctrl === me ? 'threat' : 'enemy', t.ctrl === me ? 'Цель: ваша карта' : 'Цель')).join('') : ''}</div>` : '';
+    const head = mineHit ? '⚠ Против вас — можно ответить' : '⚡ Опережение — можно ответить';
+    const html = `<div class="pri-head ${mineHit ? 'danger' : ''}">${head}</div>
       <div class="pri-what">${what}</div>
-      <div class="pri-opts">${optHtml}</div>
+      ${scene}
+      <div class="pri-sub">${mineHit ? 'Ваш ответ сработает <b>раньше</b> — успейте защитить карту. Чем можно ответить:' : 'Чем можно ответить (сработает раньше):'}</div>
+      <div class="pri-row"><div class="pri-opts">
+${optHtml}</div></div>
       <div class="pri-btns"><button class="btn primary" data-pass>Пропустить</button><button class="btn small" data-why>Что это?</button></div>
       <div class="pri-why hidden">Карты и свойства со значком ⚡ можно играть не только в свой ход, но и в ответ на действия соперника, в начале хода и в бою. Ваш ответ срабатывает <b>раньше</b> того, на что вы отвечаете: например, можно усилить союзника до того, как по нему ударит заклинание. Если отвечать не нужно — «Пропустить». Кнопка ⚡ сверху выключает эти вопросы совсем.</div>`;
     const panel = document.createElement('div');
@@ -861,6 +945,9 @@ export class BoardUI {
     panel.innerHTML = html;
     this.overlay().appendChild(panel);
     this.priEl = panel;
+    // Mark the threatened cards on the board too.
+    this._threat = tgs.filter((t) => t.ctrl === me).map((t) => t.uid);
+    for (const u of this._threat) this.els.get(u)?.classList.add('threat');
     panel.querySelector('[data-pass]').addEventListener('click', () => { sfx.click(); this.answer('pass'); });
     panel.querySelector('[data-why]').addEventListener('click', () => panel.querySelector('.pri-why').classList.toggle('hidden'));
     panel.querySelectorAll('.pri-card').forEach((b) => {
@@ -870,7 +957,11 @@ export class BoardUI {
       b.addEventListener('mouseleave', () => this.hidePreview());
     });
   }
-  closePriority() { if (this.priEl) { this.priEl.remove(); this.priEl = null; } }
+  closePriority() {
+    if (this.priEl) { this.priEl.remove(); this.priEl = null; }
+    for (const u of this._threat || []) this.els.get(u)?.classList.remove('threat');
+    this._threat = null;
+  }
 
   /** Big readable card sheet with the actions available for it. */
   openSheet(uid) {
@@ -886,6 +977,10 @@ export class BoardUI {
       }
     }
     if (q && q.type === 'target' && q.options.some((o) => o.id === uid)) acts.push(['🎯 Выбрать целью', uid, 'primary']);
+    if (q && (q.type === 'main' || q.type === 'priority')) {
+      const opts = q.options.filter((o) => (o.kind === 'play' || o.kind === 'ability') && o.uid === uid);
+      if (opts.length > 1) { this.openChoiceMenu(uid, opts); return; }
+    }
     const why = !acts.length && q && (q.type === 'main' || q.type === 'priority') ? this.whyCantPlay(uid) : null;
     this.modal(`<div class="sheet">
         <div class="sheet-img">${d.img ? `<img src="${d.img}" alt="">` : `<div class="gen-card">${GEN_EMOJI[c.id] || '✨'}<br>${esc(d.name)}</div>`}</div>
@@ -919,9 +1014,39 @@ export class BoardUI {
       m.querySelector('[data-tips]').addEventListener('click', () => { tipStore.reset(); this.closeModal(); });
     });
   }
+  /** Small card pictures «who → whom» for a history line. */
+  logRefHtml(ref) {
+    if (!ref) return '';
+    const pic = (r) => r && CARDS[r.id]?.img ? `<span class="lr-card ${r.ctrl === this.me ? 'mine' : 'theirs'}" style="background-image:url('${CARDS[r.id].img}')" title="${esc(CARDS[r.id].name)}"></span>` : '';
+    const src = pic(ref.src), tg = (ref.tgts || []).filter((t) => !ref.src || t.uid !== ref.src.uid).map(pic).join('');
+    return `<span class="lr">${src}${src && tg ? '<span class="lr-arrow">➜</span>' : ''}${tg}</span>`;
+  }
+  /** Hovering a history line: show the cards next to the history and point at them on the board. */
+  showLogRef(ref, anchor) {
+    this.hideLogRef();
+    if (!ref) return;
+    const el = document.createElement('div');
+    el.className = 'logref-pop';
+    el.innerHTML = this.logRefHtml(ref);
+    this.overlay().appendChild(el);
+    const r = anchor.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight;
+    el.style.left = Math.max(8, r.left - w - 14) + 'px';
+    el.style.top = Math.min(window.innerHeight - h - 8, Math.max(8, r.top + r.height / 2 - h / 2)) + 'px';
+    this._logPop = el;
+    const on = [ref.src, ...(ref.tgts || [])].filter((x) => x?.uid != null && this.els.get(x.uid));
+    for (const x of on) this.els.get(x.uid).classList.add('logfocus');
+    this._logFocus = on.map((x) => x.uid);
+    const from = ref.src?.uid != null ? this.pointOf(ref.src.uid) : null;
+    for (const t of ref.tgts || []) if (from && t.uid !== ref.src.uid) this.arrow(from, this.pointOf(t.uid), ref.src.ctrl === this.me ? '#7fd4ff' : '#ff8a6a');
+  }
+  hideLogRef() {
+    this._logPop?.remove(); this._logPop = null;
+    for (const u of this._logFocus || []) this.els.get(u)?.classList.remove('logfocus');
+    this._logFocus = null;
+  }
   showLog() {
-    const log = this.view?.log || [];
-    this.modal(`<h3>Журнал</h3><div class="log-full">${log.slice(-80).map((l) => `<div>${esc(l)}</div>`).join('')}</div><div class="row-btns"><button class="btn" data-close>Закрыть</button></div>`, (m) => {
+    const log = this.view?.log || [], refs = this.view?.logRefs || [], base = log.length - Math.min(80, log.length);
+    this.modal(`<h3>Журнал</h3><div class="log-full">${log.slice(-80).map((l, k) => `<div class="log-line">${this.logRefHtml(refs[base + k])}<span>${esc(l)}</span></div>`).join('')}</div><div class="row-btns"><button class="btn" data-close>Закрыть</button></div>`, (m) => {
       m.querySelector('[data-close]').addEventListener('click', () => this.closeModal());
       const lf = m.querySelector('.log-full'); lf.scrollTop = lf.scrollHeight;
     });

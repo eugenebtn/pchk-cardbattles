@@ -1,5 +1,5 @@
 // node tests/audit_cards_a.test.mjs — независимый аудит карт 1–44, 368–378 и токенов.
-import { makeGame, put, addHand, ans, toMain, useAbility, runUntil, defaultAnswer, passPriority, test, eq, ok, done } from './helpers.mjs';
+import { makeGame, put, addHand, addGrave, ans, toMain, useAbility, runUntil, defaultAnswer, passPriority, test, eq, ok, done } from './helpers.mjs';
 
 const isYesNo = (q) => q.type === 'pick' && q.options.length === 2 && q.options[0].label === 'Да';
 const NO = (q) => (isYesNo(q) ? 0 : defaultAnswer(q));
@@ -88,6 +88,16 @@ test('Исполнение желания: Лос Ускаманос из Скр
   main(g);
   eq(g.allyAt(0, 1)?.id, 60);
   eq(g.P(0).coins, 9 - 3 - 6);
+});
+
+// Бульбух не предлагает вернуть вторую Легенду с тем же именем (иначе одну сразу придётся убрать).
+test('Материнская любовь: Легенду-двойника не предлагают', () => {
+  const g = makeGame({ first: 0 });
+  put(g, 0, 16); put(g, 0, 56); put(g, 0, 56); put(g, 0, 10, 2);
+  addGrave(g, 0, 10);
+  if (g.pending?.begin) ans(g, 'go');
+  ok(!(g.pending?.type === 'target' && /Материнская/.test(g.pending.prompt)), 'вопрос не задан');
+  eq(g.allies(0).filter((c) => c.id === 10).length, 1, 'на поле одни Бойцы');
 });
 
 done();
