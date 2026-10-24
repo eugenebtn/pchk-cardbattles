@@ -352,6 +352,7 @@ function startBoard(session) {
   });
   session.attach(ui);
   ui.noTips = session.controllers ? session.controllers[session.me] !== 'human' : false;
+  ui.spectator = !!session.controllers && !session.controllers.includes('human') && !session.controllers.includes('remote');
   ui.onFeedback = () => openFeedback({ ui, name: opt.name });
   ui.onEmote = (text) => { if (session.remote) session.remote.send({ t: 'emote', text }); if (session.conn) session.conn.send({ t: 'emote', text }); };
   ui.onRanking = () => { ui.onMenu(true); document.querySelector('#menu [data-act="ranking"]')?.click(); };

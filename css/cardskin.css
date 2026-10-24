@@ -528,3 +528,5 @@
 @media (max-width: 760px) { .over3 .ov-fighter { width: min(42vw, 34vh); } }
 .hand-limit { position: absolute; z-index: 60; transform: translateX(-50%); white-space: nowrap; padding: 5px 14px; border-radius: 6px; pointer-events: none;
   font: 700 17px 'Fira Sans Extra Condensed', sans-serif; color: #fff; background: linear-gradient(rgba(255, 255, 255, .12), rgba(0, 0, 0, .2)), #9a2420; box-shadow: 0 0 0 3px #0f1418, inset 0 0 0 1.5px #d9c48a, 0 6px 14px rgba(0, 0, 0, .6); animation: fadein .3s; }
+/* Spectator view: no hint panel. */
+#stage.spectating #hint { visibility: hidden; }

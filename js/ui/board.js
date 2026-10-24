@@ -452,7 +452,8 @@ export class BoardUI {
       if (span.textContent !== String(p.coins)) { span.textContent = p.coins; span.animate([{ transform: 'scale(1.6)' }, { transform: 'scale(1)' }], { duration: 300 }); }
     }
     const f = view.first;
-    const steps = [[f === me ? 'Вы' : 'Соперник', view.phase === 'turn' && view.turn === f], [f === me ? 'Соперник' : 'Вы', view.phase === 'turn' && view.turn === 1 - f], [view.skipBattles ? 'Бой ✖' : 'Бой', view.phase === 'battle']];
+    const who = (i) => (this.spectator ? this.sideName(i) : i === me ? 'Вы' : 'Соперник');
+    const steps = [[who(f), view.phase === 'turn' && view.turn === f], [who(1 - f), view.phase === 'turn' && view.turn === 1 - f], [view.skipBattles ? 'Бой ✖' : 'Бой', view.phase === 'battle']];
     this.roundBox.innerHTML = `<b>Раунд ${view.round || 1}</b><div class="phases">${steps.map(([t, on], k) => `<span class="ph ${on ? 'on' : ''} ${k === 2 ? 'battle' : ''}">${k === 2 ? ICON.swords : ''}${t}</span>`).join('<i>›</i>')}</div>`;
     for (let r = 0; r < 5; r++) this.cols[r].classList.toggle('fighting', view.battleRegion === r);
     // Log.
@@ -470,7 +471,16 @@ export class BoardUI {
   }
 
   // ---------- interaction ----------
+  /** Short name of a side (its Leader), for the spectator view. */
+  sideName(i) { const id = this.view?.players?.[i]?.leader?.id; return LEADER_SHORT[id] || CARDS[id]?.name.split(',')[0] || this.view?.players?.[i]?.name || ''; }
   setPending(q) {
+    // Spectators (a computer-vs-computer game, or watching friends) never get questions, windows or hints.
+    if (this.spectator) {
+      this.q = null; this.closeModal(); this.closePriority(); this.applyInteractivity(); this.renderPrompt();
+      this.stage.classList.add('spectating');
+      this.endBtn.className = 'end-turn wait'; this.endBtn.textContent = 'Режим зрителя';
+      return;
+    }
     // A card dropped onto a slot answers the following «where?» question by itself.
     const drop = this._dropRegion;
     this._dropRegion = null;
@@ -1448,7 +1458,8 @@ ${optHtml}</div></div>
         break;
       }
       case 'turnStart': {
-        if (ev.player === this.me) { sfx.turn(); await FX.banner('Ваш ход', '', 1150); } else await FX.banner('Ход соперника', 'dim', 850);
+        if (this.spectator) await FX.banner(`Ход: ${this.sideName(ev.player)}`, '', 950);
+        else if (ev.player === this.me) { sfx.turn(); await FX.banner('Ваш ход', '', 1150); } else await FX.banner('Ход соперника', 'dim', 850);
         break;
       }
       case 'round': await W(150); break;
@@ -1580,7 +1591,7 @@ ${optHtml}</div></div>
   announce(ev, id) {
     const v = this.view;
     if (!v) return;
-    const who = ev.player === this.me ? 'Вы' : esc(v.players[ev.player]?.name || 'Соперник');
+    const who = this.spectator ? esc(this.sideName(ev.player)) : ev.player === this.me ? 'Вы' : esc(v.players[ev.player]?.name || 'Соперник');
     const nm = ev.type === 'declare' ? `«${esc(CARDS[id]?.name.split(',')[0] || '')}»` : `«${esc(CARDS[id]?.name.split(',')[0] || '')}» — ${esc(ev.name || 'свойство')}`;
     const tg = (ev.targets || []).map((u) => { const t = this.findCard(u); return t ? `${t.ctrl === this.me ? 'ваш' : 'чужой'} «${esc(CARDS[t.id]?.name.split(',')[0])}»` : null; }).filter(Boolean).join(', ');
     const mine = ev.player === this.me;
@@ -1750,21 +1761,21 @@ ${optHtml}</div></div>
       return `<div class="ov-fighter ${i === me ? 'me' : 'op'} ${draw ? '' : won ? 'won' : 'lost'}">
         <div class="ov-port" style="background-image:url('${art(i)}')"></div>
         ${won ? '<div class="ov-crown">Победитель</div>' : ''}
-        <div class="ov-plate"><b>${name(i)}</b><small>${esc(P[i].name)}${i === me ? ' · вы' : ''}</small><span class="ov-hp">❤ ${hp}</span></div>
+        <div class="ov-plate"><b>${name(i)}</b><small>${esc(P[i].name)}${i === me && !this.spectator ? ' · вы' : ''}</small><span class="ov-hp">❤ ${hp}</span></div>
       </div>`;
     };
     setTimeout(() => {
       document.querySelector('#game > .over-screen')?.remove();
       const o = document.createElement('div');
-      o.className = 'over-screen over2 over3' + (win ? ' win' : draw ? ' draw' : ' lose');
+      o.className = 'over-screen over2 over3' + (win || (this.spectator && !draw) ? ' win' : draw ? ' draw' : ' lose');
       const ach = (this.newAch || []).map((x) => `<div class="ov-ach"><span>${x.icon}</span><div><b>Новая награда: ${esc(x.title)}</b><small>${esc(x.text)}</small></div></div>`).join('');
       o.innerHTML = `
         <div class="ov-vs">
           ${fighter(me)}
           <div class="ov-mid">
-            <div class="ov-title">${draw ? 'Ничья' : win ? 'Победа' : 'Поражение'}</div>
+            <div class="ov-title">${draw ? 'Ничья' : win || this.spectator ? 'Победа' : 'Поражение'}</div>
             <div class="ov-vsword">VS</div>
-            <div class="ov-sub">${draw ? 'Оба Лидера пали одновременно' : `${name(win ? me : op)} побеждает ${esc(LEADER_ACC[P[win ? op : me].leader?.id] || name(win ? op : me))}`}<br>раунд ${this.view.round || 1}</div>
+            <div class="ov-sub">${draw ? 'Оба Лидера пали одновременно' : `${name(winner)} побеждает ${esc(LEADER_ACC[P[1 - winner].leader?.id] || name(1 - winner))}`}<br>раунд ${this.view.round || 1}</div>
           </div>
           ${fighter(op)}
         </div>
