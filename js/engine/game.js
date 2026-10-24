@@ -1421,6 +1421,7 @@ export class Game {
           maxHp: ['ally', 'companion'].includes(d.type) ? this.maxHp(c) : d.type === 'leader' ? d.hp : null,
           baseAtk: d.atk, baseHp: d.hp, dmg: c.dmg, tok: { ...c.tok }, stunned: this.stunned(c), created: c.created,
           kws: Object.keys(KW_RU).filter((k) => this.has(c, k)), equip: c.equip, region: c.region,
+          abilities: d.type === 'leader' ? (this.script(c).abilities || []).map((ab) => ({ name: ab.name, cost: this.abilityCost(c, ab), fast: !!ab.fast })) : undefined,
           extraTypes: c.extraTypes,
         });
       } else if (c.zone === 'hand') {

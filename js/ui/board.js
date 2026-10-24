@@ -150,7 +150,9 @@ export class BoardUI {
         <button class="btn" id="btn-sound">🔊 Звук</button>
         <button class="btn danger" id="btn-menu">🚪 Выйти в меню</button>
       </div>
-      <div class="prompt" id="prompt" style="top:${L.midY + 6}px"></div>`;
+      <div class="prompt" id="prompt" style="top:${L.midY + 6}px"></div>
+      <div class="hero-powers" id="powers" style="left:${L.powers.x}px;top:${L.powers.y}px;width:${L.powers.w}px"></div>
+      <button class="emote-btn" id="btn-emote" style="left:${L.powers.emote.x}px;top:${L.powers.emote.y}px" data-tip="Реплики|Сказать что-нибудь сопернику.">💬</button>`;
     this.endBtn = u.querySelector('#end-turn');
     this.endBtn.addEventListener('click', () => this.clickEnd());
     this.logEl = u.querySelector('#log');
@@ -159,6 +161,8 @@ export class BoardUI {
     this.promptEl = u.querySelector('#prompt');
     u.querySelector('#btn-menu').addEventListener('click', () => this.onMenu && this.onMenu());
     u.querySelector('#btn-help').addEventListener('click', () => this.showHelp());
+    this.powersEl = u.querySelector('#powers');
+    u.querySelector('#btn-emote').addEventListener('click', (e) => { e.stopPropagation(); this.openEmotes(); });
     u.querySelector('#btn-log').addEventListener('click', () => { this.showLog(); u.querySelector('#opts-pop').classList.add('hidden'); });
     u.querySelector('#btn-opts').addEventListener('click', (e) => { e.stopPropagation(); u.querySelector('#opts-pop').classList.toggle('hidden'); });
     this.ui.addEventListener('click', (e) => { if (!e.target.closest('#opts-pop') && !e.target.closest('#btn-opts')) u.querySelector('#opts-pop')?.classList.add('hidden'); });
@@ -448,6 +452,7 @@ export class BoardUI {
     for (const row of ['ally', 'place']) for (const side of [0, 1]) for (const s of this.slots[row][side]) s.classList.remove('selectable');
     const q = this.q;
     const mine = q && q.player === this.me;
+    this.renderPowers();
     this.stage.classList.toggle('choosing', !!(mine && ['region', 'target'].includes(q.type)));
     this.endBtn.className = 'end-turn wait';
     this.endBtn.textContent = this.view?.phase === 'battle' ? 'Сражение' : 'Ход соперника';
@@ -545,7 +550,7 @@ export class BoardUI {
   clickCard(uid) {
     const q = this.q;
     const own = this.view?.players[this.me]?.leader;
-    if (own && own.uid === uid && !(q && q.player === this.me && q.type === 'target' && q.options.some((o) => o.id === uid))) { this.openEmotes(); return; }
+    if (own && own.uid === uid && !(q && q.player === this.me && ['target', 'main', 'priority'].includes(q.type) && q.options.some((o) => o.id === uid || o.uid === uid))) { this.openSheet(uid); return; }
     // Touch screens: a tap opens the big card with its buttons (except picking a target).
     if (this.touch() && !(q && q.player === this.me && q.type === 'target' && q.options.some((o) => o.id === uid))) { this.openSheet(uid); return; }
     if (!q || q.player !== this.me) { this.openSheet(uid); return; }
@@ -582,6 +587,27 @@ export class BoardUI {
     const v = this.view;
     for (const p of v.players) for (const c of [p.leader, ...p.support, ...p.hand, ...p.grave, ...(p.mull || []), ...p.regions.flatMap((r) => [r.ally, r.place])]) if (c && c.uid === uid) return c;
     return null;
+  }
+
+  /** Leader abilities as always-visible buttons (like a hero power). */
+  renderPowers() {
+    const el = this.powersEl;
+    if (!el || !this.view) return;
+    const L = this.view.players[this.me]?.leader;
+    const abs = L?.abilities || [];
+    const q = this.q && this.q.player === this.me ? this.q : null;
+    el.innerHTML = abs.map((a, k) => {
+      const opt = q && (q.type === 'main' || q.type === 'priority') ? q.options.find((o) => o.id === `ab:${L.uid}:${k}`) : null;
+      const why = opt ? 'Нажмите, чтобы использовать.' : (q ? 'Сейчас нельзя: не хватает ресурсов, нет подходящей цели или не ваш момент.' : 'Можно использовать в свой ход.');
+      return `<button class="power ${opt ? 'ready' : ''}" data-k="${k}" data-tip="${esc(a.name)} — ${esc(costText(a.cost))}|${a.fast ? '⚡ С Опережением: можно и в ход соперника. ' : ''}${why}">
+        <span class="pw-ico">${a.fast ? ICON.bolt : ICON.crown}</span><span class="pw-name">${esc(a.name)}</span><span class="pw-cost">${esc(costText(a.cost))}</span></button>`;
+    }).join('');
+    el.querySelectorAll('.power').forEach((b) => b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const k = Number(b.dataset.k);
+      const opt = this.q && this.q.player === this.me ? this.q.options.find((o) => o.id === `ab:${L.uid}:${k}`) : null;
+      if (opt) { sfx.click(); this.answer(opt.id); } else { sfx.error(); b.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-5px)' }, { transform: 'translateX(5px)' }, { transform: 'translateX(0)' }], { duration: 260 }); }
+    }));
   }
 
   // ---------- VS intro, themes, easter eggs, emotes ----------
@@ -723,7 +749,7 @@ export class BoardUI {
     const items = ['Привет!', 'Спасибо!', 'Отлично сыграно!', 'Упс…', 'Сейчас я тебя!', ...(quote ? [quote] : [])];
     const w = document.createElement('div');
     w.className = 'emote-wheel';
-    w.innerHTML = items.map((t, k) => `<button data-k="${k}">${esc(t.length > 42 ? t.slice(0, 40) + '…' : t)}</button>`).join('') + '<button data-info>📖 Подробнее о Лидере</button>';
+    w.innerHTML = items.map((t, k) => `<button data-k="${k}">${esc(t.length > 42 ? t.slice(0, 40) + '…' : t)}</button>`).join('');
     w.style.left = (p.x + 90) + 'px';
     w.style.top = (this.L.name === 'port' ? p.y - 330 : p.y - 290) + 'px';
     this.ui.appendChild(w);
@@ -735,7 +761,6 @@ export class BoardUI {
       this.showEmote(this.me, t);
       this.onEmote && this.onEmote(t);
     }));
-    w.querySelector('[data-info]').addEventListener('click', (e) => { e.stopPropagation(); this.closeEmotes(); this.openSheet(L.uid); });
     setTimeout(() => document.addEventListener('click', this._closeEm = () => this.closeEmotes(), { once: true }), 0);
   }
   closeEmotes() { if (this.emoteEl) { this.emoteEl.remove(); this.emoteEl = null; } }

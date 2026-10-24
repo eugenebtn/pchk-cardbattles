@@ -15,6 +15,7 @@ export const LAND = {
   coins: { me: { x: 200, y: 756 }, opp: { x: 200, y: 64 } },
   round: { x: 1236, y: 396 },
   end: { x: 1356, y: 388 },
+  powers: { x: 196, y: 800, w: 190, emote: { x: 150, y: 700 } },
   hint: { x: 14, y: 312, w: 356, h: 0 },
   log: { x: 14, y: 430, w: 356, h: 112 },
   hand: { y: 760, cardW: 160, cardH: 223, width: 800, cx: 800, step: 124 },
@@ -39,6 +40,7 @@ export const PORT = {
   coins: { me: { x: 470, y: 1186 }, opp: { x: 216, y: 52 } },
   round: { x: 8, y: 632 },
   end: { x: 680, y: 626 },
+  powers: { x: 604, y: 1176, w: 290, emote: { x: 160, y: 1032 } },
   hint: { x: 10, y: 1252, w: 880, h: 0 },
   log: null,
   hand: { y: 1322, cardW: 200, cardH: 279, width: 860, cx: 450, step: 212 },
@@ -67,6 +69,7 @@ function makePort(H) {
     names: { me: { ...PORT.names.me, y: PORT.names.me.y + b }, opp: PORT.names.opp },
     coins: { me: { ...PORT.coins.me, y: PORT.coins.me.y + b }, opp: PORT.coins.opp },
     hint: { ...PORT.hint, y: PORT.hint.y + b },
+    powers: { ...PORT.powers, y: PORT.powers.y + b, emote: { ...PORT.powers.emote, y: PORT.powers.emote.y + b } },
     hand: { ...PORT.hand, y: PORT.hand.y + b + Math.round((ex - b) * 0.3), cardW: PORT.hand.cardW, cardH: PORT.hand.cardH },
   };
   void sh;
