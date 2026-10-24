@@ -136,7 +136,7 @@ function pickDecks(steps) {
               <div class="hs-sub" style="margin-top:10px">${deckMix(sel.cards)}</div>` : ''}
             </div>
           </div>
-          <div class="hs-roster">${list.map((d) => `<div class="hs-medal ${d === sel ? 'sel' : ''} ${d.random ? 'random' : ''}" data-key="${d.key}">
+          <div class="hs-roster"><div class="hs-medal newdeck" data-new><div class="m">＋</div>Своя колода<div class="tag">собрать</div></div>${list.map((d) => `<div class="hs-medal ${d === sel ? 'sel' : ''} ${d.random ? 'random' : ''}" data-key="${d.key}">
             <div class="m" ${d.random ? '' : `style="background-image:url('${CARDS[d.leader].img}')"`}>${d.random ? '🎲' : ''}</div>
             ${esc(d.random ? 'Случайный' : d.title)}${!d.random && !d.official ? '<div class="tag">своя</div>' : ''}</div>`).join('')}</div>
           <div class="hs-bar"><button class="btn" data-back>← Назад</button><button class="btn hs-go" data-go>${esc(step === steps.length - 1 ? (st.goLabel || 'В бой!') : 'Далее')}</button></div>
@@ -146,6 +146,10 @@ function pickDecks(steps) {
           if (d === sel) return;
           sel = d; draw.last = d.key; sfx.select(); sfx.reveal(); paint();
         }));
+        root.querySelector('[data-new]').onclick = () => {
+          sfx.select();
+          openBuilder({ startNew: true, back: () => { const fresh = allDecks(); decks.length = 0; decks.push(...fresh); draw.last = fresh[fresh.length - 1]?.key; show('heroes'); draw(); } });
+        };
         root.querySelector('[data-back]').onclick = () => { sfx.click(); if (step > 0) { step--; chosen.pop(); draw(); } else { resolve(null); show('menu'); } };
         root.querySelector('[data-go]').onclick = () => {
           sfx.confirm();
@@ -447,6 +451,19 @@ async function startJoin(code) {
   $('#picker').querySelector('[data-act=back]').onclick = () => { conn.close(); show('menu'); };
 }
 
+// ---------- deck builder ----------
+function openBuilder({ startNew = false, back = () => show('menu') } = {}) {
+  renderBuilder($('#builder'), store, back, {
+    startNew,
+    onPlay: (deck) => {
+      const bots = Object.values(DECKS);
+      const bot = bots[Math.floor(Math.random() * bots.length)];
+      startBoard(new Session({ players: [playerCfg(deck, myName()), playerCfg({ leader: bot.leader, cards: bot.main }, `Компьютер (${bot.title})`)], controllers: ['human', 'bot'], me: 0 }));
+    },
+  });
+  show('builder');
+}
+
 // ---------- tutorial ----------
 function openTutorial() {
   showTutorial(() => {
@@ -496,6 +513,6 @@ document.querySelectorAll('#menu [data-act]').forEach((b) => b.addEventListener(
   else if (a === 'rules') { renderRules($('#rules'), () => show('menu')); show('rules'); }
   else if (a === 'tutorial') openTutorial();
   else if (a === 'stats') { renderStats($('#stats'), () => show('menu')); show('stats'); }
-  else if (a === 'decks') { renderBuilder($('#builder'), store, () => show('menu')); show('builder'); }
+  else if (a === 'decks') openBuilder();
 }));
 window.addEventListener('beforeunload', (e) => { if (current && !current.game?.s.over) { e.preventDefault(); e.returnValue = ''; } });
