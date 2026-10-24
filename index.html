@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Карточные битвы ПЧК</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='52' font-size='52'>⚔️</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Ruslan+Display&family=PT+Sans+Narrow:wght@400;700&family=Cormorant+SC:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/board.css">
+</head>
+<body>
+<div id="app">
+  <!-- Menu -->
+  <section id="menu" class="screen active">
+    <canvas id="menu-bg"></canvas>
+    <div class="menu-box">
+      <h1 class="logo"><span>Карточные</span><span>битвы</span><small>Подземелья Чикен Карри</small></h1>
+      <div id="join-banner" class="join-banner hidden"></div>
+      <div class="menu-buttons">
+        <button class="btn big" data-act="bot">⚔️ Играть с компьютером</button>
+        <button class="btn big" data-act="host">🌐 Играть с другом по ссылке</button>
+        <button class="btn big" data-act="hotseat">🪑 Вдвоём за одним экраном</button>
+        <button class="btn" data-act="decks">📜 Колоды и конструктор</button>
+        <button class="btn" data-act="rules">📖 Правила</button>
+      </div>
+      <div class="menu-opts">
+        <label><input type="checkbox" id="opt-sound" checked> Звук</label>
+        <label><input type="checkbox" id="opt-music" checked> Музыка</label>
+        <label><input type="checkbox" id="opt-bonus"> Тест-правило: +1 💰 за каждую карту меньше 5 после муллигана</label>
+        <label><input type="checkbox" id="opt-autopass"> Не спрашивать об Опережении (авто-пас)</label>
+        <label class="name-row">Ваше имя: <input type="text" id="opt-name" maxlength="20" placeholder="Игрок"></label>
+      </div>
+      <p class="credits">Фанатская версия для игры с друзьями. Карты, персонажи и арты — «Подземелья Чикен Карри».</p>
+    </div>
+  </section>
+
+  <!-- Deck picker -->
+  <section id="picker" class="screen">
+    <div class="picker-box">
+      <h2 id="picker-title">Выберите колоду</h2>
+      <div id="picker-list" class="picker-list"></div>
+      <div id="picker-online" class="picker-online hidden"></div>
+      <div class="picker-actions">
+        <button class="btn" data-act="back">← Назад</button>
+        <button class="btn primary" id="picker-go" disabled>Начать</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Deck builder -->
+  <section id="builder" class="screen"></section>
+
+  <!-- Rules -->
+  <section id="rules" class="screen"></section>
+
+  <!-- Game -->
+  <section id="game" class="screen">
+    <div id="stage">
+      <div id="board"></div>
+      <canvas id="fx-canvas" width="1600" height="900"></canvas>
+      <div id="fx-layer"></div>
+      <div id="ui-layer"></div>
+    </div>
+    <div id="preview" class="preview hidden"></div>
+    <div class="rotate-hint">📱↻ Поверните телефон горизонтально — так карты крупнее</div>
+  </section>
+</div>
+<script src="vendor/peerjs.min.js"></script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
