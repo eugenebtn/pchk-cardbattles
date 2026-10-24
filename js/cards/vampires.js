@@ -669,7 +669,7 @@ export default {
         const p = g.P(self.ctrl);
         const free = g.placeRegions(self.ctrl);
         if (!free.length) return;
-        const r = yield* g.pickRegion(self.ctrl, free, 'Манёвр: переместить «Королевский экипаж»? (можно пропустить)', 'place', { optional: true });
+        const r = yield* g.pickRegion(self.ctrl, free, 'Манёвр: переместить подсвеченный «Королевский экипаж»?', 'place', { optional: true, focus: self.uid });
         if (r == null || r === self.region || p.regions[r].place) return;
         const from = self.region;
         p.regions[from].place = null; p.regions[r].place = self; self.region = r;

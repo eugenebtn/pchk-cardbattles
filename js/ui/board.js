@@ -325,7 +325,7 @@ export class BoardUI {
           const r = el.getBoundingClientRect();
           const nx = (e.clientX - r.left) / r.width - 0.5, ny = (e.clientY - r.top) / r.height - 0.5;
           const f = el.querySelector('.face');
-          if (f) f.style.transform = `perspective(600px) rotateY(${nx * 18}deg) rotateX(${-ny * 18}deg)`;
+          if (f) f.style.transform = `perspective(600px) rotateY(${nx * 7}deg) rotateX(${-ny * 7}deg)`;
         });
         el.addEventListener('mouseleave', () => { const f = el.querySelector('.face'); if (f) f.style.transform = ''; });
       }
@@ -495,6 +495,9 @@ export class BoardUI {
   }
   renderPrompt() {
     const q = this.q, el = this.promptEl;
+    // Highlight the card a question is about (e.g. which of two boats is being moved).
+    for (const e of this.board.querySelectorAll('.card.focus')) e.classList.remove('focus');
+    if (q && q.player === this.me && q.focus != null) this.els.get(q.focus)?.classList.add('focus');
     el.className = 'prompt';
     el.innerHTML = '';
     if (!q) return;
@@ -514,6 +517,7 @@ export class BoardUI {
         el.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { sfx.click(); this.answer(b.dataset.id); }));
         return;
       case 'pick':
+        if (!q.begin) { this.openPick(q); return; }
         for (const o of q.options) btns.push([o.label ?? String(o.id), o.id]);
         break;
       case 'target': {
@@ -526,8 +530,9 @@ export class BoardUI {
       case 'mulligan': this.openMulligan(q); return;
       default: break;
     }
-    if (q.cancel) btns.push(['Отмена', null]);
-    el.innerHTML = (text ? `<div class="ptext">${esc(text)}</div>` : '') + (btns.length ? `<div class="pbtns">${btns.map(([l], k) => `<button class="btn small" data-k="${k}">${esc(l)}</button>`).join('')}</div>` : '');
+    // Say plainly what «no» means here, and make it a big button.
+    if (q.cancel) btns.push([q.maneuver ? 'Не перемещать' : /^Манёвр/.test(q.prompt || '') ? 'Оставить на месте' : 'Отмена', null]);
+    el.innerHTML = (text ? `<div class="ptext">${esc(text)}</div>` : '') + (btns.length ? `<div class="pbtns">${btns.map(([l, v], k) => `<button class="btn small ${v === null ? 'cancel' : ''}" data-k="${k}">${esc(l)}</button>`).join('')}</div>` : '');
     el.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { sfx.click(); this.answer(btns[Number(b.dataset.k)][1]); }));
   }
   answer(a) {
@@ -562,7 +567,9 @@ export class BoardUI {
     const own = this.view?.players[this.me]?.leader;
     if (own && own.uid === uid && !(q && q.player === this.me && ['target', 'main', 'priority'].includes(q.type) && q.options.some((o) => o.id === uid || o.uid === uid))) { this.openSheet(uid); return; }
     // Touch screens: a tap opens the big card with its buttons (except picking a target).
-    if (this.touch() && !(q && q.player === this.me && q.type === 'target' && q.options.some((o) => o.id === uid))) { this.openSheet(uid); return; }
+    if (this.touch() && !(q && q.player === this.me && q.type === 'target' && q.options.some((o) => o.id === uid))) {
+      this.openSheet(uid); return;
+    }
     if (!q || q.player !== this.me) { this.openSheet(uid); return; }
     if (q.type === 'target' && q.options.some((o) => o.id === uid)) { sfx.click(); this.answer(uid); return; }
     if (q.type === 'main' || q.type === 'priority') {
@@ -573,7 +580,27 @@ export class BoardUI {
       if (all.length > 1) { this.openChoiceMenu(uid, all); return; }
     }
     this.hidePreview();
+    if (this.whyCantPlay(uid)) sfx.error();
     this.openSheet(uid);
+  }
+  /** Plain reason why a card in my hand can't be played right now (null if it is not in my hand). */
+  whyCantPlay(uid) {
+    const v = this.view, me = v?.players[this.me];
+    const c = me?.hand.find((x) => x.uid === uid);
+    if (!c || c.hidden) return null;
+    const d = CARDS[c.id];
+    if (!d) return null;
+    const q = this.q && this.q.player === this.me ? this.q : null;
+    const myTurn = v.turn === this.me && v.phase === 'turn';
+    if (!myTurn && !(d.kw || []).includes('fast')) return 'Сейчас не ваш ход: без Опережения карты играют только в свой ход.';
+    if (!q) return 'Дождитесь своей очереди.';
+    const onField = [me.leader, ...me.support, ...me.regions.flatMap((r) => [r.ally, r.place])].filter(Boolean);
+    if (d.legend && onField.some((x) => CARDS[x.id]?.name === d.name)) return `«${d.name}» — Легенда и уже стоит у вас на поле. Двух Легенд с одним именем держать нельзя.`;
+    const cost = c.cost ?? d.cost;
+    if (cost !== 'X' && cost != null && cost > me.coins) return `Не хватает монет: нужно ${cost}, у вас ${me.coins}.`;
+    if (d.type === 'ally' && me.regions.every((r) => r.ally)) return 'Во всех пяти регионах уже стоят ваши Союзники.';
+    if (d.type === 'place' && me.regions.every((r) => r.place)) return 'Во всех пяти регионах уже есть ваши Места.';
+    return 'Сейчас нет подходящей цели или не выполнено условие карты.';
   }
   openChoiceMenu(uid, opts) {
     const labels = opts.map((o) => o.kind === 'play' ? `Разыграть «${CARDS[o.side].name}»${o.cost != null ? ` — ${o.cost} 💰` : ''}` : `Свойство: ${o.label}`);
@@ -859,9 +886,11 @@ export class BoardUI {
       }
     }
     if (q && q.type === 'target' && q.options.some((o) => o.id === uid)) acts.push(['🎯 Выбрать целью', uid, 'primary']);
+    const why = !acts.length && q && (q.type === 'main' || q.type === 'priority') ? this.whyCantPlay(uid) : null;
     this.modal(`<div class="sheet">
         <div class="sheet-img">${d.img ? `<img src="${d.img}" alt="">` : `<div class="gen-card">${GEN_EMOJI[c.id] || '✨'}<br>${esc(d.name)}</div>`}</div>
         <div class="sheet-info">${cardInfoHtml(d, c)}
+          ${why ? `<div class="sheet-why"><b>Сейчас нельзя сыграть.</b> ${esc(why)}</div>` : ''}
           <div class="sheet-acts">${acts.map(([l], k) => `<button class="btn ${acts[k][2]}" data-k="${k}">${esc(l)}</button>`).join('')}<button class="btn" data-close>Закрыть</button></div>
         </div></div>`, (m) => {
       m.querySelectorAll('[data-k]').forEach((b) => b.addEventListener('click', () => { const a = acts[Number(b.dataset.k)]; this.closeModal(); sfx.click(); this.answer(a[1]); }));
@@ -983,6 +1012,24 @@ export class BoardUI {
       upd();
     });
   }
+  /** A choice between options (modes of a card, yes/no, how many coins): a big window with the card and large buttons. */
+  openPick(q) {
+    const id = this._actId;
+    const img = id != null && CARDS[id]?.img;
+    const numeric = q.options.every((o) => /^\d+$/.test(String(o.label ?? o.id)));
+    const html = `<div class="pick-win ${img ? 'with-card' : ''}">
+      ${img ? `<div class="pick-card" style="background-image:url('${img}')"></div>` : ''}
+      <div class="pick-body"><h3>${esc(q.prompt)}</h3>
+        <div class="pick-opts ${numeric ? 'numeric' : ''}">${q.options.map((o, k) => `<button class="pick-opt" data-k="${k}">${linkTerms(esc(o.label ?? String(o.id)))}</button>`).join('')}</div>
+        ${q.cancel ? '<button class="pick-opt cancel" data-cancel>Отмена — ничего не делать</button>' : ''}
+      </div></div>`;
+    this.modal(html, (m) => {
+      m.querySelector('.modal').classList.add('pick-modal');
+      m.querySelectorAll('.pick-opt[data-k]').forEach((b) => b.addEventListener('click', () => { sfx.click(); this.closeModal(); this.answer(q.options[Number(b.dataset.k)].id); }));
+      m.querySelector('[data-cancel]')?.addEventListener('click', () => { sfx.click(); this.closeModal(); this.answer(null); });
+      if (img) m.querySelector('.pick-card').addEventListener('mouseenter', (e) => this.showPreviewId(id, e.currentTarget));
+    });
+  }
   openMulligan(q) {
     const sel = new Set();
     const ids = q.options.map((o) => ({ uid: o.id, id: this.cardIdOf(o.id) }));
@@ -1055,6 +1102,9 @@ export class BoardUI {
   }
   async pre(ev, batch, k) {
     const W = FX.wait;
+    // Remember which card is acting, to show its picture when it asks to pick an option.
+    if (ev.type === 'declare' || ev.type === 'resolve') this._actId = ev.id ?? this.cardIdOf(ev.uid) ?? this._actId;
+    if (ev.type === 'declareAbility' || ev.type === 'ability') this._actId = this.cardIdOf(ev.uid) ?? this._actId;
     switch (ev.type) {
       case 'declare': case 'declareAbility': {
         const id = ev.id ?? this.cardIdOf(ev.uid);

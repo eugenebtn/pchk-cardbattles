@@ -131,7 +131,7 @@ export default {
         const p = self.ctrl, from = self.region;
         const free = g.placeRegions(p);
         if (!free.length) return;
-        const r = yield* g.pickRegion(p, free, 'Манёвр: переместить «Лодку Януса» в другой регион? (или пропустите)', 'place', { optional: true });
+        const r = yield* g.pickRegion(p, free, 'Манёвр: переместить подсвеченную «Лодку Януса» в другой регион?', 'place', { optional: true, focus: self.uid });
         if (r == null || r === from || g.placeAt(p, r) || !g.onField(self)) return;
         g.P(p).regions[from].place = null; g.P(p).regions[r].place = self; self.region = r;
         g.emit('move', { uid: self.uid, from, to: r, log: `«${g.name(self)}» перемещается.` });

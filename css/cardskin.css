@@ -208,3 +208,53 @@
 .epic-title span { background: none !important; color: #fff !important; -webkit-text-fill-color: #fff; filter: none !important; text-shadow: 0 3px 0 rgba(0, 0, 0, .45); }
 .epic-name { font-family: var(--cond) !important; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #fff4d6; }
 #stage.port .epic-title { font-size: 52px !important; }
+
+/* Hand: a lifted card keeps an invisible "stem" down to its place in the fan, so the mouse never falls off it
+   and the card does not jump up and down. Smooth ease without overshoot. */
+.hand-card { transition: left .45s cubic-bezier(.2, .8, .3, 1), top .45s cubic-bezier(.2, .8, .3, 1), transform .3s cubic-bezier(.2, .7, .2, 1) !important; }
+.hand-card::after { content: ''; position: absolute; left: -6px; right: -6px; top: 100%; height: 0; }
+.hand-card:hover::after { height: 150px; }
+.hand-card:hover { transform: translateY(-150px) scale(1.4) !important; }
+.hand-card .face { transition: transform .2s ease-out, box-shadow .2s; }
+
+/* Choice buttons under the prompt: large ribbons; «no / skip» in slate so it is easy to tell apart. */
+.prompt .pbtns { gap: 14px; }
+.prompt .btn.small { font-size: 22px; padding: 12px 30px; min-width: 180px; }
+.prompt .btn.small.cancel { background: linear-gradient(rgba(255, 255, 255, .1), rgba(0, 0, 0, .2)), var(--rib-slate); }
+.prompt .btn.small:hover { filter: brightness(1.15); transform: translateY(-1px); }
+#stage.port .prompt .btn.small { font-size: 28px; padding: 14px 34px; min-width: 240px; }
+
+/* ---------- windows over the game (real screen pixels): card frame + parchment ---------- */
+#game > .modal-back { background: rgba(6, 4, 2, .72); }
+#game > .modal-back .modal { background: #0f1418; border: none; border-radius: 18px; padding: 22px 26px; box-shadow: inset 0 0 0 2px #d9c48a, 0 30px 70px rgba(0, 0, 0, .8); max-width: min(1200px, 96vw); }
+#game > .modal-back .modal h3 { font-family: 'Fira Sans Extra Condensed', sans-serif; font-weight: 700; font-size: clamp(22px, 2.2vw, 30px); color: #f3e7c8; text-align: center; line-height: 1.2; }
+#game .mcard { width: clamp(130px, 13vw, 210px); height: calc(clamp(130px, 13vw, 210px) * 1.39); border-radius: 12px; box-shadow: 0 0 0 3px #0f1418, 0 10px 22px rgba(0, 0, 0, .7); }
+#game .mcard.on { box-shadow: 0 0 0 4px #f6d77a, 0 0 28px rgba(246, 215, 122, .9); }
+#game .modal .btn { font-family: 'Fira Sans Extra Condensed', sans-serif; font-weight: 800; text-transform: uppercase; font-size: clamp(18px, 1.6vw, 22px); padding: 12px 28px; border-radius: 8px; color: #fff;
+  border: 4px solid #0f1418; background: linear-gradient(rgba(255, 255, 255, .14), rgba(0, 0, 0, .2)), #9a2420; box-shadow: inset 0 0 0 1.5px #d9c48a; }
+#game .modal .btn.danger { background: linear-gradient(rgba(255, 255, 255, .1), rgba(0, 0, 0, .2)), #3a4652; }
+
+/* Option choice: the acting card on the left, big parchment options on the right. */
+.pick-modal { width: min(1000px, 96vw); }
+.pick-win { display: flex; gap: 26px; align-items: center; }
+.pick-card { flex: none; width: clamp(150px, 20vw, 290px); aspect-ratio: .72; border-radius: 14px; background-size: cover; background-position: center; box-shadow: 0 0 0 4px #0f1418, 0 0 0 6px #d9c48a, 0 16px 34px rgba(0, 0, 0, .7); }
+.pick-body { flex: 1; min-width: 0; }
+.pick-body h3 { margin: 0 0 16px !important; }
+.pick-opts { display: grid; gap: 12px; }
+.pick-opts.numeric { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
+.pick-opt { display: block; width: 100%; text-align: left; cursor: pointer; border: none; border-radius: 8px; padding: 16px 20px; font-family: 'Fira Sans Extra Condensed', sans-serif; font-weight: 600;
+  font-size: clamp(18px, 1.7vw, 24px); line-height: 1.25; color: #2a1e14; background: radial-gradient(ellipse at 50% 40%, #f3e7c8, #e2cfa4 70%, #c9b07e);
+  box-shadow: inset 0 0 14px rgba(120, 80, 30, .35), 0 0 0 2px #d9c48a, 0 0 0 5px #0f1418; transition: transform .15s, box-shadow .15s; }
+.pick-opts.numeric .pick-opt { text-align: center; font-weight: 800; font-size: 26px; padding: 12px 6px; }
+.pick-opt:hover { transform: translateY(-2px); box-shadow: inset 0 0 14px rgba(120, 80, 30, .35), 0 0 0 2px #fff0b0, 0 0 0 5px #0f1418, 0 0 22px rgba(246, 215, 122, .6); }
+.pick-opt.cancel { margin-top: 14px; text-align: center; color: #fff; text-transform: uppercase; font-weight: 800; background: linear-gradient(rgba(255, 255, 255, .1), rgba(0, 0, 0, .2)), #3a4652; box-shadow: inset 0 0 0 1.5px #d9c48a, 0 0 0 4px #0f1418; }
+@media (max-width: 700px) { .pick-win { flex-direction: column; } .pick-card { width: 42vw; } .pick-opt { font-size: 19px; padding: 14px 16px; } }
+
+/* The card a question is about: pulsing gold ring and a small «эта карта» ribbon. */
+.card.focus .frame { animation: focuspulse 1s ease-in-out infinite alternate; }
+@keyframes focuspulse { from { box-shadow: 0 0 0 3px #f6d77a, 0 0 12px rgba(246, 215, 122, .5) !important; } to { box-shadow: 0 0 0 5px #fff0b0, 0 0 30px rgba(246, 215, 122, 1) !important; } }
+.card.focus::before { content: 'Эта карта'; position: absolute; left: 50%; top: -30px; transform: translateX(-50%); z-index: 6; white-space: nowrap; padding: 2px 12px; border-radius: 3px;
+  font: 800 15px 'Fira Sans Extra Condensed', sans-serif; text-transform: uppercase; color: #2a1e14; background: #f6d77a; box-shadow: 0 0 0 2px #0f1418, 0 4px 10px rgba(0, 0, 0, .6); }
+#stage.port .card.focus::before { font-size: 20px; top: -36px; }
+.pick-opt .term, .hint-bar .term, .prompt .ptext .term { color: #8a1a10 !important; border-bottom-color: rgba(138, 26, 16, .5) !important; text-shadow: none !important; }
+#game .sheet-why { margin: 12px 0 4px; padding: 10px 14px; border-radius: 6px; font: 600 18px/1.3 "Fira Sans Extra Condensed", sans-serif; color: #fff; background: linear-gradient(rgba(255,255,255,.1), rgba(0,0,0,.2)), #7a1e1a; box-shadow: inset 0 0 0 1.5px #d9c48a; }

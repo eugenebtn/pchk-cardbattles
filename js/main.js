@@ -145,7 +145,7 @@ function pickDecks(steps) {
         </div>`;
         root.querySelectorAll('.hs-medal').forEach((m) => m.addEventListener('click', () => {
           const d = list.find((x) => x.key === m.dataset.key);
-          if (d === sel) return;
+          if (!d || d === sel) return; // «＋ Своя колода» has its own handler
           sel = d; draw.last = d.key; sfx.select(); sfx.reveal(); paint();
         }));
         root.querySelector('[data-new]').onclick = () => {

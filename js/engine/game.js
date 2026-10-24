@@ -672,6 +672,13 @@ export class Game {
     const opts = this.fastOptions(i);
     if (!opts.length) return false;
     if (this.cfg.options?.autoPass?.[i]) return false;
+    // Answering the stack: by default ask only when a card from hand can be played, or when the item
+    // targets this player's cards (then a Leader ability like a buff or protection matters).
+    if (kind === 'stack' && !this.cfg.options?.allWindows && !opts.some((o) => o.kind === 'play')) {
+      const top = this.s.stack[this.s.stack.length - 1];
+      const mine = top && top.ctx.targets.some((u) => this.card(u)?.ctrl === i);
+      if (!mine) return false;
+    }
     const a = yield* this.ask(i, {
       type: 'priority', prompt: this.s.stack.length ? `Опередить «${this.s.stack[this.s.stack.length - 1].label}»?` : 'Можно сыграть карту с Опережением',
       options: [{ id: 'pass', kind: 'pass', label: 'Пас' }, ...opts], auto: false, context: this.priorityContext(kind),
@@ -779,9 +786,10 @@ export class Game {
     const a = yield* this.ask(i, { type: 'pick', prompt, hint, options: [{ id: 1, label: 'Да' }, { id: 0, label: 'Нет' }], auto: false });
     return a === 1;
   }
-  *pickRegion(i, regions, prompt, row = 'ally', { optional = false } = {}) {
+  *pickRegion(i, regions, prompt, row = 'ally', { optional = false, focus = null } = {}) {
     if (!regions.length) return null;
-    const a = yield* this.ask(i, { type: 'region', prompt, options: regions.map((r) => ({ id: r })), row, cancel: optional, auto: !optional, side: i });
+    // focus: uid of the card being moved — the UI highlights it, so with two equal cards it is clear which one.
+    const a = yield* this.ask(i, { type: 'region', prompt, options: regions.map((r) => ({ id: r })), row, cancel: optional, auto: !optional, side: i, focus });
     return a;
   }
   /** Choose some cards from a hidden/private list (deck search, plan, hand). */
@@ -1302,7 +1310,7 @@ export class Game {
       const a = yield* this.ask(p, { type: 'target', prompt: 'Манёвр: выберите союзника для перемещения (или пропустите)', hint: 'maneuver', options: cands.map((c) => ({ id: c.uid })), cancel: true, auto: false, maneuver: true });
       if (a == null) return;
       const c = this.card(a);
-      const r = yield* this.pickRegion(p, free, `Манёвр: куда переместить «${this.name(c)}»?`, 'ally', { optional: true });
+      const r = yield* this.pickRegion(p, free, `Манёвр: куда переместить подсвеченного «${this.name(c)}»?`, 'ally', { optional: true, focus: c.uid });
       if (r == null) { moved.add(c.uid); continue; }
       this.moveAlly(c, r);
       moved.add(c.uid);
