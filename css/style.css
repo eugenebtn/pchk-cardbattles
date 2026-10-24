@@ -210,7 +210,7 @@ button { font-family: inherit; }
 .pile.grave .face { position: absolute; inset: 0; border-radius: 9px; background-size: cover; filter: grayscale(.7) brightness(.6); border: 2px solid #555; }
 .pile.grave .empty { position: absolute; inset: 0; border-radius: 9px; border: 2px dashed #5a4a32; display: grid; place-items: center; color: #6c5a3e; font-size: 30px; }
 .pile .lbl { position: absolute; top: -20px; left: 0; right: 0; text-align: center; font-size: 13px; color: var(--ink-dim); }
-.coins { position: absolute; display: flex; align-items: center; gap: 8px; font-family: var(--font-title); font-size: 34px; color: #ffe08a; text-shadow: 0 0 12px rgba(255, 190, 60, .7), 0 2px 2px #000; }
+.coins { position: absolute; display: flex; align-items: center; gap: 8px; font-family: var(--font-title); font-size: 38px; color: #ffe08a; text-shadow: 0 0 12px rgba(255, 190, 60, .7), 0 2px 2px #000; }
 .coins .coin-ico { width: 46px; height: 46px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff1b0, #e2ac2a 55%, #7a5208); border: 3px solid #5a3a06; box-shadow: 0 3px 8px #000, inset 0 0 6px rgba(255, 255, 255, .5); display: grid; place-items: center; font-size: 22px; color: #6a4300; }
 .pname { position: absolute; font-family: var(--font-card); font-size: 20px; color: var(--ink); text-shadow: 0 2px 3px #000; white-space: nowrap; }
 .pname .turn-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); margin-right: 6px; vertical-align: middle; }

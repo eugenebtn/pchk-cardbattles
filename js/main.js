@@ -9,7 +9,9 @@ import * as FX from './ui/fx.js';
 import { hostRoom, joinRoom } from './net/online.js';
 import { renderRules } from './ui/rules.js';
 import { renderBuilder, loadCustomDecks } from './ui/builder.js';
-import { installTooltips } from './ui/glossary.js';
+import { installTooltips, linkTerms } from './ui/glossary.js';
+import { renderStats, recordGame } from './ui/stats.js';
+import { showTutorial } from './ui/tutorial.js';
 installTooltips();
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -22,6 +24,7 @@ const store = {
 function show(id) {
   document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('active', s.id === id));
   FX.ambient(id === 'game');
+  $('#scene').classList.toggle('off', id === 'game');
   if (audioStarted) playMusic(id === 'game' ? (Math.random() < 0.5 ? 'musicGame' : 'musicGame2') : 'musicMenu');
 }
 function toast(text, ms = 3000) {
@@ -34,7 +37,7 @@ function toast(text, ms = 3000) {
 // ---------- settings ----------
 const opt = {
   sound: store.get('sound', true), bonus: store.get('bonus', false), autopass: store.get('autopass', false),
-  name: store.get('name', ''), speed: store.get('speed', 1), music: store.get('music', true),
+  name: store.get('name', ''), speed: store.get('speed', 1), music: store.get('music', true), board: store.get('board', 'random'),
 };
 setSound(opt.sound); setMusic(opt.music); FX.setSpeed(opt.speed);
 $('#opt-music').checked = opt.music;
@@ -50,6 +53,8 @@ $('#opt-sound').checked = opt.sound;
 $('#opt-bonus').checked = opt.bonus;
 $('#opt-autopass').checked = opt.autopass;
 $('#opt-name').value = opt.name;
+$('#opt-board').value = opt.board;
+$('#opt-board').addEventListener('change', (e) => { opt.board = e.target.value; store.set('board', opt.board); });
 $('#opt-sound').addEventListener('change', (e) => { opt.sound = e.target.checked; setSound(opt.sound); store.set('sound', opt.sound); });
 $('#opt-bonus').addEventListener('change', (e) => { opt.bonus = e.target.checked; store.set('bonus', opt.bonus); });
 $('#opt-autopass').addEventListener('change', (e) => { opt.autopass = e.target.checked; store.set('autopass', opt.autopass); });
@@ -59,17 +64,21 @@ const myName = () => opt.name || 'Игрок';
 // Preload card art.
 setTimeout(() => { for (const c of Object.values(CARDS)) if (c.img) { const i = new Image(); i.src = c.img; } }, 300);
 
-// ---------- menu background ----------
-(function menuBg() {
+// ---------- animated scene (splash, menu, hero select) ----------
+(function scene() {
+  const strip = $('#scene-strip');
+  const ids = [20, 41, 62, 63, 117, 118, 15, 40, 112, 158, 1, 29, 164, 88];
+  const html = ids.map((id) => `<div class="sa" style="background-image:url('${CARDS[id].img}')"></div>`).join('');
+  strip.innerHTML = html + html;
   const cv = $('#menu-bg'), c = cv.getContext('2d');
-  const embers = Array.from({ length: 70 }, () => ({ x: Math.random(), y: Math.random(), s: 1 + Math.random() * 3, v: 0.0006 + Math.random() * 0.0016, w: Math.random() * 6 }));
+  const embers = Array.from({ length: 80 }, () => ({ x: Math.random(), y: Math.random(), s: 1 + Math.random() * 3, v: 0.0006 + Math.random() * 0.0018, w: Math.random() * 6 }));
   function frame(t) {
-    if (!$('#menu').classList.contains('active')) { requestAnimationFrame(frame); return; }
-    cv.width = cv.clientWidth; cv.height = cv.clientHeight;
+    if ($('#scene').classList.contains('off')) { requestAnimationFrame(frame); return; }
+    if (cv.width !== cv.clientWidth) { cv.width = cv.clientWidth; cv.height = cv.clientHeight; }
     c.clearRect(0, 0, cv.width, cv.height);
     for (const e of embers) {
       e.y -= e.v; if (e.y < -0.05) { e.y = 1.05; e.x = Math.random(); }
-      const x = (e.x + Math.sin(t / 1000 + e.w) * 0.01) * cv.width, y = e.y * cv.height;
+      const x = (e.x + Math.sin(t / 1000 + e.w) * 0.012) * cv.width, y = e.y * cv.height;
       const g = c.createRadialGradient(x, y, 0, x, y, e.s * 4);
       g.addColorStop(0, 'rgba(255,220,140,.9)'); g.addColorStop(0.4, 'rgba(255,120,30,.5)'); g.addColorStop(1, 'rgba(0,0,0,0)');
       c.fillStyle = g; c.beginPath(); c.arc(x, y, e.s * 4, 0, 7); c.fill();
@@ -78,51 +87,78 @@ setTimeout(() => { for (const c of Object.values(CARDS)) if (c.img) { const i = 
   }
   requestAnimationFrame(frame);
 })();
+// Splash: the first click also turns the sound on.
+$('#splash').addEventListener('click', () => { sfx.confirm(); show('menu'); });
+$('#menu [data-act=settings]')?.addEventListener('click', () => { $('#menu-opts').classList.toggle('hidden'); });
 
 // ---------- decks ----------
+const DECK_STYLE = {
+  sfinkteirion: 'Стабильный доход, сильные Воины и постепенное давление. Хороший выбор для первой партии.',
+  larisa: 'Рой зверей: много дешёвых Животных, скидки на первую карту и быстрый натиск числом.',
+  dan_balan: 'Дешёвые Вампиры, кровь и темп — закончить партию раньше, чем соперник опомнится.',
+  vlad: 'Терпение и контроль: копите ресурсы, уничтожайте угрозы и добивайте вампирскими лордами.',
+  erik: 'Плуты и трюки: играйте карты в ход соперника и готовьте подлые сюрпризы.',
+  sofia: 'Таверны и Торговцы: много монет, лечение Лидера и могучие Древолюды под конец.',
+};
 function allDecks() {
-  const official = Object.values(DECKS).map((d) => ({ key: 'off:' + d.key, title: d.title, leader: d.leader, cards: d.main, official: true }));
+  const official = Object.values(DECKS).map((d) => ({ key: 'off:' + d.key, deckKey: d.key, title: d.title, leader: d.leader, cards: d.main, official: true }));
   const custom = loadCustomDecks(store).map((d, k) => ({ key: 'cus:' + k, title: d.name, leader: d.leader, cards: d.cards, official: false }));
   return [...official, ...custom];
 }
-function deckTile(d, sel) {
-  const L = CARDS[d.leader];
-  return `<div class="deck-tile ${sel ? 'sel' : ''}" data-key="${d.key}"><img src="${L.img}" alt=""><div class="dt-name">${esc(d.title)}<div class="dt-sub">${d.official ? 'стартовая скрижаль' : 'своя колода'} · ${d.cards.length} карт</div></div></div>`;
+function deckMix(cards) {
+  const n = { ally: 0, place: 0, action: 0, item: 0, companion: 0 };
+  for (const id of cards) { const t = CARDS[id]?.type; if (t in n) n[t]++; }
+  return `⚔ ${n.ally} союзников · 🏰 ${n.place} мест · ✨ ${n.action} действий · 🎒 ${n.item + n.companion} напарников и предметов`;
 }
-/** Deck picker. steps: [{title, allowRandom}] → resolves with array of decks. */
-function pickDecks(steps, { onlineBox = null } = {}) {
+/** Hero select. steps: [{title, allowRandom, goLabel}] → resolves with array of decks (or null). */
+function pickDecks(steps) {
   return new Promise((resolve) => {
     const decks = allDecks();
     const chosen = [];
     let step = 0;
+    const root = $('#heroes');
     const draw = () => {
       const st = steps[step];
-      $('#picker-title').textContent = st.title;
-      const list = st.allowRandom ? [{ key: 'random', title: 'Случайная', leader: 63, cards: [], official: true, random: true }, ...decks] : decks;
-      $('#picker-list').innerHTML = list.map((d) => deckTile(d, false)).join('').replace('Случайная<div class="dt-sub">стартовая скрижаль · 0 карт', 'Случайная<div class="dt-sub">любая из стартовых');
-      let sel = null;
-      $('#picker-go').disabled = true;
-      $('#picker-go').textContent = step === steps.length - 1 ? (st.goLabel || 'Начать') : 'Далее';
-      $('#picker-list').querySelectorAll('.deck-tile').forEach((t) => t.addEventListener('click', () => {
-        sfx.click();
-        $('#picker-list').querySelectorAll('.deck-tile').forEach((x) => x.classList.toggle('sel', x === t));
-        sel = list.find((d) => d.key === t.dataset.key);
-        $('#picker-go').disabled = false;
-      }));
-      $('#picker-go').onclick = () => {
-        if (!sel) return;
-        sfx.click();
-        let d = sel;
-        if (d.random) { const off = decks.filter((x) => x.official); d = off[Math.floor(Math.random() * off.length)]; }
-        chosen.push(d);
-        step++;
-        if (step >= steps.length) resolve(chosen); else draw();
+      const list = st.allowRandom ? [{ key: 'random', title: 'Случайный', leader: null, cards: [], random: true }, ...decks] : decks;
+      let sel = list.find((d) => d.key === (draw.last || '')) || list[st.allowRandom ? 1 : 0];
+      const paint = () => {
+        const L = sel.random ? null : CARDS[sel.leader];
+        root.innerHTML = `<div class="hero-select">
+          <div class="hs-title">${esc(st.title)}</div>
+          <div class="hs-main">
+            <div class="hs-portrait" style="background-image:url('${L ? L.img : CARDS[63].img}')${sel.random ? ';filter:brightness(.35) blur(2px)' : ''}">${sel.random ? '<div style="position:absolute;inset:0;display:grid;place-items:center;font-size:120px;filter:none">🎲</div>' : ''}</div>
+            <div class="hs-info">
+              <div class="hs-name">${esc(sel.random ? 'Случайный соперник' : L.name)}</div>
+              <div class="hs-sub">${sel.random ? 'Компьютер возьмёт любую стартовую колоду' : `${esc(sel.title)} · ${sel.official ? 'стартовая скрижаль' : 'своя колода'} · ${sel.cards.length} карт`}</div>
+              ${L ? `<div class="hs-hp" data-tip="Здоровье Лидера|Если упадёт до 0 — поражение.">❤️ ${L.hp}</div>
+              <div class="hs-ability">${linkTerms(esc(L.text)).replace(/\n/g, '<br>')}</div>
+              <div class="hs-style">${esc(DECK_STYLE[sel.deckKey] || 'Ваша собственная скрижаль.')}</div>
+              <div class="hs-sub" style="margin-top:10px">${deckMix(sel.cards)}</div>` : ''}
+            </div>
+          </div>
+          <div class="hs-roster">${list.map((d) => `<div class="hs-medal ${d === sel ? 'sel' : ''} ${d.random ? 'random' : ''}" data-key="${d.key}">
+            <div class="m" ${d.random ? '' : `style="background-image:url('${CARDS[d.leader].img}')"`}>${d.random ? '🎲' : ''}</div>
+            ${esc(d.random ? 'Случайный' : d.title)}${!d.random && !d.official ? '<div class="tag">своя</div>' : ''}</div>`).join('')}</div>
+          <div class="hs-bar"><button class="btn" data-back>← Назад</button><button class="btn hs-go" data-go>${esc(step === steps.length - 1 ? (st.goLabel || 'В бой!') : 'Далее')}</button></div>
+        </div>`;
+        root.querySelectorAll('.hs-medal').forEach((m) => m.addEventListener('click', () => {
+          const d = list.find((x) => x.key === m.dataset.key);
+          if (d === sel) return;
+          sel = d; draw.last = d.key; sfx.select(); sfx.reveal(); paint();
+        }));
+        root.querySelector('[data-back]').onclick = () => { sfx.click(); if (step > 0) { step--; chosen.pop(); draw(); } else { resolve(null); show('menu'); } };
+        root.querySelector('[data-go]').onclick = () => {
+          sfx.confirm();
+          let d = sel;
+          if (d.random) { const off = decks.filter((x) => x.official); d = off[Math.floor(Math.random() * off.length)]; }
+          chosen.push(d);
+          step++;
+          if (step >= steps.length) resolve(chosen); else draw();
+        };
       };
+      paint();
     };
-    const ob = $('#picker-online');
-    if (onlineBox) { ob.classList.remove('hidden'); ob.innerHTML = onlineBox; } else ob.classList.add('hidden');
-    $('#picker').querySelector('[data-act=back]').onclick = () => { sfx.click(); resolve(null); show('menu'); };
-    show('picker');
+    show('heroes');
     draw();
   });
 }
@@ -242,8 +278,10 @@ class Session {
 let current = null;
 function startBoard(session) {
   show('game');
+  const themes = ['tavern', 'castle', 'dungeon'];
+  const theme = opt.board === 'random' || !themes.includes(opt.board) ? themes[Math.floor(Math.random() * themes.length)] : opt.board;
   const ui = new BoardUI($('#stage'), {
-    me: session.me,
+    me: session.me, theme,
     onAnswer: (q, a) => session.answer(q, a),
     onMenu: (force) => {
       if (force || confirm('Выйти в меню? Партия будет потеряна.')) { session.close(); ui.destroy(); current = null; show('menu'); }
@@ -251,6 +289,17 @@ function startBoard(session) {
   });
   session.attach(ui);
   ui.noTips = session.controllers ? session.controllers[session.me] !== 'human' : false;
+  ui.onEmote = (text) => { if (session.remote) session.remote.send({ t: 'emote', text }); if (session.conn) session.conn.send({ t: 'emote', text }); };
+  ui.onGameEnd = (winner, view, played) => {
+    if (session.controllers && session.controllers[session.me] !== 'human') return; // bot vs bot
+    if (session.hotseat) return;
+    const me = session.me, P = view.players;
+    recordGame({
+      mode: session.remote || session.conn ? 'online' : 'bot',
+      myLeader: P[me].leader.id, oppLeader: P[1 - me].leader.id, oppName: P[1 - me].name,
+      result: winner === 'draw' ? 'draw' : winner === me ? 'win' : 'loss', rounds: view.round, played,
+    });
+  };
   const wire = () => {
     const spd = $('#btn-speed'), snd = $('#btn-sound'), fst = $('#btn-fast'), mus = $('#btn-music');
     const ap = () => session.game?.cfg.options.autoPass;
@@ -336,6 +385,7 @@ async function startHost() {
     onMessage(msg) {
       if (!session) return;
       if (msg.t === 'answer') session.remoteAnswer(msg.a);
+      if (msg.t === 'emote' && session.ui) session.ui.showEmote(1, String(msg.text).slice(0, 160));
       if (msg.t === 'autopass') { session.game.cfg.options.autoPass[1] = !!msg.on; const q = session.game.pending; if (msg.on && q && q.player === 1 && q.type === 'priority') session.remoteAnswer('pass'); }
     },
     onClose() { toast('Друг отключился. Ждём переподключения по той же ссылке…', 5000); },
@@ -364,6 +414,8 @@ class GuestSession {
         if (msg.pending) this.ui.setPending(msg.pending);
         else if (msg.waiting) this.ui.setPending({ player: 0, type: 'wait', options: [] });
       });
+    } else if (msg.t === 'emote') {
+      this.ui?.showEmote(0, String(msg.text).slice(0, 160));
     } else if (msg.t === 'sync') {
       this.chain = this.chain.then(() => { this.ui.render(msg.view); this.ui.setPending(msg.pending); });
     }
@@ -395,6 +447,28 @@ async function startJoin(code) {
   $('#picker').querySelector('[data-act=back]').onclick = () => { conn.close(); show('menu'); };
 }
 
+// ---------- tutorial ----------
+function openTutorial() {
+  showTutorial(() => {
+    try { localStorage.removeItem('pchk_tips'); } catch { /* ignore */ }
+    const mk = (d, n) => ({ name: n, leader: d.leader, deck: d.main });
+    startBoard(new Session({ players: [mk(DECKS.sfinkteirion, myName()), mk(DECKS.larisa, 'Учебный бот')], controllers: ['human', 'bot'], me: 0 }));
+  });
+}
+// First visit: offer the tutorial once (after the splash).
+$('#splash').addEventListener('click', () => {
+  if (store.get('tutOffered', false) || new URLSearchParams(location.search).get('join')) return;
+  store.set('tutOffered', true);
+  setTimeout(() => {
+    const b = document.createElement('div');
+    b.className = 'modal-back'; b.style.cssText = 'position:fixed;inset:0;z-index:400';
+    b.innerHTML = `<div class="modal" style="max-width:520px"><h3>Впервые в «Карточных битвах»?</h3><p style="font-size:18px;line-height:1.45">Короткое обучение за 2 минуты покажет, как ходить, сражаться и отвечать «Опережением». Потом можно сыграть учебную партию с подсказками.</p><div class="row-btns"><button class="btn primary" data-y>🎓 Пройти обучение</button><button class="btn" data-n>Я уже умею</button></div></div>`;
+    document.body.appendChild(b);
+    b.querySelector('[data-y]').onclick = () => { b.remove(); openTutorial(); };
+    b.querySelector('[data-n]').onclick = () => b.remove();
+  }, 700);
+});
+
 // ---------- quick start for testing: ?quick=deckA,deckB ----------
 const quick = new URLSearchParams(location.search).get('quick');
 if (quick) {
@@ -420,6 +494,8 @@ document.querySelectorAll('#menu [data-act]').forEach((b) => b.addEventListener(
   else if (a === 'hotseat') startHotseat();
   else if (a === 'host') startHost();
   else if (a === 'rules') { renderRules($('#rules'), () => show('menu')); show('rules'); }
+  else if (a === 'tutorial') openTutorial();
+  else if (a === 'stats') { renderStats($('#stats'), () => show('menu')); show('stats'); }
   else if (a === 'decks') { renderBuilder($('#builder'), store, () => show('menu')); show('builder'); }
 }));
 window.addEventListener('beforeunload', (e) => { if (current && !current.game?.s.over) { e.preventDefault(); e.returnValue = ''; } });

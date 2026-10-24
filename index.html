@@ -11,34 +11,62 @@
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/board.css">
 <link rel="stylesheet" href="css/ui2.css">
+<link rel="stylesheet" href="css/menu.css">
 </head>
 <body>
 <div id="app">
-  <!-- Menu -->
-  <section id="menu" class="screen active">
+  <!-- Animated background shared by the splash, menu and hero select -->
+  <div id="scene" class="scene">
+    <div class="scene-art"><div class="scene-strip" id="scene-strip"></div></div>
+    <div class="scene-fog f1"></div><div class="scene-fog f2"></div>
     <canvas id="menu-bg"></canvas>
+    <div class="scene-vignette"></div>
+  </div>
+
+  <!-- Splash -->
+  <section id="splash" class="screen active">
+    <div class="splash-box">
+      <div class="crest"><span>⚔</span></div>
+      <h1 class="logo big-logo"><span>Карточные</span><span>битвы</span><small>Подземелья Чикен Карри</small></h1>
+      <div class="press">Нажмите, чтобы начать</div>
+    </div>
+  </section>
+
+  <!-- Menu -->
+  <section id="menu" class="screen">
     <div class="menu-box">
       <h1 class="logo"><span>Карточные</span><span>битвы</span><small>Подземелья Чикен Карри</small></h1>
       <div id="join-banner" class="join-banner hidden"></div>
       <div class="menu-buttons">
-        <button class="btn big" data-act="bot">⚔️ Играть с компьютером</button>
-        <button class="btn big" data-act="host">🌐 Играть с другом по ссылке</button>
-        <button class="btn big" data-act="hotseat">🪑 Вдвоём за одним экраном</button>
-        <button class="btn" data-act="decks">📜 Колоды и конструктор</button>
-        <button class="btn" data-act="rules">📖 Правила</button>
+        <button class="plaque main" data-act="bot"><span class="pl-ico">⚔️</span><span class="pl-txt">Играть с компьютером<small>Тренировка против бота</small></span></button>
+        <button class="plaque main" data-act="host"><span class="pl-ico">🌐</span><span class="pl-txt">Играть с другом<small>Отправьте ссылку — и в бой</small></span></button>
+        <div class="plaque-row two">
+          <button class="plaque" data-act="tutorial"><span class="pl-ico">🎓</span><span class="pl-txt">Обучение<small>7 шагов и учебная партия</small></span></button>
+          <button class="plaque" data-act="hotseat"><span class="pl-ico">🪑</span><span class="pl-txt">Вдвоём за экраном<small>Передавайте устройство</small></span></button>
+        </div>
+        <div class="plaque-row">
+          <button class="plaque small" data-act="decks"><span class="pl-ico">📜</span><span class="pl-txt">Колоды</span></button>
+          <button class="plaque small" data-act="stats"><span class="pl-ico">📊</span><span class="pl-txt">Статистика</span></button>
+          <button class="plaque small" data-act="rules"><span class="pl-ico">📖</span><span class="pl-txt">Правила</span></button>
+          <button class="plaque small" data-act="settings"><span class="pl-ico">⚙️</span><span class="pl-txt">Настройки</span></button>
+        </div>
       </div>
-      <div class="menu-opts">
+      <div class="menu-opts hidden" id="menu-opts">
         <label><input type="checkbox" id="opt-sound" checked> Звук</label>
         <label><input type="checkbox" id="opt-music" checked> Музыка</label>
         <label><input type="checkbox" id="opt-bonus"> Тест-правило: +1 💰 за каждую карту меньше 5 после муллигана</label>
         <label><input type="checkbox" id="opt-autopass"> Не спрашивать об Опережении (авто-пас)</label>
         <label class="name-row">Ваше имя: <input type="text" id="opt-name" maxlength="20" placeholder="Игрок"></label>
+        <label class="name-row">Поле: <select id="opt-board"><option value="random">Случайное</option><option value="tavern">Таверна «Кайф»</option><option value="castle">Замок Вёрджинвальд</option><option value="dungeon">Подземелье</option></select></label>
       </div>
       <p class="credits">Фанатская версия для игры с друзьями. Карты, персонажи и арты — «Подземелья Чикен Карри».</p>
     </div>
   </section>
 
-  <!-- Deck picker -->
+  <!-- Hero select -->
+  <section id="heroes" class="screen"></section>
+
+  <!-- Deck picker / waiting room -->
   <section id="picker" class="screen">
     <div class="picker-box">
       <h2 id="picker-title">Выберите колоду</h2>
@@ -57,6 +85,9 @@
   <!-- Rules -->
   <section id="rules" class="screen"></section>
 
+  <!-- Stats -->
+  <section id="stats" class="screen"></section>
+
   <!-- Game -->
   <section id="game" class="screen">
     <div id="stage">
@@ -66,8 +97,7 @@
       <div id="ui-layer"></div>
     </div>
     <div id="preview" class="preview hidden"></div>
-    <div class="rotate-hint">📱↻ Поверните телефон горизонтально — так карты крупнее</div>
-  </section>
+      </section>
 </div>
 <script src="vendor/peerjs.min.js"></script>
 <script type="module" src="js/main.js"></script>

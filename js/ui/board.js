@@ -4,6 +4,7 @@ import * as FX from './fx.js';
 import { sfx } from './sound.js';
 import { pickLayout } from './layouts.js';
 import { linkTerms } from './glossary.js';
+import { ICON, KW_SVG, TOK_SVG } from './icons.js';
 
 const KW_ICON = { breakthrough: '💥', defense: '🛡️', maneuver: '🏃', ward: '✨', fast: '⚡', deathtouch: '☠️', bloodsucker: '🩸', indestructible: '🪨', advantage: '🎯' };
 const KW_NAME = { breakthrough: 'Прорыв', defense: 'Оборона', maneuver: 'Манёвр', ward: 'Оберег', fast: 'Опережение', deathtouch: 'Смертельный удар', bloodsucker: 'Кровопийца', indestructible: 'Нерушимость', created: 'Созданная', advantage: 'Преимущество' };
@@ -22,7 +23,8 @@ const TOK_TIP = { blood: 'Кровь 🩸', goods: 'Товары 📦', star: '�
 export const cardDef = (id) => CARDS[id];
 
 export class BoardUI {
-  constructor(stage, { me, onAnswer, onMenu, hotseat = false }) {
+  constructor(stage, { me, onAnswer, onMenu, hotseat = false, theme = 'tavern' }) {
+    this.theme = theme;
     this.stage = stage;
     this.board = stage.querySelector('#board');
     this.ui = stage.querySelector('#ui-layer');
@@ -121,8 +123,8 @@ export class BoardUI {
     this.piles.oppGrave.addEventListener('click', () => this.showGrave(1 - this.me));
     this.names = { me: mk('pname', L.names.me), opp: mk('pname', L.names.opp) };
     this.coinsEl = {
-      me: mk('coins', L.coins.me, '<div class="coin-ico">💰</div><span>0</span>'),
-      opp: mk('coins', L.coins.opp, '<div class="coin-ico">💰</div><span>0</span>'),
+      me: mk('coins', L.coins.me, `<div class="coin-ico">${ICON.coin}</div><span>0</span>`),
+      opp: mk('coins', L.coins.opp, `<div class="coin-ico">${ICON.coin}</div><span>0</span>`),
     };
     this.coinsEl.me.setAttribute('data-tip', 'Ваши монеты 💰|Ими платят за карты и свойства. Монеты не сгорают между ходами.');
     this.coinsEl.opp.setAttribute('data-tip', 'Монеты соперника 💰|Сколько он может потратить.');
@@ -137,9 +139,9 @@ export class BoardUI {
       ${L.log ? `<div class="log-panel" id="log" style="left:${L.log.x}px;top:${L.log.y}px;width:${L.log.w}px;height:${L.log.h}px"></div>` : '<div class="log-panel hidden" id="log"></div>'}
       <div class="stack-panel" id="stack"></div>
       <div class="top-btns">
-        <button class="icon-btn" id="btn-help" data-tip="Как играть|Правила, значки и подсказки.">❔</button>
-        <button class="icon-btn" id="btn-fast" data-tip="Опережение ⚡|Включить или выключить вопросы «ответить картой с Опережением?».">⚡</button>
-        <button class="icon-btn" id="btn-opts" data-tip="Меню|Журнал, скорость, музыка, звук, выход.">☰</button>
+        <button class="icon-btn" id="btn-help" data-tip="Как играть|Правила, значки и подсказки.">${ICON.help}</button>
+        <button class="icon-btn" id="btn-fast" data-tip="Опережение ⚡|Включить или выключить вопросы «ответить картой с Опережением?».">${ICON.bolt}</button>
+        <button class="icon-btn" id="btn-opts" data-tip="Меню|Журнал, скорость, музыка, звук, выход.">${ICON.menu}</button>
       </div>
       <div class="opts-pop hidden" id="opts-pop">
         <button class="btn" id="btn-log">📜 Журнал</button>
@@ -161,6 +163,7 @@ export class BoardUI {
     u.querySelector('#btn-opts').addEventListener('click', (e) => { e.stopPropagation(); u.querySelector('#opts-pop').classList.toggle('hidden'); });
     this.ui.addEventListener('click', (e) => { if (!e.target.closest('#opts-pop') && !e.target.closest('#btn-opts')) u.querySelector('#opts-pop')?.classList.add('hidden'); });
     this.stage.style.setProperty('--banner-y', L.bannerY + 'px');
+    this.applyTheme();
     if (this.onRebuild) this.onRebuild();
   }
 
@@ -333,8 +336,8 @@ export class BoardUI {
       const buffed = c.maxHp > (d.hp ?? 0) && !hurt;
       stats += `<div class="stat hp ${hurt ? 'hurt' : ''} ${buffed ? 'buffed' : ''}" data-tip="Здоровье ${c.hp}${c.maxHp ? ' из ' + c.maxHp : ''}|${d.type === 'leader' ? 'Если здоровье Лидера упадёт до 0 — игрок проиграл.' : 'Когда раны сравняются со здоровьем, карта погибнет.'}${hurt ? ' Ранен (красное число).' : ''}">${c.hp}</div>`;
     }
-    const kwIcons = kws.filter((k) => KW_ICON[k] && k !== 'defense' && k !== 'ward').map((k) => `<div class="kw" data-tip="${KW_NAME[k]}|${KW_HELP[k]}">${KW_ICON[k]}</div>`).join('');
-    const toks = Object.entries(c.tok || {}).filter(([, n]) => n > 0).map(([t, n]) => `<div class="tok ${t}" data-tip="${TOK_TIP[t] || 'Фишки'}|${n} шт. Тратятся на свойства этой карты.">${TOK_ICON[t] || t}${n}</div>`).join('');
+    const kwIcons = kws.filter((k) => KW_ICON[k] && k !== 'defense' && k !== 'ward').map((k) => `<div class="kw" data-tip="${KW_NAME[k]}|${KW_HELP[k]}">${KW_SVG[k] || KW_ICON[k]}</div>`).join('');
+    const toks = Object.entries(c.tok || {}).filter(([, n]) => n > 0).map(([t, n]) => `<div class="tok ${t}" data-tip="${TOK_TIP[t] || 'Фишки'}|${n} шт. Тратятся на свойства этой карты.">${TOK_SVG[t] || TOK_ICON[t] || t}<b>${n}</b></div>`).join('');
     const showName = mode !== 'leader';
     el.innerHTML = `
       <div class="shadow"></div>
@@ -416,8 +419,9 @@ export class BoardUI {
       const span = el.querySelector('span');
       if (span.textContent !== String(p.coins)) { span.textContent = p.coins; span.animate([{ transform: 'scale(1.6)' }, { transform: 'scale(1)' }], { duration: 300 }); }
     }
-    const phase = view.phase === 'battle' ? 'Сражение' : view.phase === 'turn' ? (view.turn === me ? 'Ваш ход' : 'Ход соперника') : view.phase === 'over' ? 'Конец игры' : 'Подготовка';
-    this.roundBox.innerHTML = `<b>Раунд ${view.round || 1}</b>${phase}${view.skipBattles ? '<br>⛔ бой пропускается' : ''}<br><small>${view.first === me ? 'Вы ходите первым' : 'Соперник ходит первым'}</small>`;
+    const f = view.first;
+    const steps = [[f === me ? 'Вы' : 'Соперник', view.phase === 'turn' && view.turn === f], [f === me ? 'Соперник' : 'Вы', view.phase === 'turn' && view.turn === 1 - f], [view.skipBattles ? 'Бой ✖' : 'Бой', view.phase === 'battle']];
+    this.roundBox.innerHTML = `<b>Раунд ${view.round || 1}</b><div class="phases">${steps.map(([t, on], k) => `<span class="ph ${on ? 'on' : ''} ${k === 2 ? 'battle' : ''}">${k === 2 ? ICON.swords : ''}${t}</span>`).join('<i>›</i>')}</div>`;
     for (let r = 0; r < 5; r++) this.cols[r].classList.toggle('fighting', view.battleRegion === r);
     // Log.
     const atBottom = this.logEl.scrollTop + this.logEl.clientHeight >= this.logEl.scrollHeight - 10;
@@ -540,6 +544,8 @@ export class BoardUI {
   }
   clickCard(uid) {
     const q = this.q;
+    const own = this.view?.players[this.me]?.leader;
+    if (own && own.uid === uid && !(q && q.player === this.me && q.type === 'target' && q.options.some((o) => o.id === uid))) { this.openEmotes(); return; }
     // Touch screens: a tap opens the big card with its buttons (except picking a target).
     if (this.touch() && !(q && q.player === this.me && q.type === 'target' && q.options.some((o) => o.id === uid))) { this.openSheet(uid); return; }
     if (!q || q.player !== this.me) { this.openSheet(uid); return; }
@@ -577,6 +583,162 @@ export class BoardUI {
     for (const p of v.players) for (const c of [p.leader, ...p.support, ...p.hand, ...p.grave, ...(p.mull || []), ...p.regions.flatMap((r) => [r.ally, r.place])]) if (c && c.uid === uid) return c;
     return null;
   }
+
+  // ---------- VS intro, themes, easter eggs, emotes ----------
+  async intro(view) {
+    this.introDone = true;
+    const me = this.me, P = view.players;
+    const mine = CARDS[P[me].leader.id], theirs = CARDS[P[1 - me].leader.id];
+    const port = this.L.name === 'port';
+    const layer = document.createElement('div');
+    layer.className = 'vs-layer';
+    layer.innerHTML = `<div class="vs-bg"></div>
+      <div class="vs-hero vme" style="background-image:url('${mine.img}')"><div class="vs-name">${esc(P[me].name)}</div></div>
+      <div class="vs-hero vopp" style="background-image:url('${theirs.img}')"><div class="vs-name">${esc(P[1 - me].name)}</div></div>
+      <div class="vs-text">VS</div>`;
+    this.overlay().appendChild(layer);
+    const A = layer.querySelector('.vme'), B = layer.querySelector('.vopp'), V = layer.querySelector('.vs-text'), bg = layer.querySelector('.vs-bg');
+    const W = window.innerWidth, H = window.innerHeight;
+    const hw = Math.min(W * 0.34, 300, H * 0.42 * 0.72), hh = hw / 0.72;
+    for (const el of [A, B]) { el.style.width = hw + 'px'; el.style.height = hh + 'px'; el.style.top = '0'; el.style.left = '0'; }
+    const pos = port
+      ? { a: { x: W / 2 - hw / 2, y: H * 0.72 - hh / 2 }, b: { x: W / 2 - hw / 2, y: H * 0.28 - hh / 2 } }
+      : { a: { x: W * 0.3 - hw / 2, y: H / 2 - hh / 2 }, b: { x: W * 0.7 - hw / 2, y: H / 2 - hh / 2 } };
+    const from = port ? { a: { x: pos.a.x, y: H + 40 }, b: { x: pos.b.x, y: -hh - 40 } } : { a: { x: -hw - 40, y: pos.a.y }, b: { x: W + 40, y: pos.b.y } };
+    const tr = (p, s = 1, r = 0) => `translate(${p.x}px,${p.y}px) scale(${s}) rotate(${r}deg)`;
+    const d = (ms) => ms / FX.speed;
+    A.animate([{ transform: tr(from.a, 0.9, -8) }, { transform: tr(pos.a, 1.04, 2), offset: 0.8 }, { transform: tr(pos.a) }], { duration: d(650), easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'forwards' });
+    B.animate([{ transform: tr(from.b, 0.9, 8) }, { transform: tr(pos.b, 1.04, -2), offset: 0.8 }, { transform: tr(pos.b) }], { duration: d(650), easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'forwards' });
+    sfx.swing(); setTimeout(() => sfx.swing(), 120);
+    await FX.wait(560);
+    V.animate([{ transform: 'translate(-50%,-50%) scale(3)', opacity: 0 }, { transform: 'translate(-50%,-50%) scale(.9)', opacity: 1, offset: 0.7 }, { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 }], { duration: d(380), fill: 'forwards', easing: 'cubic-bezier(.5,0,.3,1.4)' });
+    await FX.wait(300);
+    sfx.explosion(); FX.shake(2);
+    await FX.wait(1100);
+    // Leaders fly to their corners on the board.
+    const sr = this.stage.getBoundingClientRect(), sc = this.scale;
+    const dest = (lp) => ({ x: sr.left + lp.x * sc, y: sr.top + lp.y * sc, w: this.L.leaderSize.w * sc, h: this.L.leaderSize.h * sc });
+    const da = dest(this.L.leader.me), db = dest(this.L.leader.opp);
+    const fly = (el, p, t) => el.animate([{ transform: tr(p), borderRadius: '20px' }, { transform: `translate(${t.x}px,${t.y}px) scale(${t.w / hw}, ${t.h / hh})`, borderRadius: '50% 50% 18px 18px / 42% 42% 18px 18px' }], { duration: d(620), easing: 'cubic-bezier(.6,0,.3,1)', fill: 'forwards' });
+    fly(A, pos.a, da); fly(B, pos.b, db);
+    layer.querySelectorAll('.vs-name').forEach((n) => n.animate([{ opacity: 1 }, { opacity: 0 }], { duration: d(200), fill: 'forwards' }));
+    V.animate([{ opacity: 1 }, { opacity: 0, transform: 'translate(-50%,-50%) scale(1.6)' }], { duration: d(300), fill: 'forwards' });
+    bg.animate([{ opacity: 1 }, { opacity: 0 }], { duration: d(620), fill: 'forwards' });
+    sfx.land(true);
+    await FX.wait(640);
+    layer.remove();
+    // The opponent greets.
+    if (this.view) setTimeout(() => this.showEmote(1 - this.me, 'Привет!'), 900);
+  }
+
+  applyTheme() {
+    const t = this.theme || 'tavern';
+    this.stage.classList.remove('theme-tavern', 'theme-castle', 'theme-dungeon');
+    this.stage.classList.add('theme-' + t);
+    if (this.L.name !== 'land') return;
+    const b = this.board;
+    const props = {
+      tavern: [['🍺', 1268, 214, 'mug'], ['🎲', 1480, 236, 'd20'], ['🐔', 1290, 600, 'chicken']],
+      castle: [['🗡️', 1268, 220, 'sword'], ['🐀', 1488, 236, 'rat'], ['🛡️', 1290, 600, 'crest']],
+      dungeon: [['🍲', 1268, 214, 'curry'], ['💀', 1488, 236, 'skull'], ['🕯️', 1290, 600, 'candle']],
+    }[t] || [];
+    for (const [e, x, y, kind] of props) {
+      const el = document.createElement('div');
+      el.className = 'prop emoji'; el.textContent = e; el.style.left = x + 'px'; el.style.top = y + 'px';
+      el.dataset.kind = kind;
+      el.addEventListener('click', (ev) => { ev.stopPropagation(); this.poke(el, kind); });
+      b.appendChild(el);
+      if (kind === 'chicken') this.wander(el);
+    }
+  }
+  wander(el) {
+    const spots = [[1290, 600], [1460, 620], [1500, 540], [1280, 520], [1420, 690]];
+    let k = 0;
+    clearInterval(this._wander);
+    this._wander = setInterval(() => {
+      if (!el.isConnected) { clearInterval(this._wander); return; }
+      k = (k + 1 + Math.floor(Math.random() * 3)) % spots.length;
+      const [x, y] = spots[k];
+      el.style.transition = 'left 2.4s ease-in-out, top 2.4s ease-in-out';
+      el.style.transform = x < parseFloat(el.style.left) ? 'scaleX(1)' : 'scaleX(-1)';
+      el.style.left = x + 'px'; el.style.top = y + 'px';
+    }, 7000);
+  }
+  /** Easter eggs from the Chicken Curry lore. */
+  poke(el, kind) {
+    const p = this.stagePoint(el);
+    this.pokes = this.pokes || {};
+    const n = (this.pokes[kind] = (this.pokes[kind] || 0) + 1);
+    const say = (t, ms) => this.bubbleAt(p.x - 40, p.y - 70, t, ms);
+    el.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.35) rotate(-10deg)' }, { transform: 'scale(1)' }], { duration: 400 });
+    switch (kind) {
+      case 'mug': sfx.blood(); FX.burst(p.x, p.y - 20, { color: ['#fff6e0', '#ffe9a8'], count: 20, speed: 4, gravity: 0.2, size: 7, add: false }); say(['Ваше здоровье!', 'За Королевство Пони!', 'Ещё кружечку — и в Подземелья.', 'Эль из Таверны «Кайф» — лучший в Понии.'][n % 4]); break;
+      case 'chicken': sfx.animal(); FX.burst(p.x, p.y, { emoji: ['🪶'], shape: 'emoji', count: 6, speed: 4, gravity: 0.08, add: false, size: 10 }); say(n >= 5 ? 'Ко-ко-ко! Я и есть Чикен Карри!' : ['Ко-ко-ко!', 'Ко? КО-КО!', 'Не трогай курицу, она из карри!'][n % 3]); break;
+      case 'd20': {
+        const r = 1 + Math.floor(Math.random() * 20);
+        sfx.select();
+        el.animate([{ transform: 'rotate(0)' }, { transform: 'rotate(720deg) scale(1.3)' }, { transform: 'rotate(1080deg)' }], { duration: 700 });
+        setTimeout(() => {
+          if (r === 20) { sfx.legend(); FX.burst(p.x, p.y, { emoji: ['✨', '🎉'], shape: 'emoji', count: 16, speed: 7, add: false, size: 12, gravity: 0.15 }); }
+          if (r === 1) sfx.lose && sfx.debuff();
+          say(r === 20 ? '🎲 20! Критический успех!' : r === 1 ? '🎲 1… Критический провал. Мастер доволен.' : `🎲 Выпало ${r}.`);
+        }, 700);
+        break;
+      }
+      case 'sword': sfx.chain(); say(n >= 7 ? 'Меч не вынимается. Сфинктерион уже взял свой, гэнгста-щит в придачу.' : ['Меч застрял в камне.', 'Не поддаётся…', 'Может, нужен герой посильнее?'][n % 3]); break;
+      case 'rat': sfx.animal(); el.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(12px)', opacity: 0.2 }, { transform: 'translateY(0)' }], { duration: 900 }); say(['Я буду хорошей крысой, Пэлиас!', 'Пи-пи-пи!', 'Рой крыс уже в пути…'][n % 3]); break;
+      case 'crest': sfx.shield(); FX.ring(p.x, p.y, '#ffd84a', 30, 600, 1.6, 5); say(['Герб Лёвенхартов.', 'Вёрджинвальд помнит своих защитников.'][n % 2]); break;
+      case 'curry': sfx.fire(); FX.smoke(p.x, p.y - 30, { color: ['#e8e0d0', '#c8beb0'], count: 8, size: 30, alpha: 0.5 }); say(n >= 4 ? 'Карри готово! Только курицу никто не видел…' : ['Бульк…', 'Пахнет карри.', 'Не хватает курицы…'][n % 3]); break;
+      case 'skull': sfx.dark(); say(['Ещё один герой в Подземельях…', 'Мастер, а можно перекинуть?', 'Я тоже когда-то кидал d20…'][n % 3]); break;
+      case 'candle': sfx.magic(); el.style.opacity = el.style.opacity === '0.35' ? '1' : '0.35'; FX.glow(p.x, p.y - 20, 'rgba(255,200,90,.6)', 60, 500); break;
+      default: break;
+    }
+  }
+  bubbleAt(x, y, text, ms = 2600, down = false) {
+    const b = document.createElement('div');
+    b.className = 'bubble' + (down ? ' down' : '');
+    b.textContent = text;
+    b.style.left = Math.max(10, Math.min(this.L.W - 340, x)) + 'px'; b.style.top = y + 'px';
+    this.ui.appendChild(b);
+    if (!down) b.style.transform = 'translateY(-100%)';
+    b.animate([{ opacity: 1 }, { opacity: 1, offset: 0.85 }, { opacity: 0 }], { duration: ms / FX.speed });
+    setTimeout(() => b.remove(), ms / FX.speed);
+  }
+  /** Leader emote bubble (also used for the opponent and online friends). */
+  showEmote(side, text) {
+    const L = this.view?.players[side]?.leader;
+    const p = L && this.pointOf(L.uid);
+    if (!p) return;
+    const mine = side === this.me;
+    const top = mine ? p.y - 110 : p.y + 70;
+    this.bubbleAt(p.x + 40, top, text, 3200, !mine);
+    sfx.reveal();
+  }
+  openEmotes() {
+    const L = this.view?.players[this.me]?.leader;
+    const p = L && this.pointOf(L.uid);
+    if (!p) return;
+    this.closeEmotes();
+    const quote = CARDS[L.id]?.flavor;
+    const items = ['Привет!', 'Спасибо!', 'Отлично сыграно!', 'Упс…', 'Сейчас я тебя!', ...(quote ? [quote] : [])];
+    const w = document.createElement('div');
+    w.className = 'emote-wheel';
+    w.innerHTML = items.map((t, k) => `<button data-k="${k}">${esc(t.length > 42 ? t.slice(0, 40) + '…' : t)}</button>`).join('') + '<button data-info>📖 Подробнее о Лидере</button>';
+    w.style.left = (p.x + 90) + 'px';
+    w.style.top = (this.L.name === 'port' ? p.y - 330 : p.y - 290) + 'px';
+    this.ui.appendChild(w);
+    this.emoteEl = w;
+    w.querySelectorAll('[data-k]').forEach((b) => b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const t = items[Number(b.dataset.k)];
+      this.closeEmotes();
+      this.showEmote(this.me, t);
+      this.onEmote && this.onEmote(t);
+    }));
+    w.querySelector('[data-info]').addEventListener('click', (e) => { e.stopPropagation(); this.closeEmotes(); this.openSheet(L.uid); });
+    setTimeout(() => document.addEventListener('click', this._closeEm = () => this.closeEmotes(), { once: true }), 0);
+  }
+  closeEmotes() { if (this.emoteEl) { this.emoteEl.remove(); this.emoteEl = null; } }
 
   // ---------- explanations ----------
   /** One line under the board that always says what is going on and what to do. */
@@ -861,6 +1023,7 @@ export class BoardUI {
   async playEvents(batch) {
     for (let k = 0; k < batch.length; k++) {
       const { ev, view } = batch[k];
+      if (!this.introDone && view && view.players?.[0]?.leader && !this.noIntro) await this.intro(view);
       try { await this.pre(ev, batch, k); } catch (e) { console.warn(e); }
       this.render(view);
       try { await this.post(ev); } catch (e) { console.warn(e); }
@@ -872,6 +1035,7 @@ export class BoardUI {
       case 'declare': case 'declareAbility': {
         const id = ev.id ?? this.cardIdOf(ev.uid);
         this.announce(ev, id);
+        if (ev.type === 'declare' && ev.player === this.me) { this.played = this.played || []; this.played.push(id); }
         if (ev.type === 'declare') await this.showStageCard(ev.uid, id, ev.player, ev.targets);
         else {
           const p = this.pointOf(ev.uid);
@@ -1041,6 +1205,7 @@ export class BoardUI {
           FX.burst(p.x, p.y, { color: ['#ffd84a', '#fff1a8', '#ffffff'], count: 40, speed: 10, size: 7 });
         }
         if (ev.created && type === 'ally') sfx.animal(p.x);
+        if (d.legend && d.flavor && (type === 'ally' || type === 'companion')) this.bubbleAt(p.x - 60, p.y - (this.L.name === 'port' ? 130 : 100), `«${d.flavor}»`, 2800);
         await W(big ? 420 : 160);
         break;
       }
@@ -1110,7 +1275,7 @@ export class BoardUI {
         await W(280);
         break;
       }
-      case 'gameOver': this.showGameOver(ev.winner); break;
+      case 'gameOver': this.showGameOver(ev.winner); try { this.onGameEnd && this.onGameEnd(ev.winner, this.view, [...(this.played || [])]); } catch (e) { console.warn(e); } break;
       case 'resolve': await W(60); break;
       default: break;
     }
