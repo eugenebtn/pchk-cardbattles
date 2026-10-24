@@ -4,6 +4,9 @@ import { botAnswer, randomAnswer } from './engine/bot.js';
 import { checkAchievements } from './ui/achievements.js';
 import { createChat, cleanChat } from './ui/watch.js';
 import { createCoach } from './ui/coach.js';
+import { autoReport } from './ui/feedback.js';
+import { saveReplay, loadReplays, replayLink, readReplayParam } from './ui/replay.js';
+import { checkDaily, dailyState } from './ui/daily.js';
 import { levelAnswer, LEVEL_RU, adaptiveLevel, adaptiveAfterGame } from './engine/botlevels.js';
 import { CARDS } from './data/cards.js';
 import { DECKS } from './data/decks.js';
@@ -311,6 +314,7 @@ class Session {
     } catch (e) {
       // Never leave the game frozen: report and keep going.
       console.error('pump', e);
+      autoReport(e, this.ui);
       setTimeout(() => this.pump(), 400);
     } finally { this.busy = false; }
   }
@@ -328,6 +332,7 @@ class Session {
       if (g.pending === q && g.respond(q.player, a)) return;
     }
     console.error('bot could not answer', q);
+    autoReport(new Error(`Компьютер не смог ответить: ${q.type} «${q.prompt}»`), this.ui);
   }
   async switchSeat(p) {
     this.me = p;
@@ -401,11 +406,13 @@ function startBoard(session) {
   ui.noTips = !!session.watch || (session.controllers ? session.controllers[session.me] !== 'human' : false);
   ui.spectator = !!session.watch || (!!session.controllers && !session.controllers.includes('human') && !session.controllers.includes('remote'));
   ui.onFeedback = () => openFeedback({ ui, name: opt.name });
+  ui.toast = toast;
   ui.onEmote = (text) => {
     if (session.remote) { session.remote.send({ t: 'emote', text }); session.remote.sendWatchers({ t: 'emote', side: session.me, text }); }
     if (session.conn) session.conn.send({ t: 'emote', text });
   };
   if (session.canUndo) ui.onUndo = () => session.undo();
+  if (session.game && !session.replay && !session.watch) ui.onReplay = () => { const r = loadReplays().at(-1); session.close?.(); ui.chat?.destroy(); ui.coach?.destroy(); ui.destroy(); startReplay(r); };
   // Move coach: the learning game points at the best move; other local games show a «Совет» line (can be turned off).
   if (session.game && !ui.spectator && session.controllers?.[session.me] === 'human' && !session.hotseat) {
     const mode = session.coachMode || (opt.coach ? 'hint' : 'off');
@@ -425,6 +432,7 @@ function startBoard(session) {
     if (session.watch || (session.controllers && session.controllers[session.me] !== 'human')) { ui.noRank = true; return; } // watchers, bot vs bot
     if (session.hotseat) { ui.noRank = true; return; }
     const me = session.me, P = view.players;
+    if (session.game) saveReplay(session.game, { title: `${CARDS[P[0].leader.id]?.name.split(',')[0]} — ${CARDS[P[1].leader.id]?.name.split(',')[0]}`, mode: session.remote || session.conn ? 'online' : 'bot' });
     if (session.adaptive && !session.remote && !session.conn && winner !== 'draw') {
       const was = session.botLevel, next = adaptiveAfterGame(winner === me);
       ui.levelNote = next === was ? `Следующий компьютер: ${LEVEL_RU[next]}` : `Следующий компьютер будет ${next === 'strong' || (next === 'normal' && was === 'novice') ? 'сильнее' : 'слабее'}: ${LEVEL_RU[next]}`;
@@ -436,8 +444,11 @@ function startBoard(session) {
     });
     try {
       const st = ui.stats || {};
-      ui.newAch = checkAchievements({ won: winner === me, mode: session.remote || session.conn ? 'online' : 'bot', level: session.botLevel, myLeader: P[me].leader.id,
-        myHp: P[me].leader.hp, round: view.round, best: st.best && st.best.side === me ? st.best.amount : 0, oppKills: st.kills ? st.kills[1 - me] : 0 });
+      const ctx = { won: winner === me, mode: session.remote || session.conn ? 'online' : 'bot', level: session.botLevel, myLeader: P[me].leader.id, oppLeader: P[1 - me].leader.id,
+        myHp: P[me].leader.hp, round: view.round, best: st.best && st.best.side === me ? st.best.amount : 0, oppKills: st.kills ? st.kills[1 - me] : 0 };
+      ui.newAch = checkAchievements(ctx);
+      if (checkDaily(ctx)) { const d = dailyState(); ui.newAch = [{ icon: '📜', title: 'Задание дня выполнено', text: `${d.task.text}. Дней подряд: ${d.streak}` }, ...(ui.newAch || [])]; }
+      drawDaily();
     } catch (e) { console.warn(e); }
     // World ranking (draws are not sent): place and wins before and after this game, shown on the end screen.
     if (winner === 'draw') { ui.setRankInfo('<span class="ov-wait">Ничьи в мировой рейтинг не идут.</span>'); return; }
@@ -703,6 +714,85 @@ async function startWatchBots() {
   startBoard(s);
 }
 
+// ---------- replays ----------
+/** Plays a saved game again from its seed and answers, with ⏮ ◀ ⏯ ▶▶ ⏭ controls. */
+class ReplaySession {
+  constructor(r) { this.r = r; this.watch = true; this.replay = true; this.me = 0; this.queue = []; this.busy = false; this.paused = false; this.speed = 1; this.build(0); }
+  /** A fresh game with the first k answers applied quietly. */
+  build(k) {
+    const g = new Game({ ...this.r.cfg, seed: this.r.seed, options: { ...this.r.cfg.options, previews: false } }); // same options as the game itself, so the dice fall the same way
+    for (let i = 0; i < k && g.pending; i++) g.respond(g.pending.player, this.r.history[i]);
+    this.game = g; this.pos = k; this.queue = [];
+    const orig = g.emit.bind(g);
+    g.emit = (type, data) => { const ev = orig(type, data); this.queue.push({ ev, view: g.view(null) }); return ev; };
+  }
+  attach(ui) { this.ui = ui; ui.onAgain = () => this.jump(0); }
+  jump(k) {
+    this.build(Math.max(0, Math.min(this.r.history.length, k)));
+    document.querySelector('#game > .over-screen')?.remove();
+    this.ui.render(this.game.view(null)); this.ui.setPending(null); this.drawBar();
+    if (!this.paused) this.pump();
+  }
+  async pump() {
+    if (this.busy) return;
+    this.busy = true;
+    try {
+      for (;;) {
+        if (this.queue.length) { await this.ui.playEvents(this.queue.splice(0)); continue; }
+        if (this.paused || this.pos >= this.r.history.length || !this.game.pending) break;
+        await FX.wait(350);
+        if (this.paused) break;
+        const q = this.game.pending;
+        this.game.respond(q.player, this.r.history[this.pos++]);
+        this.drawBar();
+      }
+    } finally { this.busy = false; }
+  }
+  drawBar() {
+    let bar = document.querySelector('.replay-bar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.className = 'replay-bar';
+      bar.innerHTML = `<b>Повтор</b><button data-r="start" title="С начала">⏮</button><button data-r="back" title="Назад">◀</button><button data-r="play" title="Пауза / дальше">⏸</button><button data-r="fast" title="Скорость">×1</button><button data-r="end" title="К концу">⏭</button><span class="rb-pos"></span><button data-r="share" title="Ссылка на повтор">🔗</button>`;
+      document.body.appendChild(bar);
+      bar.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-r]'); if (!b) return;
+        const a = b.dataset.r;
+        if (a === 'play') { this.paused = !this.paused; b.textContent = this.paused ? '▶' : '⏸'; if (!this.paused) this.pump(); }
+        if (a === 'start') this.jump(0);
+        if (a === 'back') this.jump(this.pos - 6);
+        if (a === 'end') { this.paused = true; bar.querySelector('[data-r=play]').textContent = '▶'; this.jump(this.r.history.length); }
+        if (a === 'fast') { this.speed = this.speed === 1 ? 2 : this.speed === 2 ? 3.5 : 1; FX.setSpeed(this.speed * (opt.speed || 1)); b.textContent = '×' + this.speed; }
+        if (a === 'share') replayLink(this.r).then((url) => navigator.clipboard?.writeText(url)).then(() => toast('Ссылка на повтор скопирована — её можно отправить в чат'));
+      });
+    }
+    bar.querySelector('.rb-pos').textContent = `${Math.round((this.pos / Math.max(1, this.r.history.length)) * 100)}% · раунд ${this.game.s.round || 1}`;
+  }
+  close() { document.querySelector('.replay-bar')?.remove(); FX.setSpeed(opt.speed || 1); }
+}
+function startReplay(r) {
+  if (!r?.history?.length) { toast('Повтор недоступен'); return; }
+  const rs = new ReplaySession(r);
+  startBoard(rs);
+  rs.ui.noIntro = true;
+  rs.ui.render(rs.game.view(null));
+  rs.drawBar();
+  rs.pump();
+}
+
+// Errors anywhere on the page during a game are reported automatically (no personal data, see «Правовая информация»).
+window.addEventListener('error', (e) => { if (current?.ui && e.filename && e.filename.includes(location.host)) autoReport(e.error || e.message, current.ui); });
+window.addEventListener('unhandledrejection', (e) => { if (current?.ui) autoReport(e.reason, current.ui); });
+
+// ---------- Задание дня on the menu ----------
+function drawDaily() {
+  const box = $('#menu-daily'); if (!box) return;
+  const d = dailyState();
+  box.classList.toggle('done', d.done);
+  box.innerHTML = `<span class="dl-ico">${d.done ? '✓' : '📜'}</span><span><b>Задание дня</b>${esc(d.task.text)}${d.streak > 1 ? ` · дней подряд: ${d.streak}` : ''}</span>`;
+}
+drawDaily();
+
 // ---------- deck builder ----------
 function openBuilder({ startNew = false, back = () => show('menu') } = {}) {
   renderBuilder($('#builder'), store, back, {
@@ -756,6 +846,13 @@ if (quick) {
 }
 
 // ---------- menu wiring ----------
+const replayParam = new URLSearchParams(location.search).get('replay');
+if (replayParam) {
+  const jb = $('#join-banner');
+  jb.classList.remove('hidden');
+  jb.innerHTML = `Вам прислали повтор партии! <button class="btn primary" style="margin-left:8px">▶ Смотреть</button>`;
+  jb.querySelector('button').addEventListener('click', () => { sfx.click(); jb.classList.add('hidden'); readReplayParam(replayParam).then(startReplay).catch(() => toast('Ссылка на повтор повреждена')); });
+}
 const watchCode = new URLSearchParams(location.search).get('watch');
 if (watchCode && /^[a-z0-9]{4,10}$/.test(watchCode)) {
   const jb = $('#join-banner');
@@ -782,7 +879,7 @@ document.querySelectorAll('#menu [data-act]').forEach((b) => b.addEventListener(
   else if (a === 'feedback') openFeedback({ name: opt.name });
   else if (a === 'legal') { renderLegal($('#legal'), () => show('menu'), { onRights: () => openFeedback({ name: opt.name, kind: 'rights' }) }); show('legal'); }
   else if (a === 'stats' || a === 'ranking') {
-    renderStats($('#stats'), () => show('menu'), { tab: a === 'ranking' ? 'world' : 'mine', name: () => opt.name, setName: (v) => { opt.name = v; store.set('name', v); $('#opt-name').value = v; } });
+    renderStats($('#stats'), () => show('menu'), { tab: a === 'ranking' ? 'world' : 'profile', onReplay: (r) => startReplay(r), onShareReplay: (r) => replayLink(r).then((u) => navigator.clipboard?.writeText(u)).then(() => toast('Ссылка на повтор скопирована')), name: () => opt.name, setName: (v) => { opt.name = v; store.set('name', v); $('#opt-name').value = v; } });
     show('stats');
   }
   else if (a === 'decks') openBuilder();

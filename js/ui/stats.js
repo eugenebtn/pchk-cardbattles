@@ -5,6 +5,9 @@ import { DECKS } from '../data/decks.js';
 import { BALANCE } from '../data/balance.js';
 import { esc } from './board.js';
 import { achievementsHtml } from './achievements.js';
+import { loadReplays } from './replay.js';
+import { unlocked, ACH } from './achievements.js';
+import { dailyState } from './daily.js';
 
 const KEY = 'pchk_stats';
 const MODE_RU = { bot: 'с компьютером', online: 'с другом онлайн', hotseat: 'за одним экраном' };
@@ -62,7 +65,25 @@ async function renderWorld(box, mode, name, setName) {
   }
 }
 
-export function renderStats(root, onBack, { tab: startTab = 'world', name = () => '', setName = () => {} } = {}) {
+/** Profile: name, favourite Leader, totals, best streak, awards and today's task. */
+function profileHtml(games, tot, name) {
+  const byL = group(games, (g) => g.myLeader);
+  const fav = byL[0]?.[0];
+  let best = 0, cur = 0; for (const g of games) { cur = g.result === 'win' ? cur + 1 : 0; best = Math.max(best, cur); }
+  const have = unlocked(), got = Object.keys(have).filter((k) => ACH[k]).sort((a, b) => have[b] - have[a]);
+  const d = dailyState();
+  return `<div class="pf">
+    <div class="pf-head"><div class="pf-ava" style="background-image:url('${fav ? `assets/leaders/${fav}.webp` : ''}')"></div>
+      <div><div class="pf-name"><input type="text" maxlength="20" value="${esc(name)}" placeholder="Ваше имя"><button class="btn small">Сохранить</button></div>
+      <div class="pf-sub">${fav ? `Любимый Лидер: <b>${esc(leaderName(fav))}</b> · ${byL[0][1].n} партий` : 'Сыграйте первую партию!'}</div>
+      <div class="pf-rank">Загружаем место в рейтинге…</div></div></div>
+    <div class="st-kpis"><div class="kpi"><b>${tot.n}</b><span>партий</span></div><div class="kpi win"><b>${tot.w}</b><span>побед</span></div><div class="kpi"><b>${pct(tot.w, tot.n)}%</b><span>процент побед</span></div><div class="kpi"><b>${best}</b><span>лучшая серия</span></div><div class="kpi"><b>${got.length}/${Object.keys(ACH).length}</b><span>наград</span></div><div class="kpi"><b>${d.total}</b><span>заданий дня</span></div></div>
+    <div class="pf-daily ${d.done ? 'done' : ''}">📜 <b>Задание дня:</b> ${esc(d.task.text)} ${d.done ? '— <b>выполнено ✓</b>' : ''}${d.streak > 1 ? ` · дней подряд: ${d.streak}` : ''}</div>
+    ${got.length ? `<h3>Последние награды</h3><div class="pf-ach">${got.slice(0, 6).map((k) => `<span data-tip="${esc(ACH[k].title)}|${esc(ACH[k].text)}">${ACH[k].icon} ${esc(ACH[k].title)}</span>`).join('')}</div>` : ''}
+  </div>`;
+}
+
+export function renderStats(root, onBack, { tab: startTab = 'world', name = () => '', setName = () => {}, onReplay = null, onShareReplay = null } = {}) {
   let tab = startTab, worldMode = 'all';
   const draw = () => {
     const games = loadGames();
@@ -100,6 +121,7 @@ export function renderStats(root, onBack, { tab: startTab = 'world', name = () =
         ${byMode.map(([m, r]) => `<tr><td>${MODE_RU[m] || m}</td><td>${r.n}</td><td>${r.w}</td><td>${bar(r.w, r.n)}</td></tr>`).join('')}</table>` : ''}
       ${cards.length ? `<h3>Мои карты</h3><p class="st-note">Сколько партий вы разыгрывали карту и как часто в таких партиях побеждали.</p>
         <div class="st-cards">${cards.map(([id, r]) => `<div class="st-card" data-tip="${esc(CARDS[id].name)}|Сыграна в ${r.n} партиях, из них побед ${r.w} (${pct(r.w, r.n)}%)"><div class="st-cimg" style="background-image:url('${CARDS[id].img || ''}')"></div><div>${esc(CARDS[id].name.split(',')[0])}</div>${bar(r.w, r.n, 'small')}</div>`).join('')}</div>` : ''}
+      ${(() => { const reps = loadReplays().slice().reverse(); return reps.length && onReplay ? `<h3>Повторы</h3><p class="st-note">Последние ${reps.length} партий можно посмотреть заново или отправить ссылкой.</p><div class="st-replays">${reps.map((r, k) => `<div class="st-rep"><span>${new Date(r.at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} · ${esc(r.title || 'Партия')}</span><button class="btn small" data-rp="${k}">▶ Смотреть</button><button class="btn small" data-rs="${k}">🔗</button></div>`).join('')}</div>` : ''; })()}
       ${human.length ? `<h3>Последние партии</h3><table class="st-table"><tr><th>Когда</th><th>Режим</th><th>Я</th><th>Соперник</th><th>Итог</th><th>Раунды</th></tr>
         ${[...human].reverse().slice(0, 20).map((g) => `<tr><td>${new Date(g.at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} ${new Date(g.at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</td><td>${MODE_RU[g.mode] || g.mode}</td><td>${esc(leaderName(g.myLeader))}</td><td>${esc(leaderName(g.oppLeader))}${g.oppName ? ` <small>(${esc(g.oppName)})</small>` : ''}</td><td class="res ${g.result}">${g.result === 'win' ? 'Победа' : g.result === 'loss' ? 'Поражение' : 'Ничья'}</td><td>${g.rounds || '—'}</td></tr>`).join('')}</table>
         <p><button class="btn small danger" data-clear>Очистить мою статистику</button></p>` : ''}`;
@@ -129,13 +151,21 @@ export function renderStats(root, onBack, { tab: startTab = 'world', name = () =
     root.innerHTML = `<div class="stats-box">
       <button class="btn small" data-back>← Назад</button>
       <h2>Статистика</h2>
-      <div class="st-tabs"><button class="btn small ${tab === 'world' ? 'primary' : ''}" data-tab="world">Мировой рейтинг</button><button class="btn small ${tab === 'mine' ? 'primary' : ''}" data-tab="mine">Мои партии</button><button class="btn small ${tab === 'ach' ? 'primary' : ''}" data-tab="ach">Награды</button><button class="btn small ${tab === 'bal' ? 'primary' : ''}" data-tab="bal">Баланс колод</button></div>
-      ${tab === 'world' ? `<div class="st-tabs sub"><button class="btn small ${worldMode === 'all' ? 'primary' : ''}" data-wm="all">Общий</button><button class="btn small ${worldMode === 'online' ? 'primary' : ''}" data-wm="online">С друзьями онлайн</button><button class="btn small ${worldMode === 'bot' ? 'primary' : ''}" data-wm="bot">Против компьютера</button></div><div class="rk-box"></div>` : tab === 'mine' ? mine : tab === 'ach' ? achievementsHtml() : balance}
+      <div class="st-tabs"><button class="btn small ${tab === 'profile' ? 'primary' : ''}" data-tab="profile">Профиль</button><button class="btn small ${tab === 'world' ? 'primary' : ''}" data-tab="world">Мировой рейтинг</button><button class="btn small ${tab === 'mine' ? 'primary' : ''}" data-tab="mine">Мои партии</button><button class="btn small ${tab === 'ach' ? 'primary' : ''}" data-tab="ach">Награды</button><button class="btn small ${tab === 'bal' ? 'primary' : ''}" data-tab="bal">Баланс колод</button></div>
+      ${tab === 'world' ? `<div class="st-tabs sub"><button class="btn small ${worldMode === 'all' ? 'primary' : ''}" data-wm="all">Общий</button><button class="btn small ${worldMode === 'online' ? 'primary' : ''}" data-wm="online">С друзьями онлайн</button><button class="btn small ${worldMode === 'bot' ? 'primary' : ''}" data-wm="bot">Против компьютера</button></div><div class="rk-box"></div>` : tab === 'profile' ? profileHtml(human, tot, name()) : tab === 'mine' ? mine : tab === 'ach' ? achievementsHtml() : balance}
     </div>`;
     root.querySelector('[data-back]').onclick = onBack;
     root.querySelectorAll('[data-tab]').forEach((b) => { b.onclick = () => { tab = b.dataset.tab; draw(); }; });
     root.querySelectorAll('[data-wm]').forEach((b) => { b.onclick = () => { worldMode = b.dataset.wm; draw(); }; });
     if (tab === 'world') renderWorld(root.querySelector('.rk-box'), worldMode, name, setName);
+    if (tab === 'profile') {
+      const inp = root.querySelector('.pf-name input');
+      root.querySelector('.pf-name button').onclick = () => { setName(inp.value.trim()); root.querySelector('.pf-name button').textContent = 'Сохранено'; };
+      loadPlayers('all').then((list) => { const k = list.findIndex((x) => x.player_id === playerId()); const el = root.querySelector('.pf-rank'); if (el) el.innerHTML = k < 0 ? 'Пока не в рейтинге — сыграйте партию' : `<b>${k + 1}</b> место из ${list.length} в общем рейтинге`; }).catch(() => { const el = root.querySelector('.pf-rank'); if (el) el.textContent = 'Рейтинг сейчас недоступен'; });
+    }
+    const reps = loadReplays().slice().reverse();
+    root.querySelectorAll('[data-rp]').forEach((b) => { b.onclick = () => onReplay?.(reps[Number(b.dataset.rp)]); });
+    root.querySelectorAll('[data-rs]').forEach((b) => { b.onclick = () => onShareReplay?.(reps[Number(b.dataset.rs)]); });
     const clr = root.querySelector('[data-clear]');
     if (clr) clr.onclick = () => { if (confirm('Удалить всю вашу статистику в этом браузере?')) { clearGames(); draw(); } };
   };

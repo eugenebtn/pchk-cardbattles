@@ -41,6 +41,20 @@ async function screenshot() {
   } catch { return null; }
 }
 
+/** A crash inside the game: send it on its own (once per message, at most 3 per page load), with the game snapshot. */
+const sentAuto = new Set();
+export function autoReport(err, ui) {
+  try {
+    const msg = String(err?.stack || err?.message || err || '').slice(0, 1500);
+    const key = msg.split('\n').slice(0, 2).join('|');
+    if (!msg || sentAuto.has(key) || sentAuto.size >= 3 || /ResizeObserver|Script error|extension:\/\//.test(msg)) return;
+    sentAuto.add(key);
+    const context = { url: location.href.split('#')[0].split('?')[0], ua: navigator.userAgent, screen: `${innerWidth}x${innerHeight}`, auto: true, game: gameSnapshot(ui) };
+    fetch(URL, { method: 'POST', headers: { apikey: KEY, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({ kind: 'bug', text: `[авто] Ошибка в игре: ${msg}`.slice(0, 4000), author: 'автоотчёт', player_id: playerId(), context }) }).catch(() => {});
+  } catch { /* never break the game */ }
+}
+
 export async function openFeedback({ ui = null, name = '', kind = null } = {}) {
   document.querySelector('.fb-back')?.remove();
   const inGame = !!ui?.view;

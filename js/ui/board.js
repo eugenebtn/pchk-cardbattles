@@ -2,6 +2,7 @@
 import { CARDS } from '../data/cards.js';
 import * as FX from './fx.js';
 import { sfx, playMusic } from './sound.js';
+import { resultPicture, sharePicture, toggleRecording } from './share.js';
 import { pickLayout } from './layouts.js';
 import { linkTerms } from './glossary.js';
 import { ICON, KW_SVG, TOK_SVG } from './icons.js';
@@ -160,6 +161,7 @@ export class BoardUI {
       <div class="opts-pop hidden" id="opts-pop">
         <button class="btn" id="btn-log">📜 Журнал</button>
         <button class="btn hidden" id="btn-watch">👁 Позвать зрителей</button>
+        <button class="btn" id="btn-rec">⏺ Записать видео</button>
         <button class="btn" id="btn-bug">✉ Сообщить об ошибке</button>
         <button class="btn" id="btn-speed">⏩ Скорость</button>
         <button class="btn" id="btn-music">🎵 Музыка</button>
@@ -197,6 +199,7 @@ export class BoardUI {
     u.querySelector('#btn-emote').addEventListener('click', (e) => { e.stopPropagation(); this.openEmotes(); });
     u.querySelector('#btn-log').addEventListener('click', () => { this.showLog(); u.querySelector('#opts-pop').classList.add('hidden'); });
     u.querySelector('#btn-bug').addEventListener('click', () => { u.querySelector('#opts-pop').classList.add('hidden'); this.onFeedback?.(); });
+    u.querySelector('#btn-rec').addEventListener('click', () => { u.querySelector('#opts-pop').classList.add('hidden'); toggleRecording(this.toast); });
     u.querySelector('#btn-watch').addEventListener('click', () => { u.querySelector('#opts-pop').classList.add('hidden'); this.onInviteWatchers?.(); });
     u.querySelector('#btn-opts').addEventListener('click', (e) => { e.stopPropagation(); u.querySelector('#opts-pop').classList.toggle('hidden'); });
     this.ui.addEventListener('click', (e) => { if (!e.target.closest('#opts-pop') && !e.target.closest('#btn-opts')) u.querySelector('#opts-pop')?.classList.add('hidden'); });
@@ -1859,7 +1862,7 @@ ${optHtml}</div></div>
           ${ach}
           <div class="ov-rank">${this._rankHtml || (this.noRank ? '' : '<span class="ov-wait">Обновляем мировой рейтинг…</span>')}</div>
           ${this.levelNote ? `<div class="ov-level">${esc(this.levelNote)}</div>` : ''}
-          <div class="ov-btns"><button class="ov-btn gold" data-again>Реванш</button><button class="ov-btn" data-stats>Статистика партии</button><button class="ov-btn" data-rank>Рейтинг и награды</button><button class="ov-btn" data-menu>В меню</button></div>
+          <div class="ov-btns"><button class="ov-btn gold" data-again>Реванш</button><button class="ov-btn" data-stats>Статистика партии</button><button class="ov-btn" data-share>📤 Поделиться</button>${this.onReplay ? '<button class="ov-btn" data-replay>▶ Повтор</button>' : ''}<button class="ov-btn" data-rank>Рейтинг и награды</button><button class="ov-btn" data-menu>В меню</button></div>
           <a class="ov-buy" href="https://cardbattles.cc" target="_blank" rel="noopener">Понравилось? Настоящая коробка — на cardbattles.cc ↗</a>
         </div>
         <div class="ov-statpanel hidden"><div class="ov-statin">
@@ -1875,6 +1878,13 @@ ${optHtml}</div></div>
       o.querySelector('[data-menu]').addEventListener('click', () => this.onMenu && this.onMenu(true));
       o.querySelector('[data-again]').addEventListener('click', () => this.onAgain && this.onAgain());
       o.querySelector('[data-rank]').addEventListener('click', () => this.onRanking ? this.onRanking() : this.onMenu && this.onMenu(true));
+      o.querySelector('[data-replay]')?.addEventListener('click', () => this.onReplay());
+      o.querySelector('[data-share]').addEventListener('click', async () => {
+        const fighter = (i) => ({ leader: P[i].leader?.id, name: LEADER_SHORT[P[i].leader?.id] || P[i].name, hp: P[i].leader?.hp ?? 0, lost: !draw && winner !== i });
+        const sub = draw ? 'Оба Лидера пали одновременно' : `${LEADER_SHORT[P[winner].leader?.id] || ''} побеждает ${LEADER_ACC[P[1 - winner].leader?.id] || ''} · раунд ${this.view.round || 1}`;
+        const blob = await resultPicture({ left: fighter(me), right: fighter(op), title: draw ? 'Ничья' : win || this.spectator ? 'Победа' : 'Поражение', sub, line: `Нанесено ран: ${st.dmg[me]} · уничтожено союзников: ${st.kills[me]}` });
+        sharePicture(blob, this.toast);
+      });
       const sp = o.querySelector('.ov-statpanel');
       o.querySelector('[data-stats]').addEventListener('click', () => { sfx.click?.(); sp.classList.remove('hidden'); });
       o.querySelector('[data-stats-close]').addEventListener('click', () => sp.classList.add('hidden'));
