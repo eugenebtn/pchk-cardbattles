@@ -22,7 +22,7 @@ export const LAND = {
   log: { x: 1296, y: 574, w: 284, h: 96 },
   hand: { y: 712, cardW: 160, cardH: 223, width: 780, cx: 780, step: 120 },
   oppHand: { y: -92, cx: 1130, step: 26, width: 160 },
-  stageCard: { x: 1050, y: 210 },
+  stageCard: { x: 630, y: 160 }, // the played card is shown in the middle of the field, clear of the right column
   torches: [],
   bannerY: 330,
   regionLabel: false,

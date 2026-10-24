@@ -591,7 +591,7 @@ if (quick) {
   const da = DECKS[a] || DECKS.sfinkteirion, db = DECKS[b] || DECKS.larisa;
   const mk = (d, n) => ({ name: n, leader: d.leader, deck: d.main });
   const auto = new URLSearchParams(location.search).get('auto');
-  startBoard(new Session({ players: [mk(da, auto ? 'Бот 1' : myName()), mk(db, 'Компьютер')], controllers: [auto ? 'bot' : 'human', 'bot'], me: 0 }));
+  startBoard(new Session({ players: [mk(da, auto ? `Компьютер · ${da.title}` : myName()), mk(db, auto ? `Компьютер · ${db.title}` : 'Компьютер')], controllers: [auto ? 'bot' : 'human', 'bot'], me: 0 }));
 }
 
 // ---------- menu wiring ----------
