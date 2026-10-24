@@ -1,6 +1,7 @@
 // Sound engine: recorded CC0 samples (Kenney, OpenGameArt) through a small mixing desk —
 // compressor, a short room reverb (a table in a tavern, not a cathedral), stereo position by board location,
-// random pitch/volume per hit. Cards, wood, paper and coins first; synth layers only as a faint touch.
+// random pitch/volume per hit. Samples: Little Robot Sound Factory (CC BY 3.0), RPG Sound Pack by artisticdude
+// (CC0), Kenney (CC0); music: Kevin MacLeod, incompetech.com (CC BY 4.0).
 let ctx = null, master, sfxBus, musicBus, verb, verbSend, comp;
 let enabled = true, musicOn = true;
 let manifest = null;
@@ -206,53 +207,60 @@ export function duckMusic(amount = 0.35, seconds = 1.6) {
 
 // ---------- named effects ----------
 export const sfx = {
-  click(x) { play('wood', { vol: 0.22, rate: 1.7, verb: 0.05, x, dur: 0.12 }); },
+  // Interface: soft fantasy UI clicks (RPG Sound Pack, Little Robot Sound Factory).
+  click(x) { play('rpgUi', { vol: 0.3, verb: 0.05, x }); },
   hover() {},
-  select(x) { play('book', { vol: 0.3, rate: 1.3, verb: 0.08, x, dur: 0.25 }); },
-  confirm() { lute([62, 69], { gap: 0.06, vol: 0.22 }); },
-  draw(x) { play('book', { vol: 0.45, rate: 1.25, verb: 0.08, x }); },
-  shuffle() { play('book', { vol: 0.5, rate: 1.1 }); play('book', { vol: 0.4, rate: 1.3, delay: 0.12 }); },
-  play(x) { play('whoosh', { vol: 0.3, rate: 0.9, x, verb: 0.1 }); },
-  reveal() { play('book', { vol: 0.45, verb: 0.15 }); },
+  select(x) { play('lrMenu', { vol: 0.3, verb: 0.08, x }); },
+  confirm() { play('lrMenu', { vol: 0.45, verb: 0.1 }); },
+  error() { play('rpgUi', { vol: 0.35, rate: 0.7, verb: 0.05 }); },
+  // Cards: cloth-like swishes and a wooden tap on the table.
+  draw(x) { play('rpgCloth', { vol: 0.35, rate: 1.25, verb: 0.08, x }); },
+  shuffle() { play('rpgCloth', { vol: 0.4, rate: 1.1 }); play('rpgCloth', { vol: 0.3, rate: 1.3, delay: 0.12 }); },
+  play(x) { play('rpgCloth', { vol: 0.45, rate: 1.1, x, verb: 0.1 }); },
+  reveal() { play('rpgCloth', { vol: 0.4, verb: 0.12 }); },
+  flip(x) { play('rpgCloth', { vol: 0.4, rate: 1.2, x, verb: 0.12 }); },
   land(big = false, x) {
-    play('book', { vol: 0.6, rate: 0.85, x, verb: 0.1 });
-    play('wood', { vol: big ? 0.6 : 0.35, rate: big ? 0.8 : 1, x, verb: 0.2, delay: 0.02 });
-    if (big) sub(60, 0.5, 0.7);
+    play('rpgWood', { vol: big ? 0.75 : 0.5, rate: big ? 0.8 : 1, x, verb: 0.15 });
+    if (big) { play('rpgArmor', { vol: 0.35, x, verb: 0.2, delay: 0.03 }); sub(60, 0.5, 0.7); }
   },
-  legend(x) { lute([62, 66, 69, 74, 78], { gap: 0.09, vol: 0.3, pan: P(x) }); },
-  swing(x) { play('whoosh', { vol: 0.6, rate: 1.1, x, verb: 0.2 }); air(0.32, 500, 3500, 0.2, 0, P(x)); },
+  legend(x) { play('jEpic', { vol: 0.5, verb: 0.25, x }); },
+  // Fighting.
+  swing(x) { play('rpgSwing', { vol: 0.55, x, verb: 0.15 }); },
   hit(n = 3, x) {
     const heavy = n >= 4;
-    play(heavy ? 'punch' : 'punchMed', { vol: Math.min(0.9, 0.5 + n * 0.07), x, verb: 0.2 });
-    play('wood', { vol: 0.25, x, rate: 1.1, verb: 0.15, delay: 0.01 });
+    play(heavy ? 'punch' : 'punchMed', { vol: Math.min(0.85, 0.45 + n * 0.07), x, verb: 0.15 });
+    play('rpgMetal', { vol: heavy ? 0.35 : 0.2, x, verb: 0.15, delay: 0.01 });
     if (heavy) sub(60, 0.4, 0.8);
   },
   face(n = 3, x) { play('plate', { vol: Math.min(0.9, 0.5 + n * 0.06), x, verb: 0.3 }); sub(50, 0.5, 0.8); },
-  slash(x) { play('blade', { vol: 0.75, x, verb: 0.35 }); },
-  heal(x) { play('magic', { vol: 0.35, rate: 1.25, x, verb: 0.35, hp: 400 }); },
-  buff(x) { play('gem', { vol: 0.42, x, verb: 0.25 }); },
-  debuff(x) { play('slime', { vol: 0.5, x, verb: 0.4, rate: 0.85 }); sub(140, 0.4, 0.2); },
-  death(x) { play('book', { vol: 0.55, x, verb: 0.2, rate: 0.8 }); play('die', { vol: 0.35, x, verb: 0.3, rate: 0.95, delay: 0.05 }); },
-  coin(x) { play('coins', { vol: 0.55, x, verb: 0.25 }); },
-  coinStack(x) { play('coins', { vol: 0.4, x, verb: 0.15 }); },
-  fire(x) { play(Math.random() < 0.4 ? 'fireball' : 'fire', { vol: 0.85, x, verb: 0.55 }); sub(70, 0.5, 0.35, 0.1); },
-  magic(x) { play('spell', { vol: 0.5, x, verb: 0.4 }); },
-  dark(x) { play('spell', { vol: 0.45, rate: 0.6, x, verb: 0.45 }); play('monster', { vol: 0.25, x, verb: 0.4, rate: 0.75, lp: 2500 }); },
+  slash(x) { play('rpgSword', { vol: 0.5, x, verb: 0.15 }); },
+  death(x) { play('rpgCloth', { vol: 0.5, rate: 0.7, x, verb: 0.2 }); play('die', { vol: 0.3, x, verb: 0.3, delay: 0.05 }); },
+  battle() { duckMusic(0.35, 2.5); play('rpgSword', { vol: 0.55, verb: 0.25 }); sub(55, 0.5, 0.9); play('soft', { vol: 0.4, rate: 0.6, verb: 0.3, delay: 0.1 }); },
+  // Magic.
+  heal(x) { play('lrSpell', { vol: 0.35, rate: 1.25, x, verb: 0.3 }); },
+  buff(x) { play('lrSpell', { vol: 0.3, rate: 1.45, x, verb: 0.25 }); },
+  debuff(x) { play('slime', { vol: 0.45, x, verb: 0.3, rate: 0.85 }); },
+  magic(x) { play('lrSpell', { vol: 0.45, x, verb: 0.3 }); },
+  dark(x) { play('lrSpell', { vol: 0.45, rate: 0.6, x, verb: 0.35 }); play('monster', { vol: 0.2, x, verb: 0.3, rate: 0.75, lp: 2500 }); },
+  fire(x) { play(Math.random() < 0.4 ? 'fireball' : 'fire', { vol: 0.75, x, verb: 0.35 }); sub(70, 0.5, 0.35, 0.1); },
   explosion(x) { play('boom', { vol: 0.8, x, verb: 0.4 }); sub(40, 0.9, 0.9); duckMusic(0.4, 1.2); },
-  shield(x) { play('bell', { vol: 0.35, rate: 1.4, x, verb: 0.4 }); },
-  stun(x) { play('bell', { vol: 0.4, rate: 1.8, x, verb: 0.6 }); play('glassLight', { vol: 0.3, delay: 0.12, x, rate: 1.3 }); },
-  drum() { sub(60, 0.5, 0.9); play('soft', { vol: 0.7, rate: 0.7, verb: 0.6 }); },
-  battle() { duckMusic(0.35, 2.5); play('blade', { vol: 0.5, verb: 0.2 }); sub(55, 0.5, 0.9); lute([50, 53, 57, 62], { gap: 0.05, vol: 0.3, delay: 0.15 }); },
-  turn() { duckMusic(0.6, 1.4); lute([62, 69, 74], { gap: 0.09, vol: 0.28 }); },
-  win() { stopMusic(true); lute([62, 66, 69, 74, 78, 81, 86], { gap: 0.11, vol: 0.34 }); lute([50, 57, 62], { gap: 0.02, vol: 0.3, delay: 0.85 }); },
-  lose() { stopMusic(true); lute([69, 65, 62, 57, 50], { gap: 0.18, vol: 0.3 }); },
-  error() { play('wood', { vol: 0.35, rate: 0.6, verb: 0.05, dur: 0.2 }); },
-  flip(x) { play('book', { vol: 0.5, rate: 1.15, x, verb: 0.15 }); },
-  animal(x) { play('creature', { vol: 0.45, x, verb: 0.4, rate: 1.1 }); },
-  monster(x) { play('monster', { vol: 0.6, x, verb: 0.6 }); },
-  blood(x) { play('slime', { vol: 0.55, x, verb: 0.35 }); },
-  book(x) { play('book', { vol: 0.5, x, verb: 0.25 }); },
-  chain(x) { play('chain', { vol: 0.5, x, verb: 0.4 }); },
-  axe(x) { play('chop', { vol: 0.7, x, verb: 0.3 }); },
-  wood(x) { play('wood', { vol: 0.6, x, verb: 0.35 }); },
+  shield(x) { play('rpgArmor', { vol: 0.45, x, verb: 0.2 }); },
+  stun(x) { play('lrTrap', { vol: 0.4, x, verb: 0.2 }); },
+  // Coins.
+  coin(x) { play('lrGold', { vol: 0.4, x, verb: 0.15 }); },
+  coinStack(x) { play('rpgCoin', { vol: 0.4, x, verb: 0.15 }); },
+  // Turn, win, lose: short orchestral stings instead of slot-machine jingles.
+  drum() { sub(60, 0.5, 0.9); play('soft', { vol: 0.6, rate: 0.7, verb: 0.4 }); },
+  turn() { duckMusic(0.6, 1.2); play('lrMenu', { vol: 0.5, rate: 0.85, verb: 0.2 }); },
+  win() { stopMusic(true); play('jWin', { vol: 0.7, verb: 0.2 }); },
+  lose() { stopMusic(true); play('jLose', { vol: 0.6, verb: 0.2 }); },
+  // Creatures and misc.
+  animal(x) { play('goblin', { vol: 0.35, x, verb: 0.25, rate: 1.15 }); },
+  monster(x) { play('dragon', { vol: 0.4, x, verb: 0.3, rate: 1.1 }); },
+  blood(x) { play('slime', { vol: 0.5, x, verb: 0.25 }); },
+  book(x) { play('book', { vol: 0.5, x, verb: 0.2 }); },
+  chain(x) { play('chain', { vol: 0.45, x, verb: 0.3 }); },
+  axe(x) { play('chop', { vol: 0.65, x, verb: 0.25 }); },
+  wood(x) { play('rpgWood', { vol: 0.55, x, verb: 0.2 }); },
 };
+

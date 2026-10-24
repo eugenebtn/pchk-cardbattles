@@ -510,6 +510,22 @@ export class BoardUI {
     const q = this.q, el = this.promptEl;
     // Highlight the card a question is about (e.g. which of two boats is being moved).
     for (const e of this.board.querySelectorAll('.card.focus')) e.classList.remove('focus');
+    for (const e of this.board.querySelectorAll('.slot-prev')) e.remove();
+    // Placing an ally: show on every free slot what it will be there (bonuses from Places etc.).
+    if (q && q.player === this.me && q.type === 'region' && q.options.some((o) => o.preview)) {
+      for (const o of q.options) {
+        const pv = o.preview, slot = this.slots[q.row || 'ally']?.[this.me]?.[o.id];
+        if (!pv || !slot) continue;
+        const da = pv.atk - pv.baseAtk, dh = pv.hp - pv.baseHp;
+        const bonus = da || dh || pv.kws.length;
+        const pl = pv.place != null ? CARDS[pv.place]?.name : null;
+        const note = bonus ? `${da || dh ? `${da >= 0 ? '+' : ''}${da}/${dh >= 0 ? '+' : ''}${dh}` : ''}${pv.kws.length ? ' ' + pv.kws.map((k) => KW_NAME[k] || k).join(', ') : ''}${pl ? ` · ${pl}` : ''}` : (pl ? `без бонуса · ${pl}` : 'без бонуса');
+        const el = document.createElement('div');
+        el.className = 'slot-prev' + (bonus ? ' bonus' : '');
+        el.innerHTML = `<div class="sp-gems"><span class="sp-gem atk">${pv.atk}</span><span class="sp-gem hp">${pv.hp}</span></div><div class="sp-note">${esc(note)}</div>`;
+        slot.appendChild(el);
+      }
+    }
     if (q && q.player === this.me && q.focus != null) this.els.get(q.focus)?.classList.add('focus');
     el.className = 'prompt';
     el.innerHTML = '';
@@ -525,10 +541,16 @@ export class BoardUI {
     switch (q.type) {
       case 'main': text = ''; break;
       case 'priority': this.openPriority(q); return;
-      case 'draw':
-        el.innerHTML = `<div class="ptext">${esc(q.prompt)}</div><div class="draw-choice">${q.options.map((o) => `<button data-id="${o.id}"><span class="big-ico">${o.id === 'card' ? '🂠' : '🪙'}</span>${o.id === 'card' ? 'Карта' : 'Монета'}</button>`).join('')}</div>`;
-        el.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { sfx.click(); this.answer(b.dataset.id); }));
+      case 'draw': {
+        // Big choice in screen pixels: a card from the deck or a gold coin.
+        const me = this.view?.players[this.me];
+        const info = { card: `Карта из Скрижали<small>В руке сейчас ${me?.hand.length ?? 0}</small>`, coin: `Монета<small>Сейчас у вас ${me?.coins ?? 0} 💰</small>` };
+        this.modal(`<h3>${esc(q.prompt)}</h3><div class="draw-big">${q.options.map((o) => `<button class="draw-opt opt-${o.id}" data-id="${o.id}"><span class="draw-pic"></span><span class="draw-lbl">${info[o.id] || esc(o.label || o.id)}</span></button>`).join('')}</div>`, (m) => {
+          m.querySelector('.modal').classList.add('draw-modal');
+          m.querySelectorAll('[data-id]').forEach((b) => b.addEventListener('click', () => { sfx.click(); this.answer(b.dataset.id); }));
+        });
         return;
+      }
       case 'pick':
         if (!q.begin) { this.openPick(q); return; }
         for (const o of q.options) btns.push([o.label ?? String(o.id), o.id]);
@@ -884,7 +906,7 @@ export class BoardUI {
         case 'main': {
           const plays = q.options.filter((o) => o.kind === 'play').length, abs = q.options.filter((o) => o.kind === 'ability').length;
           text = plays || abs
-            ? `Ваш ход, у вас ${coins} 💰. ${plays ? 'Карты в руке с зелёной рамкой можно разыграть' : ''}${plays && abs ? ', ' : ''}${abs ? 'у карт на поле с синей рамкой есть свойство' : ''}. Нажмите на карту. Когда закончите — «Завершить ход».`
+            ? `Ваш ход, у вас ${coins} 💰. ${plays ? 'Карты в руке с зелёной рамкой можно разыграть' : ''}${plays && abs ? ', ' : ''}${abs ? 'у карт с меткой «✦ Свойство» можно использовать свойство' : ''}. Нажмите на карту. Когда закончите — «Завершить ход».`
             : `Разыграть больше нечего (${coins} 💰). Нажмите «Завершить ход».`;
           break;
         }
@@ -1163,6 +1185,7 @@ ${optHtml}</div></div>
       <div class="row-btns"><button class="btn primary" data-ok>Оставить выбранные</button>${q.canMull ? '<button class="btn danger" data-mull>Муллиган (взять на 2 карты меньше)</button>' : ''}</div>
       <p style="color:var(--ink-dim);margin:8px 0 0">${q.prompt}</p>`;
     this.modal(html, (m) => {
+      m.querySelector('.modal').classList.add('mull-modal');
       const ok = m.querySelector('[data-ok]');
       const upd = () => { ok.disabled = sel.size !== q.keep; ok.textContent = `Оставить выбранные (${sel.size}/${q.keep})`; m.querySelectorAll('.mcard').forEach((e) => { const on = sel.has(Number(e.dataset.uid)); e.classList.toggle('on', on); e.classList.toggle('off', !on && sel.size === q.keep); }); };
       m.querySelectorAll('.mcard').forEach((e) => {

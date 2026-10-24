@@ -43,7 +43,9 @@ export class Game {
    */
   constructor(cfg) {
     this.cfg = cfg;
-    this.rand = rng(cfg.seed ?? (Date.now() & 0xffffffff));
+    this.seedUsed = cfg.seed ?? (Date.now() & 0xffffffff);
+    this.rand = rng(this.seedUsed);
+    this.history = []; // every accepted answer, so the game can be replayed (used for previews)
     this.events = [];      // animation/log events, consumed by the UI
     this.seq = 0;
     this.listeners = [];
@@ -109,6 +111,7 @@ export class Game {
     const q = this.pending;
     if (!q || q.player !== player) return false;
     if (!this.validAnswer(q, answer)) return false;
+    this.history.push(answer);
     this.step(answer);
     return true;
   }
@@ -206,6 +209,49 @@ export class Game {
   /** Would putting this card onto player i's field make two Legends with one name? (then don't offer it) */
   legendClash(i, inst) { return this.isLegend(inst) && this.field(i).some((x) => x !== inst && this.def(x).name === this.def(inst).name); }
 
+  /**
+   * What an ally would look like in region r (attack, health, keywords from Places and other always-on effects),
+   * found by putting it there for a moment and reading the numbers. Nothing is triggered.
+   */
+  previewAlly(i, c, side, r) {
+    const p = this.P(i), save = { id: c.id, zone: c.zone, region: c.region, slot: c.slot, ctrl: c.ctrl }, prev = p.regions[r].ally;
+    try {
+      c.id = side; c.zone = 'field'; c.region = r; c.slot = 'ally'; c.ctrl = i; p.regions[r].ally = c;
+      const d = defOf(side);
+      const kws = Object.keys(KW_RU).filter((k) => this.has(c, k) && !d.kw.includes(k));
+      const place = this.placeAt(i, r);
+      return { atk: this.atk(c), hp: this.maxHp(c), baseAtk: d.atk ?? 0, baseHp: d.hp ?? 0, kws, place: place ? place.id : null };
+    } catch { return null; } finally {
+      p.regions[r].ally = prev; Object.assign(c, save);
+    }
+  }
+  /**
+   * Exact preview: replay the whole game in a copy (it is deterministic: same seed, same answers), put the ally
+   * into region r, let its «when it enters» effects run (default answers), and read its attack, health, keywords.
+   */
+  replayPreview(i, c, side, r) {
+    try {
+      const g2 = new Game({ ...this.cfg, seed: this.seedUsed, options: { ...this.cfg.options, previews: false } });
+      for (const a of this.history) { if (!g2.pending || !g2.respond(g2.pending.player, a)) return null; }
+      if (g2.pending?.type !== 'region' || !g2.respond(i, r)) return null;
+      for (let k = 0; k < 300 && g2.pending && !g2.s.over; k++) {
+        const q = g2.pending;
+        if (q.type === 'main' && g2.s.stack.length === 0) break;
+        let a;
+        if (q.type === 'priority') a = 'pass';
+        else if (q.type === 'multi') a = q.options.slice(0, q.min).map((o) => o.id);
+        else if (q.type === 'mulligan' || q.type === 'draw' || q.type === 'main') return null;
+        else a = q.options[0]?.id ?? null;
+        if (!g2.respond(q.player, a) && !(q.cancel && g2.respond(q.player, null))) return null;
+      }
+      const c2 = g2.card(c.uid);
+      if (!c2 || !g2.onField(c2)) return null;
+      const d = defOf(side);
+      const kws = Object.keys(KW_RU).filter((k) => g2.has(c2, k) && !d.kw.includes(k));
+      const place = g2.placeAt(i, r);
+      return { atk: g2.atk(c2), hp: g2.maxHp(c2), baseAtk: d.atk ?? 0, baseHp: d.hp ?? 0, kws, place: place ? place.id : null };
+    } catch { return null; }
+  }
   statics() {
     // [{inst, s}] for every card on the battlefield with a static block, plus equipment.
     const out = [];
@@ -575,7 +621,8 @@ export class Game {
     // Region.
     if (d.type === 'ally') {
       const regs = this.allyRegions(i, c, side);
-      const r = yield* this.ask(i, { type: 'region', prompt: `Куда положить «${d.name}»?`, options: regs.map((x) => ({ id: x })), cancel: !noCancel, auto: false, uid: c.uid, row: 'ally' });
+      const prev = this.cfg.options?.previews ? (x) => this.replayPreview(i, c, side, x) ?? this.previewAlly(i, c, side, x) : () => null;
+      const r = yield* this.ask(i, { type: 'region', prompt: `Куда положить «${d.name}»?`, options: regs.map((x) => ({ id: x, preview: prev(x) })), cancel: !noCancel, auto: false, uid: c.uid, row: 'ally' });
       if (r === null) return;
       ctx.region = r;
     } else if (d.type === 'place') {

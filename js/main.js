@@ -186,7 +186,7 @@ class Session {
     const autoPass = [false, false];
     this.controllers.forEach((c, i) => { if (c === 'human' && opt.autopass) autoPass[i] = true; });
     const seed = (Math.random() * 2 ** 31) | 0;
-    this.game = new Game({ seed, players: this.cfgPlayers, options: { mulliganBonus: opt.bonus, autoPass }, lazy: true });
+    this.game = new Game({ seed, players: this.cfgPlayers, options: { mulliganBonus: opt.bonus, autoPass, previews: true } });
     this.hook();
   }
   hook() {
