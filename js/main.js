@@ -7,7 +7,7 @@ import { levelAnswer, LEVEL_RU, adaptiveLevel, adaptiveAfterGame } from './engin
 import { CARDS } from './data/cards.js';
 import { DECKS } from './data/decks.js';
 import { BoardUI, esc } from './ui/board.js';
-import { sfx, setSound, setMusic, playMusic, unlockAudio } from './ui/sound.js';
+import { sfx, setSound, setMusic, playMusic, unlockAudio, setVolumes } from './ui/sound.js';
 import * as FX from './ui/fx.js';
 import { hostRoom, joinRoom } from './net/online.js';
 import { renderRules } from './ui/rules.js';
@@ -28,7 +28,11 @@ const store = {
 
 // ---------- screens ----------
 function show(id) {
-  document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('active', s.id === id));
+  document.querySelectorAll('.screen').forEach((s) => {
+    const on = s.id === id;
+    if (on && !s.classList.contains('active')) { s.classList.remove('screen-in'); void s.offsetWidth; s.classList.add('screen-in'); }
+    s.classList.toggle('active', on);
+  });
   FX.ambient(id === 'game');
   $('#scene').classList.toggle('off', id === 'game');
   if (audioStarted) playMusic(id === 'game' ? (Math.random() < 0.5 ? 'musicGame' : 'musicGame2') : 'musicMenu');
@@ -48,6 +52,14 @@ const opt = {
   name: store.get('name', ''), speed: store.get('speed', 1), music: store.get('music', true), board: store.get('board', 'random'),
 };
 setSound(opt.sound); setMusic(opt.music); FX.setSpeed(opt.speed);
+// Volume sliders: music, game sounds, interface clicks (saved in this browser).
+const vol = { music: 1, sfx: 1, ui: 1, ...store.get('vol', {}) };
+setVolumes(vol);
+document.querySelectorAll('[data-vol]').forEach((r) => {
+  r.value = Math.round((vol[r.dataset.vol] ?? 1) * 100);
+  r.addEventListener('input', () => { vol[r.dataset.vol] = r.value / 100; setVolumes(vol); store.set('vol', vol); });
+  r.addEventListener('change', () => { if (r.dataset.vol === 'ui') sfx.click(); if (r.dataset.vol === 'sfx') sfx.hit(3); });
+});
 $('#opt-music').checked = opt.music;
 $('#opt-music').addEventListener('change', (e) => { opt.music = e.target.checked; setMusic(opt.music); store.set('music', opt.music); });
 // Browsers allow sound only after the first click.
@@ -162,6 +174,7 @@ function pickDecks(steps) {
               ${L ? `<div class="hs-row"><div class="hs-hp" data-tip="Здоровье Лидера|Если упадёт до 0 — поражение.">❤️ ${L.hp}</div>${LEADER_PLAIN[sel.leader] ? `<div class="hs-diff d${LEADER_PLAIN[sel.leader].d}">${DIFF_RU[LEADER_PLAIN[sel.leader].d]}</div>` : ''}</div>
               <div class="hs-style">${esc(DECK_STYLE[sel.deckKey] || 'Ваша собственная скрижаль.')}</div>
               ${LEADER_PLAIN[sel.leader] ? `<ul class="hs-plain">${LEADER_PLAIN[sel.leader].t.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+              ${(() => { const key = [...new Set(sel.cards)].map((id) => CARDS[id]).filter((c) => c && c.img && typeof c.cost === 'number').sort((a, b) => b.cost - a.cost).slice(0, 4); return key.length ? `<div class="hs-keys"><span>Сильные карты колоды:</span>${key.map((c) => `<i style="background-image:url('${c.img}')" data-tip="${esc(c.name)}|${esc((c.text || '').split('\n').slice(0, 2).join(' '))}"></i>`).join('')}</div>` : ''; })()}
               <details class="hs-more"><summary>Подробнее: точный текст карты</summary><div class="hs-ability">${linkTerms(esc(L.text)).replace(/\n/g, '<br>')}</div></details>` : ''}
             </div>
           </div>

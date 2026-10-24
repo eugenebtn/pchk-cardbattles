@@ -1,7 +1,7 @@
 // Board renderer: draws a view from one player's perspective, animates events, collects answers.
 import { CARDS } from '../data/cards.js';
 import * as FX from './fx.js';
-import { sfx } from './sound.js';
+import { sfx, playMusic } from './sound.js';
 import { pickLayout } from './layouts.js';
 import { linkTerms } from './glossary.js';
 import { ICON, KW_SVG, TOK_SVG } from './icons.js';
@@ -73,6 +73,7 @@ export class BoardUI {
     this.stage.style.width = W + 'px'; this.stage.style.height = H + 'px';
     this.stage.classList.toggle('port', this.L.name === 'port');
     this.stage.classList.toggle('land', this.L.name === 'land');
+    if (this.L.name === 'port') { this.stage.style.setProperty('--hand-w', this.L.hand.cardW + 'px'); this.stage.style.setProperty('--hand-h', this.L.hand.cardH + 'px'); }
     const s = Math.min(window.innerWidth / W, window.innerHeight / H);
     this.scale = s;
     this.stage.style.transform = `scale(${s})`;
@@ -315,6 +316,14 @@ export class BoardUI {
     }
   }
 
+  /** Move the neighbours of the hovered hand card aside, so the whole card is visible. */
+  spreadHand(over) {
+    const cards = [...this.board.querySelectorAll('.hand-card')].sort((a, b) => parseFloat(a.style.left) - parseFloat(b.style.left));
+    const k = cards.indexOf(over);
+    const step = cards.length > 1 ? parseFloat(cards[1].style.left) - parseFloat(cards[0].style.left) : 999;
+    const push = Math.max(0, Math.min(70, (this.L.hand.cardW * 0.95) - step));
+    cards.forEach((c, i) => { c.style.translate = k < 0 || i === k || !push ? '' : `${i < k ? -push : push}px 0`; });
+  }
   fillCard(el, w) {
     const c = w.c;
     const d = c.hidden ? null : CARDS[c.id];
@@ -334,11 +343,17 @@ export class BoardUI {
       el.className = 'hand-card';
       const base = d.cost;
       let costHtml = '';
-      if (c.cost != null && base != null && w.mode === 'hand') {
-        const cls = c.cost === 'X' ? '' : c.cost < base ? 'cheaper' : c.cost > base ? 'dearer' : '';
-        if (cls) costHtml = `<div class="cost-now ${cls}">${c.cost}</div>`;
+      if (w.mode === 'hand' && (c.cost ?? base) != null) {
+        const now = c.cost ?? base;
+        const cls = now === 'X' || base == null ? '' : now < base ? 'cheaper' : now > base ? 'dearer' : '';
+        costHtml = `<div class="cost-now ${cls}" data-tip="Цена ${now}|${cls === 'cheaper' ? `Дешевле обычного (на карте ${base}).` : cls === 'dearer' ? `Дороже обычного (на карте ${base}).` : 'Столько монет нужно, чтобы разыграть карту.'}">${now}</div>`;
       }
       el.innerHTML = `<div class="face" style="${bg}">${gen}</div><div class="gloss"></div>${costHtml}${!img ? `<div class="nm" style="bottom:12px">${d.name}</div>` : ''}`;
+      if (!el._spread) {
+        el._spread = true;
+        el.addEventListener('mouseenter', () => { if (!this.touch()) this.spreadHand(el); });
+        el.addEventListener('mouseleave', () => this.spreadHand(null));
+      }
       if (!el._tilt) {
         el._tilt = true;
         el.addEventListener('mousemove', (e) => {
@@ -370,7 +385,10 @@ export class BoardUI {
       const buffed = c.maxHp > (d.hp ?? 0) && !hurt;
       stats += `<div class="stat hp ${hurt ? 'hurt' : ''} ${buffed ? 'buffed' : ''}" data-tip="Здоровье ${c.hp}${c.maxHp ? ' из ' + c.maxHp : ''}|${d.type === 'leader' ? 'Если здоровье Лидера упадёт до 0 — игрок проиграл.' : 'Когда раны сравняются со здоровьем, карта погибнет.'}${hurt ? ' Ранен (красное число).' : ''}">${c.hp}</div>`;
     }
-    const kwIcons = kws.filter((k) => KW_ICON[k] && k !== 'defense' && k !== 'ward').map((k) => `<div class="kw" data-tip="${KW_NAME[k]}|${KW_HELP[k]}">${KW_SVG[k] || KW_ICON[k]}</div>`).join('');
+    let kwIcons = kws.filter((k) => KW_ICON[k] && k !== 'defense' && k !== 'ward').map((k) => `<div class="kw" data-tip="${KW_NAME[k]}|${KW_HELP[k]}">${KW_SVG[k] || KW_ICON[k]}</div>`).join('');
+    // States that matter in the next battle, as clear badges on the card itself.
+    if (c.stunned) kwIcons = `<div class="kw state stun" data-tip="Оглушена|В следующем Сражении не нанесёт ран.">💫</div>` + kwIcons;
+    if (kws.includes('ward')) kwIcons = `<div class="kw state ward" data-tip="${KW_NAME.ward || 'Оберег'}|${KW_HELP.ward || 'Её нельзя выбрать целью.'}">✨</div>` + kwIcons;
     const toks = Object.entries(c.tok || {}).filter(([, n]) => n > 0).map(([t, n]) => `<div class="tok ${t}" data-tip="${TOK_TIP[t] || 'Фишки'}|${n} шт. Тратятся на свойства этой карты.">${TOK_SVG[t] || TOK_ICON[t] || t}<b>${n}</b></div>`).join('');
     const showName = mode !== 'small';
     el.innerHTML = `
@@ -379,7 +397,7 @@ export class BoardUI {
       <div class="frame"></div>
       <div class="face" style="${bg}">${gen}</div><div class="shade"></div>
       ${d.legend && mode !== 'leader' ? '<div class="legend-medal" data-tip="Легенда|У вас на поле не может быть двух Легенд с одним именем."></div>' : ''}
-      ${showName ? `<div class="nm rib ${d.type}">${mode === 'leader' ? (LEADER_SHORT[c.id] || d.name.split(',')[0]) : d.name.split(',')[0]}</div>` : ''}
+      ${showName ? (() => { const nm = mode === 'leader' ? (LEADER_SHORT[c.id] || d.name.split(',')[0]) : d.name.split(',')[0]; const len = nm.length; const fit = mode === 'leader' ? (len > 9 ? 'lname-long' : '') : len > (mode === 'place' ? 18 : 12) ? 'two' : len <= 8 ? 'big' : ''; return `<div class="nm rib ${d.type} ${fit}"><span>${nm}</span></div>`; })() : ''}
       ${stats}
       ${kwIcons ? `<div class="kw-row">${kwIcons}</div>` : ''}
       ${toks ? `<div class="tok-row">${toks}</div>` : ''}
@@ -461,7 +479,14 @@ export class BoardUI {
     // Log.
     const atBottom = this.logEl.scrollTop + this.logEl.clientHeight >= this.logEl.scrollHeight - 10;
     const refs = view.logRefs || [], base = view.log.length - Math.min(40, view.log.length);
-    this.logEl.innerHTML = view.log.slice(-40).map((l, k) => `<div ${refs[base + k] ? `data-r="${base + k}" class="has-ref"` : ''}>${esc(l)}</div>`).join('');
+    const mini = (ref) => {
+      if (!ref) return '';
+      const pic = (r) => (r && CARDS[r.id]?.img ? `<i class="lg-pic ${r.ctrl === this.me ? 'mine' : 'theirs'}" style="background-image:url('${CARDS[r.id].img}')"></i>` : '');
+      const t = (ref.tgts || []).find((x) => !ref.src || x.uid !== ref.src.uid);
+      const a = pic(ref.src), b = pic(t);
+      return a || b ? `<span class="lg-pics">${a}${a && b ? '<b>›</b>' : ''}${b}</span>` : '';
+    };
+    this.logEl.innerHTML = view.log.slice(-40).map((l, k) => `<div ${refs[base + k] ? `data-r="${base + k}" class="has-ref"` : ''}>${mini(refs[base + k])}${esc(l)}</div>`).join('');
     if (!this.logEl._hover) {
       this.logEl._hover = true;
       this.logEl.addEventListener('mouseover', (e) => { const d = e.target.closest('[data-r]'); if (d) this.showLogRef(this.view?.logRefs?.[Number(d.dataset.r)], d); });
@@ -473,6 +498,13 @@ export class BoardUI {
   }
 
   // ---------- interaction ----------
+  /** A Leader at 10 health or less: tense music; at 5 or less: a warning sound (each once a game). */
+  leaderDanger() {
+    const v = this.view; if (!v || v.over) return;
+    const low = Math.min(...v.players.map((pl) => pl.leader?.hp ?? 99));
+    if (low <= 10 && !this._tense) { this._tense = true; playMusic('musicTense'); }
+    if (low <= 5 && !this._danger) { this._danger = true; sfx.danger(); }
+  }
   /** Short name of a side (its Leader), for the spectator view. */
   sideName(i) { const id = this.view?.players?.[i]?.leader?.id; return LEADER_SHORT[id] || CARDS[id]?.name.split(',')[0] || this.view?.players?.[i]?.name || ''; }
   setPending(q) {
@@ -1396,9 +1428,10 @@ ${optHtml}</div></div>
         sfx.swing(ap.x);
         FX.streak(ap, { x: ap.x + dx, y: ap.y + dy }, this.attackColor(a));
         await W(0.25 * 760);
-        // Impact.
+        // Impact. If the opposing card strikes back right away, let it start while this one settles.
         FX.impact(ap.x + dx / 0.8 * 0.92, ap.y + dy / 0.8 * 0.92, this.attackColor(a));
-        await W(0.45 * 760);
+        const nextStrike = batch.slice(k + 1, k + 3).some((b) => b.ev.type === 'attack');
+        await W((nextStrike ? 0.12 : 0.32) * 760);
         a.style.zIndex = '';
         break;
       }
@@ -1412,11 +1445,11 @@ ${optHtml}</div></div>
           FX.splat(p.x, p.y, `-${ev.amount}`);
           FX.burst(p.x, p.y, { color: ev.combat ? ['#ffffff', '#ffd27a', '#ff7a3a'] : ['#ff7a3a', '#ff2a2a', '#ffd0a0'], shape: 'spark', count: 12 + ev.amount * 4, speed: 10 });
           FX.glow(p.x, p.y, 'rgba(255,120,60,.6)', 70 + ev.amount * 8, 380);
-          if (isLeader) sfx.face(ev.amount, p.x); else sfx.hit(ev.amount, p.x);
+          if (isLeader) { sfx.face(ev.amount, p.x); this.leaderDanger(); } else sfx.hit(ev.amount, p.x);
           FX.shake(Math.min(2.6, 0.4 + ev.amount / 3.2));
           el?.animate([{ transform: 'translate(0,0) scale(1)' }, { transform: 'translate(-7px,3px) scale(.96)' }, { transform: 'translate(7px,-3px) scale(1.02)' }, { transform: 'translate(-3px,1px)' }, { transform: 'translate(0,0) scale(1)' }], { duration: 320 });
         }
-        await W(ev.combat ? 300 : 360);
+        await W(ev.combat ? 220 : 340);
         break;
       }
       case 'death': {
@@ -1454,9 +1487,12 @@ ${optHtml}</div></div>
       }
       case 'battleSkipped': await FX.banner('Сражение пропущено', '', 1100); break;
       case 'regionStart': {
+        const v = this.view, r = ev.region;
+        const busy = v && v.players.some((pl) => pl.regions[r]?.ally);
+        if (!busy) break; // nobody fights here: no pause
         const col = this.cols[ev.region];
         if (col) { const p = this.stagePoint(col); FX.glow(p.x, p.y, 'rgba(255,170,60,.35)', 170, 600); sfx.drum(); }
-        await W(260);
+        await W(200);
         break;
       }
       case 'turnStart': {
@@ -1596,7 +1632,7 @@ ${optHtml}</div></div>
     const who = this.spectator ? esc(this.sideName(ev.player)) : ev.player === this.me ? 'Вы' : esc(v.players[ev.player]?.name || 'Соперник');
     const nm = ev.type === 'declare' ? `«${esc(CARDS[id]?.name.split(',')[0] || '')}»` : `«${esc(CARDS[id]?.name.split(',')[0] || '')}» — ${esc(ev.name || 'свойство')}`;
     const tg = (ev.targets || []).map((u) => { const t = this.findCard(u); return t ? `${t.ctrl === this.me ? 'ваш' : 'чужой'} «${esc(CARDS[t.id]?.name.split(',')[0])}»` : null; }).filter(Boolean).join(', ');
-    const mine = ev.player === this.me;
+    const mine = ev.player === this.me && !this.spectator;
     const verb = ev.type === 'declare' ? (mine ? 'играете' : 'играет') : (mine ? 'используете' : 'использует');
     this.caption(`<span class="cap-who ${mine ? 'me' : 'opp'}">${who}</span> ${verb} ${nm}${tg ? ` → ${tg}` : ''}`, mine ? 1800 : 3200);
   }
@@ -1747,7 +1783,8 @@ ${optHtml}</div></div>
   setRankInfo(html) { const el = document.querySelector('#game .over2 .ov-rank'); if (el) el.innerHTML = html; else this._rankHtml = html; }
   showGameOver(winner) {
     const win = winner === this.me, draw = winner === 'draw';
-    (win ? sfx.win : sfx.lose)();
+    (win || this.spectator ? sfx.win : sfx.lose)();
+    setTimeout(() => playMusic(win || this.spectator ? 'musicWin' : 'musicMenu'), 1800);
     const L = this.view.players[win ? 1 - this.me : this.me].leader;
     const p = L && this.pointOf(L.uid);
     if (p) FX.burst(p.x, p.y, { color: ['#3a2a1a', '#7a5a3a', '#ffcf6a'], shape: 'shard', count: 50, speed: 10, gravity: 0.3, add: false, size: 12, spin: 0.5, life: 1400 });

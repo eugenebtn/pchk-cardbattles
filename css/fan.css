@@ -181,3 +181,6 @@
 .bcard2 .wr.hi { background: #2e6b2c; }
 .bcard2 .wr.lo { background: #8a2a1e; }
 .bld-wrnote { margin-top: 6px; font: 500 14px 'Fira Sans Extra Condensed', sans-serif; color: #b9a77a; }
+.vol-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; }
+.vol-row label { display: inline-flex; align-items: center; gap: 6px; }
+.vol-row input[type=range] { width: 110px; accent-color: #d9a640; }

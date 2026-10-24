@@ -400,5 +400,11 @@
  "rpgBottle": [
   "rpgBottle_0.mp3",
   "rpgBottle_1.mp3"
+ ],
+ "musicTense": [
+  "musicTense_lute.mp3"
+ ],
+ "musicWin": [
+  "musicWin_lute.mp3"
  ]
 }

@@ -557,3 +557,48 @@
 .wc-pop.out { opacity: 0; }
 .watch-chat.is-watcher { width: clamp(240px, 26vw, 340px); }
 .wc-list { height: clamp(120px, 26vh, 280px); }
+
+/* ---------- Readability: names on ribbons, cost on hand cards, hand spreads on hover ---------- */
+.card .nm.rib.big { font-size: calc(var(--name) * 1.14); }
+.card .nm.rib.two { white-space: normal; text-overflow: clip; height: calc(var(--rib-h) * 1.7); line-height: .98; display: flex !important; align-items: center; justify-content: center; font-size: calc(var(--name) * 1.02); padding-top: 1px; }
+.card .nm.rib.two span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card.ally .nm.rib.two { bottom: 5px; }
+.hand-card .cost-now { top: auto; bottom: auto; right: auto; left: -8px; top: -8px; min-width: 38px; height: 38px; border-radius: 19px; font: 800 21px 'Fira Sans Extra Condensed', sans-serif; z-index: 3;
+  box-shadow: 0 0 0 2px #0f1418, 0 0 0 3.5px #d9c48a, 0 3px 8px rgba(0, 0, 0, .7); border: none; }
+.hand-card { transition: left .45s cubic-bezier(.2, .8, .3, 1), top .45s cubic-bezier(.2, .8, .3, 1), transform .3s cubic-bezier(.2, .7, .2, 1), translate .25s ease-out !important; }
+.card.leader .nm.rib { padding: 0 calc(var(--gem) * .95); }
+.card.leader .nm.rib.lname-long { font-size: calc(var(--name) - 1px); }
+.card .kw.state { font-size: 15px; display: grid; place-items: center; }
+.card .kw.state.stun { background: radial-gradient(circle at 35% 30%, #fff3c0, #d9a640 60%, #6e4a10) !important; }
+.card .kw.state.ward { background: radial-gradient(circle at 35% 30%, #e8f6ff, #6fb2e0 60%, #1e4a70) !important; }
+
+/* ---------- Phones (portrait layout) ---------- */
+#stage.port .round-box { transform: scale(.82); transform-origin: left top; }
+#stage.port .pname { max-width: 440px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#stage.port .hand-card .cost-now { min-width: 52px; height: 52px; border-radius: 26px; font-size: 30px; left: -10px; top: -10px; }
+#stage.port .card .stat { font-weight: 800; }
+
+/* Screen change: a short fade-and-settle, like a page turned on the table. */
+.screen.screen-in { animation: screenin .32s cubic-bezier(.2, .8, .3, 1); }
+@keyframes screenin { from { opacity: 0; transform: scale(.985); filter: blur(2px); } to { opacity: 1; transform: none; filter: none; } }
+
+/* ---------- One button style everywhere: dark card frame, pale-gold line, condensed letters ---------- */
+.btn:not(.hs-go) { font-family: 'Fira Sans Extra Condensed', sans-serif; font-weight: 700; letter-spacing: .3px; color: #f3e7c8; border: none; border-radius: 8px;
+  background: linear-gradient(rgba(255, 255, 255, .08), rgba(0, 0, 0, .22)), #4a3524; box-shadow: 0 0 0 3px #0f1418, inset 0 0 0 1.5px rgba(217, 196, 138, .8), 0 6px 14px rgba(0, 0, 0, .45); text-shadow: 0 1px 0 rgba(0, 0, 0, .5); }
+.btn:not(.hs-go):hover { filter: brightness(1.15); box-shadow: 0 0 0 3px #0f1418, inset 0 0 0 1.5px #f6d77a, 0 8px 18px rgba(0, 0, 0, .5); }
+.btn.primary:not(.hs-go) { background: linear-gradient(rgba(255, 255, 255, .12), rgba(0, 0, 0, .2)), #9a2420; color: #fff; }
+.btn.danger:not(.hs-go) { background: linear-gradient(rgba(255, 255, 255, .08), rgba(0, 0, 0, .25)), #5e1712; color: #ffd8cc; }
+.btn.small:not(.hs-go) { font-size: 16px; padding: 6px 14px; }
+.btn:disabled { filter: grayscale(.8) brightness(.6) !important; }
+
+/* Picture log */
+.log-panel .lg-pics { display: inline-flex; align-items: center; gap: 2px; margin-right: 6px; vertical-align: middle; }
+.log-panel .lg-pic { display: inline-block; width: 20px; height: 28px; border-radius: 3px; background-size: cover; background-position: center; box-shadow: 0 0 0 1.5px #8fb8e8; }
+.log-panel .lg-pic.theirs { box-shadow: 0 0 0 1.5px #e8907a; }
+.log-panel .lg-pics b { color: #f6d77a; font-weight: 800; }
+/* Hero select: key cards */
+.hs-keys { display: flex; align-items: center; gap: 8px; margin-top: 10px; font: 600 15px 'Fira Sans Extra Condensed', sans-serif; color: #b9a77a; flex-wrap: wrap; }
+.hs-keys i { width: 58px; height: 81px; border-radius: 6px; background-size: cover; background-position: center; box-shadow: 0 0 0 2px #0f1418, 0 0 0 3.5px #d9c48a, 0 6px 12px rgba(0, 0, 0, .5); transition: transform .2s; cursor: help; }
+.hs-keys i:hover { transform: translateY(-4px) scale(1.6); z-index: 5; position: relative; }
+/* Field: a soft vignette so the eye stays on the middle */
+.field::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; box-shadow: inset 0 0 70px rgba(0, 0, 0, .55), 0 0 40px rgba(246, 215, 122, .12); z-index: 0; }

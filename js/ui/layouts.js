@@ -41,7 +41,7 @@ export const PORT = {
   piles: { myDeck: { x: 676, y: 1048 }, myGrave: { x: 786, y: 1048 }, oppDeck: { x: 676, y: 112 }, oppGrave: { x: 786, y: 112 } },
   names: { me: { x: 216, y: 1196 }, opp: { x: 216, y: 12 } },
   coins: { me: { x: 470, y: 1186 }, opp: { x: 216, y: 52 } },
-  round: { x: 8, y: 632 },
+  round: { x: 8, y: 622 },
   end: { x: 680, y: 626 },
   powers: { x: 604, y: 1176, w: 290, emote: { x: 160, y: 1032 } },
   hint: { x: 10, y: 1252, w: 880, h: 0 },
@@ -58,7 +58,8 @@ export const PORT = {
 const portCache = new Map();
 function makePort(H) {
   if (portCache.has(H)) return portCache.get(H);
-  const ex = H - 1600, a = Math.round(ex * 0.3), b = Math.round(ex * 0.75);
+  // Extra height: a little moves the board down, my side stays right under it, the rest goes to a bigger hand.
+  const ex = H - 1600, a = Math.round(ex * 0.3), b = a + Math.round(ex * 0.08);
   const sh = (o, d) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, { ...v, y: v.y + d }]));
   const L = {
     ...PORT, H,
@@ -74,7 +75,7 @@ function makePort(H) {
     coins: { me: { ...PORT.coins.me, y: PORT.coins.me.y + b }, opp: PORT.coins.opp },
     hint: { ...PORT.hint, y: PORT.hint.y + b },
     powers: { ...PORT.powers, y: PORT.powers.y + b, emote: { ...PORT.powers.emote, y: PORT.powers.emote.y + b } },
-    hand: { ...PORT.hand, y: PORT.hand.y + b + Math.round((ex - b) * 0.3), cardW: PORT.hand.cardW, cardH: PORT.hand.cardH },
+    hand: { ...PORT.hand, y: PORT.hand.y + b + Math.round((ex - b) * 0.25), cardW: ex > 200 ? 228 : PORT.hand.cardW, cardH: ex > 200 ? 318 : PORT.hand.cardH, width: 880 },
   };
   void sh;
   portCache.set(H, L);

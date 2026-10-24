@@ -5,10 +5,19 @@
 let ctx = null, master, sfxBus, musicBus, verb, verbSend, comp;
 let enabled = true, musicOn = true;
 let manifest = null;
+// Three volume sliders (0..1): music, game sounds, interface clicks.
+const VOL = { music: 1, sfx: 1, ui: 1 };
+const MUSIC_BASE = 0.16, SFX_BASE = 0.85;
+export function setVolumes(v = {}) {
+  Object.assign(VOL, v);
+  if (ctx && musicBus) musicBus.gain.setTargetAtTime(MUSIC_BASE * VOL.music, ctx.currentTime, 0.1);
+  if (ctx && sfxBus) sfxBus.gain.setTargetAtTime(SFX_BASE * VOL.sfx, ctx.currentTime, 0.1);
+}
+export function volumes() { return { ...VOL }; }
 const buffers = new Map();
 let loading = null;
 const BASE = 'assets/audio/';
-const USED = new Set(['book', 'boom', 'chain', 'chop', 'die', 'dragon', 'fire', 'fireball', 'goblin', 'jEpic', 'jLose', 'jWin', 'lrGold', 'lrMenu', 'lrSpell', 'lrTrap', 'monster', 'plate', 'punch', 'punchMed', 'rpgArmor', 'rpgCloth', 'rpgCoin', 'rpgMetal', 'rpgSwing', 'rpgSword', 'rpgUi', 'rpgWood', 'slime', 'soft']);
+const USED = new Set(['bell', 'book', 'boom', 'chain', 'chop', 'die', 'dragon', 'fire', 'fireball', 'goblin', 'jEpic', 'jLose', 'jWin', 'lrGold', 'lrMenu', 'lrSpell', 'lrTrap', 'monster', 'plate', 'punch', 'punchMed', 'rpgArmor', 'rpgCloth', 'rpgCoin', 'rpgMetal', 'rpgSwing', 'rpgSword', 'rpgUi', 'rpgWood', 'slime', 'soft']);
 
 function ac() {
   if (!ctx) {
@@ -19,8 +28,8 @@ function ac() {
     comp.threshold.value = -16; comp.knee.value = 12; comp.ratio.value = 4; comp.attack.value = 0.004; comp.release.value = 0.25;
     master = ctx.createGain(); master.gain.value = 0.9;
     comp.connect(master); master.connect(ctx.destination);
-    sfxBus = ctx.createGain(); sfxBus.gain.value = 0.85; sfxBus.connect(comp);
-    musicBus = ctx.createGain(); musicBus.gain.value = 0.16; musicBus.connect(master);
+    sfxBus = ctx.createGain(); sfxBus.gain.value = SFX_BASE * VOL.sfx; sfxBus.connect(comp);
+    musicBus = ctx.createGain(); musicBus.gain.value = MUSIC_BASE * VOL.music; musicBus.connect(master);
     // Hall reverb from a generated impulse response.
     verb = ctx.createConvolver();
     verb.buffer = impulse(0.9, 3.5);
@@ -203,18 +212,20 @@ export function duckMusic(amount = 0.35, seconds = 1.6) {
   if (!ctx || !musicBus) return;
   const t = ctx.currentTime;
   musicBus.gain.cancelScheduledValues(t);
-  musicBus.gain.setTargetAtTime(0.16 * amount, t, 0.05);
-  musicBus.gain.setTargetAtTime(0.16, t + seconds, 0.6);
+  musicBus.gain.setTargetAtTime(MUSIC_BASE * VOL.music * amount, t, 0.05);
+  musicBus.gain.setTargetAtTime(MUSIC_BASE * VOL.music, t + seconds, 0.6);
 }
 
 // ---------- named effects ----------
 export const sfx = {
   // Interface: soft fantasy UI clicks (RPG Sound Pack, Little Robot Sound Factory).
-  click(x) { play('rpgUi', { vol: 0.3, verb: 0.05, x }); },
+  click(x) { play('rpgUi', { vol: 0.3 * VOL.ui, verb: 0.05, x }); },
   hover() {},
-  select(x) { play('lrMenu', { vol: 0.3, verb: 0.08, x }); },
-  confirm() { play('lrMenu', { vol: 0.45, verb: 0.1 }); },
-  error() { play('rpgUi', { vol: 0.35, rate: 0.7, verb: 0.05 }); },
+  select(x) { play('lrMenu', { vol: 0.3 * VOL.ui, verb: 0.08, x }); },
+  confirm() { play('lrMenu', { vol: 0.45 * VOL.ui, verb: 0.1 }); },
+  error() { play('rpgUi', { vol: 0.35 * VOL.ui, rate: 0.7, verb: 0.05 }); },
+  // A Leader is in danger: a low drum and a dark bell, once per danger level.
+  danger(x) { sub(46, 0.9, 1.0); play('bell', { vol: 0.32, rate: 0.55, x, verb: 0.45, delay: 0.05 }); },
   // Cards: cloth-like swishes and a wooden tap on the table.
   draw(x) { play('rpgCloth', { vol: 0.35, rate: 1.25, verb: 0.08, x }); },
   shuffle() { play('rpgCloth', { vol: 0.4, rate: 1.1 }); play('rpgCloth', { vol: 0.3, rate: 1.3, delay: 0.12 }); },
@@ -230,6 +241,7 @@ export const sfx = {
   swing(x) { play('rpgSwing', { vol: 0.55, x, verb: 0.15 }); },
   hit(n = 3, x) {
     const heavy = n >= 4;
+    if (n >= 6) play('boom', { vol: 0.35, x, verb: 0.25, delay: 0.02 }); // a crushing blow
     play(heavy ? 'punch' : 'punchMed', { vol: Math.min(0.85, 0.45 + n * 0.07), x, verb: 0.15 });
     play('rpgMetal', { vol: heavy ? 0.35 : 0.2, x, verb: 0.15, delay: 0.01 });
     if (heavy) sub(60, 0.4, 0.8);
