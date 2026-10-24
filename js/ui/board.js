@@ -56,7 +56,7 @@ export class BoardUI {
     window.addEventListener('resize', this._fit);
     this._ro = new ResizeObserver(this._fit); this._ro.observe(document.documentElement);
   }
-  destroy() { window.removeEventListener('resize', this._fit); this._ro?.disconnect(); this.board.innerHTML = ''; this.ui.innerHTML = ''; this.closeModal(); this.closePriority(); document.querySelectorAll('#game > .tip-card, #game > .over-screen, #game > .pass-screen').forEach((e) => e.remove()); }
+  destroy() { window.removeEventListener('resize', this._fit); if (this._keys) window.removeEventListener('keydown', this._keys); this._ro?.disconnect(); this.board.innerHTML = ''; this.ui.innerHTML = ''; this.closeModal(); this.closePriority(); document.querySelectorAll('#game > .tip-card, #game > .over-screen, #game > .pass-screen').forEach((e) => e.remove()); }
 
   fit() {
     const want = pickLayout();
@@ -151,6 +151,7 @@ export class BoardUI {
       ${L.log ? `<div class="log-panel" id="log" style="left:${L.log.x}px;top:${L.log.y}px;width:${L.log.w}px;height:${L.log.h}px"></div>` : '<div class="log-panel hidden" id="log"></div>'}
       <div class="stack-panel" id="stack"></div>
       <div class="top-btns">
+        <button class="icon-btn hidden" id="btn-undo" data-tip="Отменить ход|Вернуть вашу последнюю карту или действие (только против компьютера). Клавиша Z.">↶</button>
         <button class="icon-btn" id="btn-report" data-tip="Ошибка или отзыв|Сообщить разработчику: снимок экрана и ход партии приложатся сами.">${ICON.report}</button>
         <button class="icon-btn" id="btn-help" data-tip="Как играть|Правила, значки и подсказки.">${ICON.help}</button>
         <button class="icon-btn" id="btn-fast" data-tip="Опережение ⚡|Включить или выключить вопросы «ответить картой с Опережением?».">${ICON.bolt}</button>
@@ -180,6 +181,18 @@ export class BoardUI {
     u.querySelector('#btn-menu').addEventListener('click', () => this.onMenu && this.onMenu());
     u.querySelector('#btn-help').addEventListener('click', () => this.showHelp());
     u.querySelector('#btn-report').addEventListener('click', () => this.onFeedback?.());
+    u.querySelector('#btn-undo').addEventListener('click', () => this.onUndo?.());
+    // Keyboard: Space — end turn / pass, Esc — cancel or close, 1–9 — options in a window, Z — undo.
+    if (!this._keys) {
+      this._keys = (e) => {
+        if (!document.querySelector('#game.active') || /input|textarea|select/i.test(e.target.tagName)) return;
+        if (e.code === 'Space') { e.preventDefault(); if (this.modalEl || document.querySelector('#game .priority-panel:not(.hidden)')) { (document.querySelector('#game .priority-panel [data-pass]') || document.querySelector('#game .modal [data-close]'))?.click(); } else this.clickEnd(); }
+        else if (e.key === 'Escape') { const c = document.querySelector('#game .modal [data-cancel], #game .modal [data-close], #game .prompt button:last-child'); if (c) c.click(); else this.hidePreview(); }
+        else if (/^[1-9]$/.test(e.key)) { const opts = document.querySelectorAll('#game .modal .pick-opt[data-k], #game .modal .draw-opt, #game .modal .choice-card, #game .priority-panel .pri-card'); opts[Number(e.key) - 1]?.click(); }
+        else if ((e.key === 'z' || e.key === 'я' || e.key === 'Z' || e.key === 'Я') && this.onUndo) this.onUndo();
+      };
+      window.addEventListener('keydown', this._keys);
+    }
     this.powersEl = u.querySelector('#powers');
     u.querySelector('#btn-emote').addEventListener('click', (e) => { e.stopPropagation(); this.openEmotes(); });
     u.querySelector('#btn-log').addEventListener('click', () => { this.showLog(); u.querySelector('#opts-pop').classList.add('hidden'); });
@@ -278,6 +291,8 @@ export class BoardUI {
     }
     if (this.oppHandCount) this.oppHandCount.innerHTML = `🂠 ${P[op].handCount}`;
     this.renderSide(view);
+    this.ui.querySelector('#btn-undo')?.classList.toggle('hidden', !this.onUndo);
+    this.renderForecast(view);
     // More than 10 cards in hand: at the end of the turn the extra ones go to the graveyard (the player picks which).
     const nHand = P[this.me]?.hand?.length || 0;
     let lim = this.stage.querySelector('.hand-limit');
@@ -316,6 +331,27 @@ export class BoardUI {
     }
   }
 
+  /** Battle forecast: in each region, roughly what the next battle does (attack against the card in front, or the Leader). */
+  renderForecast(view) {
+    this.board.querySelectorAll('.forecast').forEach((e) => e.remove());
+    if (!view || view.over || view.phase === 'battle' || !view.players?.[this.me]) return;
+    const me = this.me, op = 1 - me, L = this.L;
+    for (let r = 0; r < 5; r++) {
+      const a = view.players[me].regions[r]?.ally, e = view.players[op].regions[r]?.ally;
+      if (!a && !e) continue;
+      const hit = (x) => (x && !x.stunned ? x.atk || 0 : 0);
+      const parts = [];
+      if (a) parts.push(e ? (hit(a) >= e.hp ? `<b class="up">▲ ${hit(a)}</b> 💀` : `<b class="up">▲ ${hit(a)}</b>`) : `<b class="up">▲ ${hit(a)}</b> Лидеру`);
+      if (e) parts.push(a ? (hit(e) >= a.hp ? `<b class="dn">▼ ${hit(e)}</b> 💀` : `<b class="dn">▼ ${hit(e)}</b>`) : `<b class="dn">▼ ${hit(e)}</b> ${this.spectator ? 'Лидеру' : 'вам'}`);
+      const f = document.createElement('div');
+      f.className = 'forecast';
+      f.style.left = (L.colX(r) + L.colW / 2) + 'px';
+      f.style.top = (L.midY - 13) + 'px';
+      f.innerHTML = parts.join('<i>·</i>');
+      f.dataset.tip = 'Прогноз боя|Примерно, без свойств карт: ▲ — сколько ран нанесёт ваш союзник, ▼ — сколько получит. 💀 — карта, скорее всего, погибнет.';
+      this.board.appendChild(f);
+    }
+  }
   /** Move the neighbours of the hovered hand card aside, so the whole card is visible. */
   spreadHand(over) {
     const cards = [...this.board.querySelectorAll('.hand-card')].sort((a, b) => parseFloat(a.style.left) - parseFloat(b.style.left));
@@ -984,7 +1020,8 @@ export class BoardUI {
         default: title = q.prompt || '';
       }
     }
-    el.innerHTML = title ? `<span class="hint-ico"><i style="-webkit-mask-image:url(assets/icons/${ico}.svg);mask-image:url(assets/icons/${ico}.svg)"></i></span><span class="hint-txt"><b>${esc(title)}</b>${sub ? `<em>${esc(sub)}</em>` : ''}</span>` : '';
+    el.innerHTML = (this.coachText && q && q.player === me ? `<div class="coach-line"><b>Совет:</b> ${esc(this.coachText)}</div>` : '')
+      + (title ? `<span class="hint-ico"><i style="-webkit-mask-image:url(assets/icons/${ico}.svg);mask-image:url(assets/icons/${ico}.svg)"></i></span><span class="hint-txt"><b>${esc(title)}</b>${sub ? `<em>${esc(sub)}</em>` : ''}</span>` : '');
     el.classList.toggle('empty', !title);
   }
 

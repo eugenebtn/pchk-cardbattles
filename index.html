@@ -21,7 +21,7 @@
 <link rel="stylesheet" href="css/powers.css?v=ab7cf8aa">
 <link rel="stylesheet" href="css/premium.css?v=0535dfa9">
 <link rel="stylesheet" href="css/fan.css?v=0c12c363">
-<link rel="stylesheet" href="css/cardskin.css?v=7678f2db">
+<link rel="stylesheet" href="css/cardskin.css?v=5220fb43">
 </head>
 <body>
 <div id="app">
@@ -68,6 +68,7 @@
       <label><input type="checkbox" id="opt-sound" checked> Звук</label>
       <label><input type="checkbox" id="opt-music" checked> Музыка</label>
       <div class="vol-row"><span>Громкость:</span><label>Музыка <input type="range" min="0" max="100" data-vol="music"></label><label>Звуки игры <input type="range" min="0" max="100" data-vol="sfx"></label><label>Кнопки <input type="range" min="0" max="100" data-vol="ui"></label></div>
+      <label><input type="checkbox" id="opt-coach"> Подсказка лучшего хода («Совет» на панели справа)</label>
       <label><input type="checkbox" id="opt-bonus"> Тест-правило: +1 💰 за каждую карту меньше 5 после муллигана</label>
       <label class="name-row">Опережение: <select id="opt-autopass"><option value="smart">спрашивать, только когда целятся в мои карты</option><option value="always">спрашивать всегда</option><option value="never">не спрашивать</option></select></label>
       <label class="name-row">Ваше имя: <input type="text" id="opt-name" maxlength="20" placeholder="Игрок"></label>
@@ -115,8 +116,8 @@
     <div id="preview" class="preview hidden"></div>
       </section>
 </div>
-<script type="importmap">{"imports":{"three":"./vendor/three.module.js","three/addons/":"./vendor/addons/","./js/cards/index.js":"./js/cards/index.js?v=44c8b885","./js/cards/larisa.js":"./js/cards/larisa.js?v=d4236f70","./js/cards/levenheart.js":"./js/cards/levenheart.js?v=87b81825","./js/cards/set1.js":"./js/cards/set1.js?v=b5e25c87","./js/cards/sofia_erik.js":"./js/cards/sofia_erik.js?v=271b60a1","./js/cards/tokens.js":"./js/cards/tokens.js?v=6d3eafb8","./js/cards/vampires.js":"./js/cards/vampires.js?v=03a16faa","./js/data/balance.js":"./js/data/balance.js?v=9ba21d7b","./js/data/cards.js":"./js/data/cards.js?v=0a1fcb04","./js/data/decks.js":"./js/data/decks.js?v=3e55ea4f","./js/engine/bot.js":"./js/engine/bot.js?v=0639751c","./js/engine/botlevels.js":"./js/engine/botlevels.js?v=d7438c9c","./js/engine/game.js":"./js/engine/game.js?v=89f7262a","./js/main.js":"./js/main.js?v=415bef67","./js/net/online.js":"./js/net/online.js?v=821d4a4a","./js/net/ranking.js":"./js/net/ranking.js?v=36074ec9","./js/ui/achievements.js":"./js/ui/achievements.js?v=13023fb3","./js/ui/board.js":"./js/ui/board.js?v=5b22ffa9","./js/ui/builder.js":"./js/ui/builder.js?v=b6438f38","./js/ui/feedback.js":"./js/ui/feedback.js?v=3718a8ac","./js/ui/fx.js":"./js/ui/fx.js?v=70aa4023","./js/ui/glossary.js":"./js/ui/glossary.js?v=9e41b283","./js/ui/icons.js":"./js/ui/icons.js?v=8d887629","./js/ui/layouts.js":"./js/ui/layouts.js?v=576d8282","./js/ui/legal.js":"./js/ui/legal.js?v=f9ba96cf","./js/ui/rules.js":"./js/ui/rules.js?v=d4e9b879","./js/ui/scene3d.js":"./js/ui/scene3d.js?v=fece3382","./js/ui/sound.js":"./js/ui/sound.js?v=8c898252","./js/ui/stats.js":"./js/ui/stats.js?v=fbe6f362","./js/ui/tutorial.js":"./js/ui/tutorial.js?v=09dae9c9","./js/ui/watch.js":"./js/ui/watch.js?v=eced7019"}}</script>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.js","three/addons/":"./vendor/addons/","./js/cards/index.js":"./js/cards/index.js?v=44c8b885","./js/cards/larisa.js":"./js/cards/larisa.js?v=d4236f70","./js/cards/levenheart.js":"./js/cards/levenheart.js?v=87b81825","./js/cards/set1.js":"./js/cards/set1.js?v=b5e25c87","./js/cards/sofia_erik.js":"./js/cards/sofia_erik.js?v=271b60a1","./js/cards/tokens.js":"./js/cards/tokens.js?v=6d3eafb8","./js/cards/vampires.js":"./js/cards/vampires.js?v=03a16faa","./js/data/balance.js":"./js/data/balance.js?v=9ba21d7b","./js/data/cards.js":"./js/data/cards.js?v=0a1fcb04","./js/data/decks.js":"./js/data/decks.js?v=3e55ea4f","./js/engine/bot.js":"./js/engine/bot.js?v=0639751c","./js/engine/botlevels.js":"./js/engine/botlevels.js?v=d7438c9c","./js/engine/game.js":"./js/engine/game.js?v=89f7262a","./js/main.js":"./js/main.js?v=74cf0ca3","./js/net/online.js":"./js/net/online.js?v=821d4a4a","./js/net/ranking.js":"./js/net/ranking.js?v=36074ec9","./js/ui/achievements.js":"./js/ui/achievements.js?v=13023fb3","./js/ui/board.js":"./js/ui/board.js?v=44052c0f","./js/ui/builder.js":"./js/ui/builder.js?v=b6438f38","./js/ui/coach.js":"./js/ui/coach.js?v=52e82c29","./js/ui/feedback.js":"./js/ui/feedback.js?v=3718a8ac","./js/ui/fx.js":"./js/ui/fx.js?v=70aa4023","./js/ui/glossary.js":"./js/ui/glossary.js?v=9e41b283","./js/ui/icons.js":"./js/ui/icons.js?v=8d887629","./js/ui/layouts.js":"./js/ui/layouts.js?v=576d8282","./js/ui/legal.js":"./js/ui/legal.js?v=3de50f8a","./js/ui/rules.js":"./js/ui/rules.js?v=d4e9b879","./js/ui/scene3d.js":"./js/ui/scene3d.js?v=fece3382","./js/ui/sound.js":"./js/ui/sound.js?v=8c898252","./js/ui/stats.js":"./js/ui/stats.js?v=fbe6f362","./js/ui/tutorial.js":"./js/ui/tutorial.js?v=e4cd827b","./js/ui/watch.js":"./js/ui/watch.js?v=eced7019"}}</script>
 <script src="vendor/peerjs.min.js"></script>
-<script type="module" src="js/main.js?v=415bef67"></script>
+<script type="module" src="js/main.js?v=74cf0ca3"></script>
 </body>
 </html>

@@ -36,12 +36,12 @@ export function showTutorial(onPlay, onClose) {
     back.innerHTML = `<div class="modal tut"><h3>${s.title}</h3><div class="tut-step">Шаг ${k + 1} из ${STEPS.length}</div>
       <div class="tut-body"><div class="tut-art">${s.art}</div><div class="tut-text">${s.text}</div></div>
       <div class="tut-dots">${STEPS.map((_, i) => `<span class="${i === k ? 'on' : ''}"></span>`).join('')}</div>
-      <div class="row-btns">${k > 0 ? '<button class="btn" data-prev>← Назад</button>' : '<button class="btn" data-skip>Пропустить</button>'}
+      <div class="row-btns">${k > 0 ? '<button class="btn" data-prev>← Назад</button>' : '<button class="btn small" data-skip>В меню</button><button class="btn" data-play>Сразу играть с подсказками</button>'}
       ${k < STEPS.length - 1 ? '<button class="btn primary" data-next>Дальше →</button>' : '<button class="btn primary" data-play>⚔ Сыграть учебную партию</button><button class="btn" data-skip>В меню</button>'}</div></div>`;
     back.querySelector('[data-next]')?.addEventListener('click', () => { sfx.select(); k++; draw(); });
     back.querySelector('[data-prev]')?.addEventListener('click', () => { sfx.click(); k--; draw(); });
     back.querySelectorAll('[data-skip]').forEach((b) => b.addEventListener('click', () => { sfx.click(); back.remove(); onClose && onClose(); }));
-    back.querySelector('[data-play]')?.addEventListener('click', () => { sfx.confirm(); back.remove(); onPlay && onPlay(); });
+    back.querySelectorAll('[data-play]').forEach((b) => b.addEventListener('click', () => { sfx.confirm(); back.remove(); onPlay && onPlay(); }));
   };
   draw();
 }

@@ -3,6 +3,7 @@ import { Game } from './engine/game.js';
 import { botAnswer, randomAnswer } from './engine/bot.js';
 import { checkAchievements } from './ui/achievements.js';
 import { createChat, cleanChat } from './ui/watch.js';
+import { createCoach } from './ui/coach.js';
 import { levelAnswer, LEVEL_RU, adaptiveLevel, adaptiveAfterGame } from './engine/botlevels.js';
 import { CARDS } from './data/cards.js';
 import { DECKS } from './data/decks.js';
@@ -46,7 +47,8 @@ function toast(text, ms = 3000) {
 
 // ---------- settings ----------
 const opt = {
-  sound: store.get('sound', true), bonus: store.get('bonus', false), botLevel: ['auto', 'novice', 'normal', 'strong'].includes(store.get('botLevel', 'auto')) ? store.get('botLevel', 'auto') : 'auto',
+  sound: store.get('sound', true), bonus: store.get('bonus', false), coach: store.get('coach', true),
+  botLevel: ['auto', 'novice', 'normal', 'strong'].includes(store.get('botLevel', 'auto')) ? store.get('botLevel', 'auto') : 'auto',
   // Old versions saved true/false; false (the old «ask») becomes the new default «only when aimed at me».
   autopass: (() => { const v = store.get('autopass', 'smart'); return v === true ? true : v === 'always' ? 'always' : 'smart'; })(),
   name: store.get('name', ''), speed: store.get('speed', 1), music: store.get('music', true), board: store.get('board', 'random'),
@@ -72,6 +74,8 @@ document.addEventListener('pointerdown', () => {
 $('#opt-sound').checked = opt.sound;
 $('#opt-bonus').checked = opt.bonus;
 $('#opt-autopass').value = opt.autopass === true ? 'never' : opt.autopass;
+$('#opt-coach').checked = !!opt.coach;
+$('#opt-coach').addEventListener('change', (e) => { opt.coach = e.target.checked; store.set('coach', opt.coach); });
 $('#opt-name').value = opt.name;
 $('#opt-board').value = opt.board;
 $('#opt-board').addEventListener('change', (e) => { opt.board = e.target.value; store.set('board', opt.board); });
@@ -227,6 +231,7 @@ class Session {
     this.queue = [];
     this.remoteQueue = [];
     this.watchQueue = []; // what watchers see: both hands hidden
+    this.undoMarks = [];
     this.busy = false;
     this.cfgPlayers = players;
     this.newGame();
@@ -260,7 +265,7 @@ class Session {
     ui.onAgain = () => this.again();
   }
   again() {
-    this.queue = []; this.remoteQueue = []; this.watchQueue = [];
+    this.queue = []; this.remoteQueue = []; this.watchQueue = []; this.undoMarks = [];
     this.ui.destroy();
     this.newGame();
     startBoard(this);
@@ -341,8 +346,30 @@ class Session {
     this.ui.render(this.game.view(p));
   }
   answer(q, a) {
+    // Remember where each of my free moves started, so it can be taken back (games against the computer).
+    if (q.type === 'main' && this.canUndo) { const n = this.game.history.length; if (this.undoMarks.at(-1) !== n) this.undoMarks.push(n); }
     if (!this.game.respond(q.player, a)) { sfx.error(); toast('Так нельзя'); this.ui.setPending(this.game.pending); return; }
     this.pump();
+  }
+  get canUndo() { return !this.remote && !this.hotseat && this.controllers.includes('bot') && this.controllers[this.me] === 'human'; }
+  /** Take back my last move: rebuild the game from its answers up to the start of that move. */
+  undo() {
+    if (!this.canUndo || this.busy || this.game.s.over) return false;
+    const q = this.game.pending;
+    if (!q || q.player !== this.me) return false;
+    const marks = this.undoMarks.filter((n) => n < this.game.history.length);
+    const to = marks.at(-1);
+    if (to == null) { toast('Отменять пока нечего'); return false; }
+    const old = this.game, hist = old.history.slice(0, to);
+    const g = new Game({ ...old.cfg, seed: old.seedUsed });
+    for (const a of hist) if (!g.pending || !g.respond(g.pending.player, a)) { toast('Не получилось отменить ход'); return false; }
+    this.undoMarks = marks.slice(0, -1);
+    this.game = g; this.queue = [];
+    this.hook();
+    this.ui.render(g.view(this.me));
+    this.pump();
+    toast('Ход отменён', 1500);
+    return true;
   }
   remoteAnswer(a) {
     const q = this.game.pending;
@@ -367,7 +394,7 @@ function startBoard(session) {
     me: session.me, theme,
     onAnswer: (q, a) => session.answer(q, a),
     onMenu: (force) => {
-      if (force || session.watch || confirm('Выйти в меню? Партия будет потеряна.')) { session.close(); ui.chat?.destroy(); ui.destroy(); current = null; show('menu'); }
+      if (force || session.watch || confirm('Выйти в меню? Партия будет потеряна.')) { session.close(); ui.chat?.destroy(); ui.coach?.destroy(); ui.destroy(); current = null; show('menu'); }
     },
   });
   session.attach(ui);
@@ -378,6 +405,16 @@ function startBoard(session) {
     if (session.remote) { session.remote.send({ t: 'emote', text }); session.remote.sendWatchers({ t: 'emote', side: session.me, text }); }
     if (session.conn) session.conn.send({ t: 'emote', text });
   };
+  if (session.canUndo) ui.onUndo = () => session.undo();
+  // Move coach: the learning game points at the best move; other local games show a «Совет» line (can be turned off).
+  if (session.game && !ui.spectator && session.controllers?.[session.me] === 'human' && !session.hotseat) {
+    const mode = session.coachMode || (opt.coach ? 'hint' : 'off');
+    if (mode !== 'off') {
+      ui.coach = createCoach(ui, () => session.game, mode);
+      const orig = ui.setPending.bind(ui);
+      ui.setPending = (q) => { orig(q); ui.coach?.update(q); };
+    }
+  }
   // Online games: a watchers' badge and their comments for players; the full chat for watchers.
   if (session.watch) {
     ui.chat = createChat({ watcher: true, onSend: (text) => { session.conn.send({ t: 'chat', name: myName() || 'Зритель', text }); ui.chat.add(myName() || 'Вы', text, true); } });
@@ -684,7 +721,9 @@ function openTutorial() {
   showTutorial(() => {
     try { localStorage.removeItem('pchk_tips'); } catch { /* ignore */ }
     const mk = (d, n) => ({ name: n, leader: d.leader, deck: d.main });
-    startBoard(new Session({ players: [mk(DECKS.sfinkteirion, myName()), mk(DECKS.larisa, 'Учебный бот')], controllers: ['human', 'bot'], me: 0 }));
+    const s = new Session({ players: [mk(DECKS.sfinkteirion, myName()), mk(DECKS.larisa, 'Учебный соперник')], controllers: ['human', 'bot'], me: 0 });
+    s.botLevel = 'novice'; s.coachMode = 'tutorial';
+    startBoard(s);
   });
 }
 // First visit: offer the tutorial once (after the splash).
