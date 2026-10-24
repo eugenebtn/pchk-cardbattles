@@ -381,3 +381,14 @@
 .card.place.usable::after, .card.small.usable::after { bottom: auto; top: calc(100% + 4px); }
 .card.leader.usable::after { display: none; } /* the Leader's abilities have their own buttons */
 #stage.port .card.usable::after { font-size: 17px; }
+
+/* ---------- world ranking ---------- */
+.rk-name { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 10px 0 4px; font-size: 17px; }
+.rk-name input { font: inherit; background: #1d130b; color: #f3e7c8; border: 1px solid #6b4b25; border-radius: 6px; padding: 6px 10px; width: 200px; }
+.st-tabs.sub { margin-top: 8px; }
+.rk-table tr.rk-me td { background: rgba(246, 215, 122, .14); }
+.rk-medal { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; font: 800 17px 'Fira Sans Extra Condensed', sans-serif; color: #2a1e14; box-shadow: 0 0 0 2px #0f1418; }
+.rk-medal.m1 { background: radial-gradient(circle at 34% 28%, #fff6cf, #f2cf6a 30%, #b07a16 80%); }
+.rk-medal.m2 { background: radial-gradient(circle at 34% 28%, #ffffff, #c9ced6 35%, #7c838c 85%); }
+.rk-medal.m3 { background: radial-gradient(circle at 34% 28%, #ffe2c8, #d08a4a 35%, #7a4418 85%); }
+.rk-place { display: inline-block; width: 32px; text-align: center; font-weight: 700; color: #cbbd9c; }

@@ -11,6 +11,7 @@ import { renderRules } from './ui/rules.js';
 import { renderBuilder, loadCustomDecks } from './ui/builder.js';
 import { installTooltips, linkTerms } from './ui/glossary.js';
 import { renderStats, recordGame } from './ui/stats.js';
+import { submitResult } from './net/ranking.js';
 import { showTutorial } from './ui/tutorial.js';
 installTooltips();
 
@@ -305,6 +306,12 @@ function startBoard(session) {
       myLeader: P[me].leader.id, oppLeader: P[1 - me].leader.id, oppName: P[1 - me].name,
       result: winner === 'draw' ? 'draw' : winner === me ? 'win' : 'loss', rounds: view.round, played,
     });
+    // World ranking (draws are not sent).
+    if (winner !== 'draw') {
+      const titleOf = (i) => session.cfgPlayers?.[i]?.title || Object.values(DECKS).find((d) => d.leader === P[i].leader.id)?.title || CARDS[P[i].leader.id]?.name;
+      submitResult({ name: myName(), deck: titleOf(me), leader: P[me].leader.id, oppName: P[1 - me].name, oppDeck: titleOf(1 - me),
+        mode: session.remote || session.conn ? 'online' : 'bot', won: winner === me, rounds: view.round });
+    }
   };
   const wire = () => {
     const spd = $('#btn-speed'), snd = $('#btn-sound'), fst = $('#btn-fast'), mus = $('#btn-music');
@@ -337,7 +344,7 @@ function startBoard(session) {
   window.__session = session;
   session.pump();
 }
-const playerCfg = (d, name) => ({ name, leader: d.leader, deck: d.cards });
+const playerCfg = (d, name) => ({ name, leader: d.leader, deck: d.cards, title: d.title });
 
 async function startBot() {
   const r = await pickDecks([{ title: 'Ваша колода' }, { title: 'Колода компьютера', allowRandom: true }]);
@@ -382,7 +389,7 @@ async function startHost() {
         toast('Друг переподключился');
         return;
       }
-      const guestDeck = { leader: hello.deck.leader, cards: hello.deck.cards };
+      const guestDeck = { leader: hello.deck.leader, cards: hello.deck.cards, title: String(hello.deck.title || '').slice(0, 40) };
       if (!validDeck(guestDeck)) { room.send({ t: 'error', text: 'Колода не подходит' }); return; }
       session = new Session({ players: [playerCfg(mine, myName()), playerCfg(guestDeck, hello.name || 'Друг')], controllers: ['human', 'remote'], me: 0, remote: room });
       room.send({ t: 'start', me: 1 });
@@ -437,7 +444,7 @@ async function startJoin(code) {
   $('#picker-list').innerHTML = '';
   const ob = $('#picker-online'); ob.classList.remove('hidden'); ob.textContent = 'Соединяемся с другом…';
   let gs = null;
-  const conn = joinRoom(code, { name: myName(), deck: { leader: d.leader, cards: d.cards } }, {
+  const conn = joinRoom(code, { name: myName(), deck: { leader: d.leader, cards: d.cards, title: d.title } }, {
     onOpen() { ob.textContent = 'Соединено! Ждём начала…'; },
     onMessage(msg) {
       if (msg.t === 'start' || (msg.t === 'sync' && !gs)) {
@@ -517,7 +524,10 @@ document.querySelectorAll('#menu [data-act]').forEach((b) => b.addEventListener(
   else if (a === 'host') startHost();
   else if (a === 'rules') { renderRules($('#rules'), () => show('menu')); show('rules'); }
   else if (a === 'tutorial') openTutorial();
-  else if (a === 'stats') { renderStats($('#stats'), () => show('menu')); show('stats'); }
+  else if (a === 'stats' || a === 'ranking') {
+    renderStats($('#stats'), () => show('menu'), { tab: a === 'ranking' ? 'world' : 'mine', name: () => opt.name, setName: (v) => { opt.name = v; store.set('name', v); $('#opt-name').value = v; } });
+    show('stats');
+  }
   else if (a === 'decks') openBuilder();
 }));
 window.addEventListener('beforeunload', (e) => { if (current && !current.game?.s.over) { e.preventDefault(); e.returnValue = ''; } });

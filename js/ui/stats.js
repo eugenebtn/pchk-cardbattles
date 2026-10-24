@@ -1,5 +1,6 @@
-// Personal statistics (kept in this browser) and the deck balance table from bot-vs-bot games.
+// World ranking (shared online table), personal statistics (kept in this browser) and the deck balance table.
 import { CARDS } from '../data/cards.js';
+import { loadPlayers, loadDecks, playerId } from '../net/ranking.js';
 import { DECKS } from '../data/decks.js';
 import { BALANCE } from '../data/balance.js';
 import { esc } from './board.js';
@@ -36,8 +37,32 @@ function group(list, keyFn) {
   return [...m.entries()].sort((a, b) => b[1].n - a[1].n);
 }
 
-export function renderStats(root, onBack) {
-  let tab = 'mine';
+/** World ranking: players and decks of one mode, loaded from the shared table. */
+async function renderWorld(box, mode, name, setName) {
+  const me = playerId();
+  box.innerHTML = `<div class="rk-name">Ваше имя в рейтинге: <input type="text" maxlength="20" value="${esc(name())}" placeholder="Игрок"><button class="btn small" data-save>Сохранить</button></div>
+    <p class="st-note">${mode === 'online' ? 'Партии с друзьями по ссылке. Считаются победы; при равенстве выше тот, у кого больше процент побед.' : 'Партии против компьютера.'} Результат записывается сам после каждой партии.</p>
+    <div class="rk-body"><p class="st-empty">Загружаем рейтинг…</p></div>`;
+  box.querySelector('[data-save]').onclick = () => { setName(box.querySelector('input').value.trim()); box.querySelector('[data-save]').textContent = 'Сохранено'; };
+  const body = box.querySelector('.rk-body');
+  try {
+    const [players, decks] = await Promise.all([loadPlayers(mode), loadDecks(mode)]);
+    const leaderOf = (title) => Object.values(DECKS).find((d) => d.title === title)?.leader;
+    const face = (id) => id && CARDS[id] ? `<span class="st-face" style="background-image:url('${CARDS[id].img}')"></span>` : '';
+    const medal = (k) => (k < 3 ? `<span class="rk-medal m${k + 1}">${k + 1}</span>` : `<span class="rk-place">${k + 1}</span>`);
+    const when = (t) => new Date(t).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+    body.innerHTML = players.length ? `<h3>Игроки</h3><table class="st-table rk-table"><tr><th>Место</th><th>Игрок</th><th>Побед</th><th>Партий</th><th>Процент побед</th><th>Любимая колода</th><th>Последняя</th></tr>
+      ${players.map((p, k) => `<tr class="${p.player_id === me ? 'rk-me' : ''}"><td>${medal(k)}</td><td>${esc(p.player_name)}${p.player_id === me ? ' <small>(вы)</small>' : ''}</td><td><b>${p.wins}</b></td><td>${p.games}</td><td>${bar(p.wins, p.games)}</td><td>${face(leaderOf(p.fav_deck))}${esc(p.fav_deck || '—')}</td><td>${when(p.last_game)}</td></tr>`).join('')}</table>
+      <h3>Колоды</h3><table class="st-table"><tr><th>Колода</th><th>Партий</th><th>Побед</th><th>Процент побед</th></tr>
+      ${decks.map((d) => `<tr><td>${face(d.leader)}${esc(d.deck)}</td><td>${d.games}</td><td>${d.wins}</td><td>${bar(d.wins, d.games)}</td></tr>`).join('')}</table>`
+      : '<p class="st-empty">Пока никто не сыграл. Сыграйте партию — вы окажетесь первым!</p>';
+  } catch {
+    body.innerHTML = '<p class="st-empty">Не получилось загрузить рейтинг — нет связи с сервером. Попробуйте позже.</p>';
+  }
+}
+
+export function renderStats(root, onBack, { tab: startTab = 'world', name = () => '', setName = () => {} } = {}) {
+  let tab = startTab, worldMode = 'online';
   const draw = () => {
     const games = loadGames();
     const human = games;
@@ -103,11 +128,13 @@ export function renderStats(root, onBack) {
     root.innerHTML = `<div class="stats-box">
       <button class="btn small" data-back>← Назад</button>
       <h2>Статистика</h2>
-      <div class="st-tabs"><button class="btn small ${tab === 'mine' ? 'primary' : ''}" data-tab="mine">Мои партии</button><button class="btn small ${tab === 'bal' ? 'primary' : ''}" data-tab="bal">Баланс колод</button></div>
-      ${tab === 'mine' ? mine : balance}
+      <div class="st-tabs"><button class="btn small ${tab === 'world' ? 'primary' : ''}" data-tab="world">Мировой рейтинг</button><button class="btn small ${tab === 'mine' ? 'primary' : ''}" data-tab="mine">Мои партии</button><button class="btn small ${tab === 'bal' ? 'primary' : ''}" data-tab="bal">Баланс колод</button></div>
+      ${tab === 'world' ? `<div class="st-tabs sub"><button class="btn small ${worldMode === 'online' ? 'primary' : ''}" data-wm="online">С друзьями онлайн</button><button class="btn small ${worldMode === 'bot' ? 'primary' : ''}" data-wm="bot">Против компьютера</button></div><div class="rk-box"></div>` : tab === 'mine' ? mine : balance}
     </div>`;
     root.querySelector('[data-back]').onclick = onBack;
     root.querySelectorAll('[data-tab]').forEach((b) => { b.onclick = () => { tab = b.dataset.tab; draw(); }; });
+    root.querySelectorAll('[data-wm]').forEach((b) => { b.onclick = () => { worldMode = b.dataset.wm; draw(); }; });
+    if (tab === 'world') renderWorld(root.querySelector('.rk-box'), worldMode, name, setName);
     const clr = root.querySelector('[data-clear]');
     if (clr) clr.onclick = () => { if (confirm('Удалить всю вашу статистику в этом браузере?')) { clearGames(); draw(); } };
   };
