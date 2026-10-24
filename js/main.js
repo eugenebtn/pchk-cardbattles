@@ -9,6 +9,8 @@ import * as FX from './ui/fx.js';
 import { hostRoom, joinRoom } from './net/online.js';
 import { renderRules } from './ui/rules.js';
 import { renderBuilder, loadCustomDecks } from './ui/builder.js';
+import { installTooltips } from './ui/glossary.js';
+installTooltips();
 
 const $ = (s, r = document) => r.querySelector(s);
 const store = {
@@ -248,27 +250,34 @@ function startBoard(session) {
     },
   });
   session.attach(ui);
-  const spd = $('#btn-speed'), snd = $('#btn-sound'), fst = $('#btn-fast');
-  const ap = () => session.game?.cfg.options.autoPass;
-  const drawFast = () => { const on = ap() ? !ap()[session.me] : true; fst.style.opacity = on ? '1' : '.4'; fst.title = on ? 'Опережение: игра спрашивает (нажмите, чтобы авто-пас)' : 'Авто-пас Опережения (нажмите, чтобы спрашивать)'; };
-  fst.onclick = () => {
-    if (!session.game && session.conn) { session.autoPass = !session.autoPass; session.conn.send({ t: 'autopass', on: session.autoPass }); fst.style.opacity = session.autoPass ? '.4' : '1'; toast(session.autoPass ? 'Авто-пас включён' : 'Игра будет предлагать Опережение', 1600); return; }
-    const a = ap(); if (!a) return;
-    a[session.me] = !a[session.me];
-    opt.autopass = a[session.me]; store.set('autopass', opt.autopass); $('#opt-autopass').checked = opt.autopass;
-    drawFast(); toast(a[session.me] ? 'Авто-пас: игра не будет предлагать Опережение' : 'Игра будет предлагать сыграть Опережение', 1800);
-    const q = session.game?.pending;
-    if (a[session.me] && q && q.type === 'priority' && q.player === session.me) session.answer(q, 'pass');
+  ui.noTips = session.controllers ? session.controllers[session.me] !== 'human' : false;
+  const wire = () => {
+    const spd = $('#btn-speed'), snd = $('#btn-sound'), fst = $('#btn-fast'), mus = $('#btn-music');
+    const ap = () => session.game?.cfg.options.autoPass;
+    const drawFast = () => { const on = ap() ? !ap()[session.me] : !session.autoPass; fst.style.opacity = on ? '1' : '.4'; };
+    fst.onclick = () => {
+      if (!session.game && session.conn) { session.autoPass = !session.autoPass; session.conn.send({ t: 'autopass', on: session.autoPass }); drawFast(); toast(session.autoPass ? 'Авто-пас включён: игра не будет спрашивать про Опережение' : 'Игра будет предлагать Опережение', 1800); return; }
+      const a = ap(); if (!a) return;
+      a[session.me] = !a[session.me];
+      opt.autopass = a[session.me]; store.set('autopass', opt.autopass); $('#opt-autopass').checked = opt.autopass;
+      drawFast(); toast(a[session.me] ? 'Авто-пас включён: игра не будет спрашивать про Опережение' : 'Игра будет предлагать сыграть Опережение', 1800);
+      const q = session.game?.pending;
+      if (a[session.me] && q && q.type === 'priority' && q.player === session.me) session.answer(q, 'pass');
+    };
+    drawFast();
+    const speeds = [1, 1.6, 2.5];
+    const spdTxt = () => { spd.textContent = `⏩ Скорость: ×${opt.speed}`; };
+    spdTxt();
+    spd.onclick = () => { opt.speed = speeds[(speeds.indexOf(opt.speed) + 1) % speeds.length] || 1; FX.setSpeed(opt.speed); store.set('speed', opt.speed); spdTxt(); };
+    const musTxt = () => { mus.textContent = `🎵 Музыка: ${opt.music ? 'вкл' : 'выкл'}`; };
+    musTxt();
+    mus.onclick = () => { opt.music = !opt.music; setMusic(opt.music); store.set('music', opt.music); musTxt(); $('#opt-music').checked = opt.music; };
+    const sndTxt = () => { snd.textContent = `${opt.sound ? '🔊' : '🔇'} Звук: ${opt.sound ? 'вкл' : 'выкл'}`; };
+    sndTxt();
+    snd.onclick = () => { opt.sound = !opt.sound; setSound(opt.sound); store.set('sound', opt.sound); sndTxt(); $('#opt-sound').checked = opt.sound; };
   };
-  drawFast();
-  const speeds = [1, 1.6, 2.5];
-  spd.textContent = opt.speed > 1.5 ? (opt.speed > 2 ? '⏭' : '⏩') : '▶';
-  spd.onclick = () => { opt.speed = speeds[(speeds.indexOf(opt.speed) + 1) % speeds.length] || 1; FX.setSpeed(opt.speed); store.set('speed', opt.speed); spd.textContent = opt.speed > 1.5 ? (opt.speed > 2 ? '⏭' : '⏩') : '▶'; toast(`Скорость анимаций ×${opt.speed}`, 1200); };
-  const mus = $('#btn-music');
-  mus.style.opacity = opt.music ? '1' : '.4';
-  mus.onclick = () => { opt.music = !opt.music; setMusic(opt.music); store.set('music', opt.music); mus.style.opacity = opt.music ? '1' : '.4'; $('#opt-music').checked = opt.music; };
-  snd.textContent = opt.sound ? '🔊' : '🔇';
-  snd.onclick = () => { opt.sound = !opt.sound; setSound(opt.sound); store.set('sound', opt.sound); snd.textContent = opt.sound ? '🔊' : '🔇'; $('#opt-sound').checked = opt.sound; };
+  wire();
+  ui.onRebuild = wire;
   current = session;
   window.__session = session;
   session.pump();

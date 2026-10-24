@@ -1,7 +1,37 @@
 // Visual effects: a canvas particle system plus DOM helpers, and named spell presets.
 import { sfx } from './sound.js';
 
-const W = 1600, H = 900;
+let W = 1600, H = 900;
+export function setSize(w, h) {
+  if (w === W && h === H) return;
+  W = w; H = h;
+  if (canvas) { canvas.width = w; canvas.height = h; }
+  motes.length = 0; if (ambientOn) ambient(true);
+}
+
+// ---------- textured sprites (Kenney particle pack, CC0) ----------
+const TEX_NAMES = ['smoke_01', 'smoke_02', 'smoke_03', 'smoke_04', 'smoke_05', 'smoke_06', 'smoke_07', 'fire_01', 'fire_02', 'flame_01', 'flame_02', 'flame_03', 'flame_04',
+  'flare_01', 'light_01', 'light_02', 'light_03', 'magic_01', 'magic_02', 'magic_03', 'magic_04', 'magic_05', 'spark_01', 'spark_02', 'spark_03', 'spark_04', 'spark_05',
+  'star_01', 'star_02', 'star_03', 'star_04', 'star_05', 'star_06', 'slash_01', 'slash_02', 'slash_03', 'slash_04', 'scorch_01', 'scorch_02', 'trace_01', 'trace_02',
+  'twirl_01', 'twirl_02', 'twirl_03', 'circle_01', 'circle_02', 'circle_03', 'circle_04', 'circle_05', 'muzzle_01', 'muzzle_02', 'dirt_01', 'dirt_02', 'dirt_03', 'symbol_01', 'symbol_02', 'scratch_01'];
+const texImg = {};
+for (const n of TEX_NAMES) { const im = new Image(); im.src = `assets/fx/${n}.png`; texImg[n] = im; }
+const tinted = new Map();
+function tex(name, color) {
+  const key = name + '|' + color;
+  let cv = tinted.get(key);
+  if (cv) return cv;
+  const im = texImg[name];
+  if (!im || !im.complete || !im.naturalWidth) return null;
+  cv = document.createElement('canvas'); cv.width = cv.height = 128;
+  const g = cv.getContext('2d');
+  g.drawImage(im, 0, 0, 128, 128);
+  g.globalCompositeOperation = 'source-in';
+  g.fillStyle = color; g.fillRect(0, 0, 128, 128);
+  tinted.set(key, cv);
+  return cv;
+}
+const pickTex = (t) => (Array.isArray(t) ? t[Math.floor(Math.random() * t.length)] : t);
 let canvas, c2d, layer, stageEl;
 const parts = [];
 let running = false;
@@ -56,22 +86,29 @@ function drawMotes(t) {
   c2d.restore();
 }
 
+let lastT = 0;
 function loop(t = performance.now()) {
+  const dt = lastT ? Math.min(400, t - lastT) : 16;
+  lastT = t;
+  const k = dt / 16;
   c2d.clearRect(0, 0, W, H);
   drawMotes(t);
   for (let i = parts.length - 1; i >= 0; i--) {
     const p = parts[i];
-    p.life -= 16 * speed;
+    p.life -= dt * speed;
     if (p.life <= 0) { parts.splice(i, 1); continue; }
-    p.vx *= p.drag; p.vy = p.vy * p.drag + p.gravity;
-    p.x += p.vx * speed; p.y += p.vy * speed; p.rot += p.vr;
+    p.vx *= p.drag; p.vy = p.vy * p.drag + p.gravity * k;
+    p.x += p.vx * speed * k; p.y += p.vy * speed * k; p.rot += p.vr * k;
     const t = p.life / p.max;
     c2d.save();
     c2d.globalAlpha = Math.min(1, t * 1.6) * p.alpha;
     c2d.globalCompositeOperation = p.add ? 'lighter' : 'source-over';
     c2d.translate(p.x, p.y); c2d.rotate(p.rot);
     const s = p.size * (p.grow ? (1 + (1 - t) * p.grow) : (0.4 + 0.6 * t));
-    if (p.shape === 'emoji') {
+    if (p.shape === 'tex') {
+      const cv = tex(p.tex, p.color);
+      if (cv) { const sz = p.size * (p.grow ? (1 + (1 - t) * p.grow) : 1); c2d.drawImage(cv, -sz, -sz, sz * 2, sz * 2); }
+    } else if (p.shape === 'emoji') {
       c2d.font = `${s * 2}px serif`; c2d.textAlign = 'center'; c2d.textBaseline = 'middle';
       c2d.fillText(p.text, 0, 0);
     } else if (p.shape === 'spark') {
@@ -87,9 +124,10 @@ function loop(t = performance.now()) {
     }
     c2d.restore();
   }
-  if (parts.length || ambientOn) requestAnimationFrame(loop); else { running = false; c2d.clearRect(0, 0, W, H); }
+  if (parts.length || ambientOn) requestAnimationFrame(loop); else { running = false; lastT = 0; c2d.clearRect(0, 0, W, H); }
 }
 function add(p) {
+  if (parts.length > 900) parts.splice(0, parts.length - 900);
   parts.push({ vx: 0, vy: 0, drag: 0.96, gravity: 0, rot: 0, vr: 0, alpha: 1, add: true, shape: 'circle', size: 8, color: '#fff', life: 600, ...p, max: p.life || 600 });
   if (!running) { running = true; requestAnimationFrame(loop); }
 }
@@ -104,14 +142,39 @@ export function burst(x, y, o = {}) {
       x: x + (Math.random() - 0.5) * (o.jitter ?? 10), y: y + (Math.random() - 0.5) * (o.jitter ?? 10),
       vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, gravity: o.gravity ?? 0, drag: o.drag ?? 0.93,
       life: (o.life ?? 700) * (0.6 + Math.random() * 0.6), size: (o.size ?? 8) * (0.6 + Math.random() * 0.8),
-      color: Array.isArray(o.color) ? o.color[i % o.color.length] : (o.color ?? '#ffb347'), core: o.core,
+      color: Array.isArray(o.color) ? o.color[i % o.color.length] : (o.color ?? '#ffb347'), core: o.core, tex: pickTex(o.tex),
       shape: o.shape ?? 'circle', text: Array.isArray(o.emoji) ? o.emoji[i % o.emoji.length] : o.emoji, vr: (Math.random() - 0.5) * (o.spin ?? 0.2),
       add: o.add ?? true, grow: o.grow, alpha: o.alpha ?? 1,
     });
   }
 }
 export function ring(x, y, color = '#ffd27a', size = 20, life = 600, grow = 4, width = 5) { add({ x, y, shape: 'ring', color, size, life, grow, width, drag: 1 }); }
-export function glow(x, y, color, size = 80, life = 500) { add({ x, y, size, color, life, grow: 0.6, drag: 1 }); }
+export function glow(x, y, color, size = 80, life = 500) { add({ x, y, size, color, core: color, life, grow: 0.6, drag: 1, alpha: 0.85 }); }
+/** Textured burst helpers. */
+export function smoke(x, y, o = {}) {
+  burst(x, y, { shape: 'tex', tex: ['smoke_01', 'smoke_02', 'smoke_03', 'smoke_04', 'smoke_05', 'smoke_06', 'smoke_07'], color: o.color || ['#4a4038', '#6b5f55', '#2e2722'], count: o.count ?? 10, speed: o.speed ?? 1.6, size: o.size ?? 46, grow: o.grow ?? 1.1, add: false, alpha: o.alpha ?? 0.75, life: o.life ?? 1300, gravity: o.gravity ?? -0.03, spin: 0.04, jitter: o.jitter ?? 30, drag: 0.96 });
+}
+export function flames(x, y, o = {}) {
+  burst(x, y, { shape: 'tex', tex: ['flame_01', 'flame_02', 'flame_03', 'flame_04', 'fire_01', 'fire_02'], color: o.color || ['#ff6a1a', '#ffb02a', '#ff3a0a'], count: o.count ?? 18, speed: o.speed ?? 3.5, size: o.size ?? 34, grow: 0.5, angle: -Math.PI / 2, spread: o.spread ?? 1.4, gravity: -0.12, life: o.life ?? 800, spin: 0.08, jitter: o.jitter ?? 30 });
+}
+export function sparks(x, y, o = {}) {
+  burst(x, y, { shape: 'tex', tex: ['spark_01', 'spark_02', 'spark_03', 'spark_04', 'spark_05'], color: o.color || ['#fff3c0', '#ffd27a'], count: o.count ?? 14, speed: o.speed ?? 9, size: o.size ?? 22, life: o.life ?? 500, spin: 0.3 });
+}
+export function stars(x, y, o = {}) {
+  burst(x, y, { shape: 'tex', tex: ['star_01', 'star_02', 'star_03', 'star_04', 'star_05', 'star_06'], color: o.color || ['#fff6d0', '#ffd84a'], count: o.count ?? 12, speed: o.speed ?? 4, size: o.size ?? 18, life: o.life ?? 900, gravity: o.gravity ?? -0.06, spin: 0.15 });
+}
+export function flare(x, y, color = '#ffd27a', size = 120, life = 380) {
+  add({ x, y, shape: 'tex', tex: pickTex(['flare_01', 'light_01', 'light_02']), color, size, life, grow: 0.4, drag: 1, rot: Math.random() * 6 });
+}
+export function slashFx(x, y, color = '#ffffff', size = 110) {
+  add({ x, y, shape: 'tex', tex: pickTex(['slash_01', 'slash_02', 'slash_03', 'slash_04']), color, size, life: 420, drag: 1, rot: Math.random() * 6, grow: 0.3 });
+}
+export function magicSwirl(x, y, color = '#c38bff', size = 90) {
+  add({ x, y, shape: 'tex', tex: pickTex(['magic_01', 'magic_02', 'magic_03', 'magic_04', 'magic_05', 'twirl_01', 'twirl_02', 'twirl_03']), color, size, life: 900, drag: 1, vr: 0.08, grow: 0.5 });
+}
+export function scorch(x, y, size = 90) {
+  add({ x, y, shape: 'tex', tex: pickTex(['scorch_01', 'scorch_02']), color: '#140804', size, life: 2600, drag: 1, add: false, alpha: 0.8, rot: Math.random() * 6 });
+}
 
 /** A projectile travelling from a to b leaving a trail. Resolves on arrival. */
 export function projectile(a, b, o = {}) {
@@ -215,6 +278,9 @@ export function streak(a, b, kind = 'gold') {
 /** Heavy impact: flash, shockwave, sparks, debris. */
 export function impact(x, y, kind = 'gold') {
   const col = PAL[kind] || PAL.gold;
+  flare(x, y, col[1], 150, 320);
+  slashFx(x, y, col[0], 120);
+  sparks(x, y, { color: col.slice(0, 2), count: 16 });
   glow(x, y, col[1], 120, 260);
   add({ x, y, size: 60, color: col[0], core: '#ffffff', life: 140, drag: 1, grow: 0.5 });
   ring(x, y, col[0], 16, 420, 5, 6);
@@ -223,6 +289,8 @@ export function impact(x, y, kind = 'gold') {
 }
 /** Dust cloud when something lands on the table. */
 export function dust(x, y, power = 1) {
+  smoke(x, y, { color: ['#a8906e', '#8a7458', '#c4ad8a'], count: Math.round(10 * power), speed: 3.2 * power, size: 40 * power, alpha: 0.55, life: 1100, gravity: -0.01, jitter: 50 });
+  burst(x, y, { shape: 'tex', tex: ['dirt_01', 'dirt_02', 'dirt_03'], color: ['#6b5440', '#4a3a2a'], count: Math.round(6 * power), speed: 5, gravity: 0.25, add: false, size: 14, spin: 0.3, life: 700 });
   burst(x, y, { color: ['rgba(190,160,120,.9)', 'rgba(140,115,85,.9)', 'rgba(220,200,170,.9)'], count: Math.round(22 * power), speed: 5 * power, angle: Math.PI, spread: Math.PI, gravity: -0.02, add: false, size: 16 * power, grow: 1.6, life: 900, drag: 0.9, alpha: 0.55, jitter: 40 });
   burst(x, y, { color: ['#d8c3a0', '#8a7055'], shape: 'shard', count: Math.round(10 * power), speed: 5, gravity: 0.3, add: false, size: 4, spin: 0.4, life: 600 });
 }
@@ -236,6 +304,8 @@ export function rays(x, y, color = '#ffd84a') {
 }
 /** Healing: rising green motes and a soft column of light. */
 export function healFx(x, y) {
+  stars(x, y, { color: ['#d8ffe0', '#6dff95'], count: 14 });
+  magicSwirl(x, y, '#6dff95', 80);
   glow(x, y, 'rgba(110,255,150,.55)', 90, 600);
   for (let k = 0; k < 26; k++) add({ x: x + (Math.random() - 0.5) * 70, y: y + 30 + Math.random() * 30, vy: -1.2 - Math.random() * 1.8, vx: (Math.random() - 0.5) * 0.4, size: 5 + Math.random() * 5, color: '#6dff95', core: '#eaffef', life: 900, drag: 0.99 });
   ring(x, y, '#9dffb5', 30, 600, 1.5, 4);

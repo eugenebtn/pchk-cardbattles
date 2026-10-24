@@ -1,0 +1,186 @@
+/* Second visual pass: photo textures, two layouts (wide / phone upright), explanations UI.
+   Loaded after board.css and overrides it. Textures: ambientCG (CC0). */
+
+/* ---------- sizes per layout ---------- */
+#stage { --ally-w: 140px; --ally-h: 178px; --place-w: 150px; --place-h: 84px; --small-w: 84px; --small-h: 106px;
+  --leader-w: 160px; --leader-h: 176px; --hand-w: 160px; --hand-h: 223px; --gem: 46px; --gem-font: 24px; --name: 13px; --ui-font: 18px; }
+#stage.port { --ally-w: 166px; --ally-h: 210px; --place-w: 166px; --place-h: 92px; --small-w: 108px; --small-h: 136px;
+  --leader-w: 186px; --leader-h: 204px; --hand-w: 200px; --hand-h: 279px; --gem: 58px; --gem-font: 31px; --name: 16px; --ui-font: 26px; }
+
+.card.ally { width: var(--ally-w); height: var(--ally-h); margin: 0; }
+.card.place { width: var(--place-w); height: var(--place-h); }
+.card.small { width: var(--small-w); height: var(--small-h); }
+.card.small.item { width: var(--small-w); height: var(--small-w); margin-top: calc((var(--small-h) - var(--small-w)) / 2); }
+.card.leader { width: var(--leader-w); height: var(--leader-h); }
+.hand-card { width: var(--hand-w); height: var(--hand-h); }
+.slot.ally { margin: 0; }
+.stat { width: var(--gem); height: var(--gem); font-size: var(--gem-font); }
+.card.small .stat { width: calc(var(--gem) * .72); height: calc(var(--gem) * .72); font-size: calc(var(--gem-font) * .72); }
+.card.leader .stat.hp { width: calc(var(--gem) * 1.22); height: calc(var(--gem) * 1.22); font-size: calc(var(--gem-font) * 1.2); }
+.card .nm { font-size: var(--name); }
+.kw { width: calc(var(--gem) * .62); height: calc(var(--gem) * .62); font-size: calc(var(--gem) * .32); }
+.tok { font-size: calc(var(--gem) * .3); height: calc(var(--gem) * .5); min-width: calc(var(--gem) * .7); }
+
+/* ---------- textures ---------- */
+#board {
+  background:
+    radial-gradient(ellipse 65% 60% at 50% 48%, rgba(255, 200, 120, .22), transparent 72%),
+    linear-gradient(rgba(40, 20, 6, .35), rgba(40, 20, 6, .55)),
+    url('../assets/tex/table.webp') center / 520px repeat,
+    #3a2210;
+}
+.mat {
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(255, 236, 190, .25), transparent 70%),
+    linear-gradient(rgba(120, 80, 36, .18), rgba(70, 40, 14, .38)),
+    url('../assets/tex/mat.webp') center / 420px repeat;
+  box-shadow: inset 0 0 0 3px #2a1606, inset 0 0 0 6px #c8a058, inset 0 0 0 9px #3a2008, inset 0 0 60px rgba(60, 30, 5, .75), 0 14px 34px rgba(0, 0, 0, .7);
+  filter: none;
+}
+.mat::after { content: ''; position: absolute; inset: 14px; border-radius: 14px; border: 1.5px solid rgba(120, 80, 30, .35); pointer-events: none; }
+.slot { background: radial-gradient(ellipse at 50% 40%, rgba(255, 255, 255, .08), rgba(0, 0, 0, .18) 70%), url('../assets/tex/marble.webp') center / 300px;
+  box-shadow: inset 0 4px 14px rgba(0, 0, 0, .55), inset 0 -1px 0 rgba(255, 240, 210, .25), 0 1px 0 rgba(255, 240, 210, .2); opacity: .55; }
+.slot.selectable { opacity: 1; }
+.log-panel, .hint-bar, .priority-panel, .modal, .caption, .tip-card {
+  background-image: linear-gradient(rgba(22, 12, 5, .9), rgba(14, 8, 3, .94)), url('../assets/tex/leather.webp');
+  background-size: auto, 300px;
+}
+.round-box b { font-size: 20px; }
+
+/* ---------- hint bar ---------- */
+.hint-bar { position: absolute; min-height: 48px; padding: 9px 14px; border-radius: 12px; border: 1.5px solid #8a6328;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .6), inset 0 0 0 1px rgba(255, 220, 150, .12); color: #f4ead2; font-size: 17px; line-height: 1.3;
+  display: flex; gap: 10px; align-items: flex-start; z-index: 66; }
+.hint-bar.empty { display: none; }
+.hint-ico { font-size: 22px; line-height: 1; }
+#stage.port .hint-bar { font-size: 24px; padding: 12px 18px; min-height: 60px; }
+#stage.port .hint-ico { font-size: 30px; }
+
+/* ---------- top buttons, coins, names, piles in the phone layout ---------- */
+.icon-btn { width: 46px; height: 46px; font-size: 21px; background: radial-gradient(circle at 40% 30%, #4a2f18, #1a0e06); }
+#stage.port .top-btns { top: 8px; right: 8px; gap: 8px; }
+#stage.port .icon-btn { width: 58px; height: 58px; font-size: 26px; }
+#stage.port .pname { font-size: 28px; }
+#stage.port .coins { font-size: 44px; }
+#stage.port .coins .coin-ico { width: 56px; height: 56px; font-size: 28px; }
+#stage.port .pile { width: 100px; height: 138px; }
+#stage.port .pile .lbl { font-size: 18px; top: -24px; }
+#stage.port .pile .count { font-size: 20px; }
+#stage.port .end-turn { width: 210px; height: 74px; font-size: 22px; }
+#stage.port .round-box { width: 160px; font-size: 18px; }
+#stage.port .round-box b { font-size: 24px; }
+#stage.port .card-back { width: 98px; height: 136px; }
+.opp-hand-count { position: absolute; font-size: 28px; color: #e6d5ae; text-shadow: 0 2px 3px #000; }
+#stage.port .card.ally .nm, #stage.port .card.place .nm { font-size: 16px; }
+#stage.port .prompt .ptext { font-size: 28px; }
+#stage.port .prompt .btn.small { font-size: 24px; padding: 10px 18px; }
+#stage.port .draw-choice button { width: 210px; height: 190px; font-size: 28px; }
+
+/* ---------- prompt & draw choice ---------- */
+.prompt { transform: translate(-50%, -50%); }
+.prompt .ptext { font-size: 24px; border-radius: 10px; }
+.prompt .btn.small { font-size: 18px; padding: 8px 16px; }
+
+/* ---------- priority panel ---------- */
+.priority-panel { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 88; width: min(760px, 92%);
+  border: 2px solid #59b6ff; border-radius: 18px; padding: 16px 20px; text-align: center;
+  box-shadow: 0 0 0 1px #0d2740, 0 0 40px rgba(89, 182, 255, .45), 0 20px 50px #000; animation: popin .25s ease-out; }
+@keyframes popin { from { transform: translate(-50%, -46%) scale(.94); opacity: 0; } }
+.pri-head { font-family: var(--font-title); font-size: 28px; color: #9fd8ff; text-shadow: 0 0 14px rgba(89, 182, 255, .8); }
+.pri-what { font-size: 20px; margin: 8px 0 12px; color: var(--ink); }
+.pri-opts { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-bottom: 12px; }
+.pri-card { width: 150px; cursor: pointer; border-radius: 12px; border: 2px solid #59b6ff; background: #0d1824; color: var(--ink); padding: 6px; font: inherit; font-size: 15px; transition: transform .15s, box-shadow .15s; }
+.pri-card:hover { transform: translateY(-4px); box-shadow: 0 0 20px rgba(89, 182, 255, .8); }
+.pri-img { height: 120px; border-radius: 8px; background-size: cover; background-position: 50% 25%; margin-bottom: 6px; }
+.pri-card.ab .pri-img { background-size: 220%; }
+.pri-btns { display: flex; gap: 10px; justify-content: center; }
+.pri-btns .btn.primary { font-size: 20px; padding: 10px 26px; }
+.pri-why { margin-top: 12px; text-align: left; font-size: 16px; line-height: 1.4; color: var(--ink-dim); background: rgba(0, 0, 0, .35); padding: 10px 12px; border-radius: 10px; }
+
+/* ---------- card sheet ---------- */
+.sheet-back { background: rgba(0, 0, 0, .78); }
+.sheet { display: flex; gap: 22px; align-items: flex-start; text-align: left; max-width: 980px; }
+.sheet-img img { width: 360px; border-radius: 16px; box-shadow: 0 16px 40px #000; display: block; }
+.sheet-img .gen-card { width: 360px; height: 500px; }
+.sheet-info { flex: 1; min-width: 280px; font-size: 18px; }
+.ci-name { font-family: var(--font-card); font-size: 30px; color: var(--gold); line-height: 1.1; }
+.ci-type { color: var(--ink-dim); margin: 4px 0 10px; font-size: 17px; }
+.ci-stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.ci-stats .st { padding: 4px 12px; border-radius: 20px; background: rgba(255, 255, 255, .08); font-size: 20px; font-weight: 700; }
+.ci-stats .st.atk { color: #ffd76a; } .ci-stats .st.hp { color: #ff8a7a; } .ci-stats .st.cost { color: #ffe9a8; }
+.ci-stats s { opacity: .55; font-size: 15px; }
+.ci-text { font-size: 19px; line-height: 1.45; background: rgba(255, 240, 210, .07); border-left: 3px solid #c8a058; padding: 10px 12px; border-radius: 6px; }
+.ci-toks { margin-bottom: 8px; color: #ffd27a; }
+.ci-warn { margin-bottom: 8px; color: #ffb0a0; }
+.ci-kws { margin-top: 10px; font-size: 16px; color: var(--ink-dim); display: grid; gap: 4px; }
+.ci-kws b { color: var(--ink); }
+.sheet-acts { display: grid; gap: 8px; margin-top: 14px; }
+.sheet-acts .btn { font-size: 19px; padding: 12px 16px; }
+@media (max-width: 760px) {
+  .sheet { flex-direction: column; align-items: center; }
+  .sheet-img img { width: min(78vw, 360px); }
+  .sheet-info { font-size: 17px; width: 100%; }
+  .modal { max-width: 96vw; max-height: 92vh; padding: 14px; }
+}
+.term { border-bottom: 1.5px dotted rgba(255, 210, 120, .8); color: #ffe6a8; cursor: help; }
+
+/* ---------- tooltips ---------- */
+.tooltip { position: fixed; z-index: 500; max-width: 320px; pointer-events: none; padding: 10px 12px; border-radius: 10px; font-size: 15px; line-height: 1.35;
+  color: #f4ead2; background: linear-gradient(rgba(28, 16, 6, .97), rgba(18, 10, 4, .97)); border: 1.5px solid #c8a058; box-shadow: 0 10px 26px rgba(0, 0, 0, .7); animation: fadein .15s; }
+.tooltip b { display: block; color: var(--gold); font-family: var(--font-card); font-size: 18px; margin-bottom: 3px; }
+
+/* ---------- caption & arrows ---------- */
+.caption { position: absolute; left: 50%; top: 14px; transform: translate(-50%, -30px); opacity: 0; z-index: 87; pointer-events: none; padding: 10px 22px; border-radius: 14px;
+  font-size: 22px; color: #fff; border: 1.5px solid #c8a058; box-shadow: 0 10px 26px rgba(0, 0, 0, .7); transition: opacity .25s, transform .25s; white-space: nowrap; max-width: 92%; overflow: hidden; text-overflow: ellipsis; }
+.caption.show { opacity: 1; transform: translate(-50%, 0); }
+.caption b { color: #ffe08a; }
+.cap-who { font-weight: 700; padding: 1px 8px; border-radius: 8px; }
+.cap-who.me { background: rgba(89, 182, 255, .25); color: #bfe4ff; }
+.cap-who.opp { background: rgba(255, 110, 80, .25); color: #ffc0b0; }
+#stage.port .caption { top: 252px; font-size: 28px; white-space: normal; text-align: center; }
+.arrow-svg { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 86; overflow: visible; }
+
+/* ---------- tips ---------- */
+.tip-card { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 95; width: min(620px, 90%); display: flex; gap: 16px; padding: 18px 20px;
+  border: 2px solid var(--gold); border-radius: 18px; box-shadow: 0 0 40px rgba(232, 196, 106, .45), 0 20px 50px #000; animation: popin .25s ease-out; }
+.tip-ico { font-size: 54px; line-height: 1; }
+.tip-body b { font-family: var(--font-card); font-size: 26px; color: var(--gold); }
+.tip-body p { font-size: 18px; line-height: 1.45; margin: 6px 0 12px; }
+.tip-btns { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* ---------- help & log ---------- */
+.help { text-align: left; max-width: 760px; font-size: 18px; line-height: 1.45; }
+.help h3 { text-align: center; }
+.help-icons { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; margin: 10px 0; font-size: 16px; }
+@media (max-width: 760px) { .help-icons { grid-template-columns: 1fr; } }
+.log-full { max-height: 60vh; overflow-y: auto; text-align: left; font-size: 16px; line-height: 1.4; min-width: min(560px, 86vw); }
+
+/* ---------- stack panel position ---------- */
+.stack-panel { left: auto; right: 14px; top: 470px; width: 200px; }
+#stage.port .stack-panel { right: 10px; top: 640px; width: 220px; }
+.stack-item { font-size: 15px; }
+
+/* Board banner position per layout */
+.banner { top: var(--banner-y, 330px); }
+
+/* Rotate hint is not needed any more: the phone layout is upright. */
+#game .rotate-hint { display: none !important; }
+
+.opts-pop { position: absolute; right: 14px; top: 64px; z-index: 92; display: grid; gap: 8px; padding: 12px; border-radius: 14px; border: 1.5px solid #c8a058;
+  background-image: linear-gradient(rgba(22, 12, 5, .95), rgba(14, 8, 3, .97)), url('../assets/tex/leather.webp'); box-shadow: 0 12px 30px #000; min-width: 220px; }
+.opts-pop .btn { text-align: left; font-size: 18px; }
+#stage.port .opts-pop { top: 76px; min-width: 330px; }
+#stage.port .opts-pop .btn { font-size: 26px; padding: 14px 18px; }
+
+/* Windows live in screen pixels (outside the scaled board). */
+#game > .modal-back { position: fixed; inset: 0; z-index: 300; }
+#game > .modal-back .modal { max-width: min(1100px, 96vw); max-height: 92vh; }
+@media (max-width: 760px) {
+  .priority-panel { width: 94vw; padding: 12px; }
+  .pri-head { font-size: 22px; } .pri-what { font-size: 17px; }
+  .pri-card { width: 120px; font-size: 14px; } .pri-img { height: 100px; }
+  .tip-card { width: 92vw; padding: 14px; } .tip-ico { font-size: 40px; } .tip-body b { font-size: 21px; } .tip-body p { font-size: 16px; }
+  .mcard { width: 120px; height: 167px; }
+  .modal h3 { font-size: 21px; }
+}
+#game > .tip-card, #game > .priority-panel { z-index: 280; }

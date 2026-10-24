@@ -2,6 +2,8 @@
 import { CARDS } from '../data/cards.js';
 import * as FX from './fx.js';
 import { sfx } from './sound.js';
+import { pickLayout } from './layouts.js';
+import { linkTerms } from './glossary.js';
 
 const KW_ICON = { breakthrough: '💥', defense: '🛡️', maneuver: '🏃', ward: '✨', fast: '⚡', deathtouch: '☠️', bloodsucker: '🩸', indestructible: '🪨', advantage: '🎯' };
 const KW_NAME = { breakthrough: 'Прорыв', defense: 'Оборона', maneuver: 'Манёвр', ward: 'Оберег', fast: 'Опережение', deathtouch: 'Смертельный удар', bloodsucker: 'Кровопийца', indestructible: 'Нерушимость', created: 'Созданная', advantage: 'Преимущество' };
@@ -15,14 +17,8 @@ const KW_HELP = {
 const TOK_ICON = { blood: '🩸', goods: '📦', star: '✨', web: '🕸️', coins: '💰' };
 const TYPE_RU = { ally: 'Союзник', place: 'Место', action: 'Действие', item: 'Предмет', companion: 'Напарник', leader: 'Лидер', token: 'Токен' };
 const GEN_EMOJI = { 901: '🤡', 902: '🧌' };
+const TOK_TIP = { blood: 'Кровь 🩸', goods: 'Товары 📦', star: 'Тайная магия ✨', web: 'Паутина 🕸️', coins: 'Монеты 💰' };
 
-const COL_X = (k) => 400 + k * 162;
-const Y = { oppPlace: 112, oppAlly: 204, myAlly: 484, myPlace: 670 };
-const POS = {
-  myLeader: { x: 40, y: 712 }, oppLeader: { x: 40, y: 22 },
-  mySupport: { x: 22, y: 556 }, oppSupport: { x: 22, y: 186 },
-  myDeck: { x: 1236, y: 730 }, myGrave: { x: 1350, y: 730 }, oppDeck: { x: 1236, y: 64 }, oppGrave: { x: 1350, y: 64 },
-};
 export const cardDef = (id) => CARDS[id];
 
 export class BoardUI {
@@ -37,6 +33,7 @@ export class BoardUI {
     this.view = null;
     this.q = null;
     this.chosen = new Set();
+    this.L = pickLayout();
     FX.initFx(stage);
     this.buildStatic();
     this.previewEl = document.getElementById('preview');
@@ -45,42 +42,65 @@ export class BoardUI {
     window.addEventListener('resize', this._fit);
     this._ro = new ResizeObserver(this._fit); this._ro.observe(document.documentElement);
   }
-  destroy() { window.removeEventListener('resize', this._fit); this._ro?.disconnect(); this.board.innerHTML = ''; this.ui.innerHTML = ''; }
+  destroy() { window.removeEventListener('resize', this._fit); this._ro?.disconnect(); this.board.innerHTML = ''; this.ui.innerHTML = ''; this.closeModal(); this.closePriority(); document.querySelectorAll('#game > .tip-card, #game > .over-screen, #game > .pass-screen').forEach((e) => e.remove()); }
 
   fit() {
-    const W = 1600, H = 900;
+    const want = pickLayout();
+    if (want !== this.L) {
+      // Orientation changed: rebuild the board for the other layout.
+      this.L = want;
+      this.buildStatic();
+      for (const el of this.els.values()) el.remove();
+      this.els.clear();
+      if (this.view) this.render(this.view);
+      this.setPending(this.q);
+    }
+    const { W, H } = this.L;
+    this.stage.style.width = W + 'px'; this.stage.style.height = H + 'px';
+    this.stage.classList.toggle('port', this.L.name === 'port');
+    this.stage.classList.toggle('land', this.L.name === 'land');
     const s = Math.min(window.innerWidth / W, window.innerHeight / H);
     this.scale = s;
     this.stage.style.transform = `scale(${s})`;
     this.stage.style.left = `${(window.innerWidth - W * s) / 2}px`;
     this.stage.style.top = `${(window.innerHeight - H * s) / 2}px`;
+    FX.setSize(W, H);
   }
   regionCol(r) { return this.me === 0 ? r : 4 - r; }
 
   buildStatic() {
+    const L = this.L;
     const b = this.board;
     b.innerHTML = '';
-    b.insertAdjacentHTML('beforeend', `<div class="mat opp"></div><div class="mat me"></div><div class="midline"></div>`);
-    for (const [x, y] of [[352, 60], [1212, 60], [352, 700], [1212, 700]]) {
+    const mat = (cls, [x, y, w, h]) => `<div class="mat ${cls}" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px"></div>`;
+    b.insertAdjacentHTML('beforeend', mat('opp', L.mats.opp) + mat('me', L.mats.me) + `<div class="midline" style="top:${L.midY - 3}px;left:${L.colX(0) - 16}px;width:${L.colX(4) + L.colW - L.colX(0) + 32}px"></div>`);
+    for (const [x, y] of L.torches) {
       b.insertAdjacentHTML('beforeend', `<div class="torch" style="left:${x}px;top:${y}px"><div class="glow"></div><div class="bracket"></div><div class="flame"></div></div>`);
     }
     this.cols = [];
     this.slots = { ally: [[], []], place: [[], []] };
+    const colTop = L.y.oppPlace - 6, colH = L.y.myPlace + L.place.h + 6 - colTop;
     for (let r = 0; r < 5; r++) {
       const k = this.regionCol(r);
       const col = document.createElement('div');
-      col.className = 'region-col'; col.style.left = COL_X(k) + 'px';
+      col.className = 'region-col'; col.style.left = L.colX(k) + 'px'; col.style.width = L.colW + 'px';
+      col.style.top = colTop + 'px'; col.style.height = colH + 'px';
       b.appendChild(col); this.cols[r] = col;
-      const lbl = document.createElement('div');
-      lbl.className = 'region-label'; lbl.style.left = COL_X(k) + 'px'; lbl.textContent = `Регион ${k + 1}`;
-      b.appendChild(lbl);
+      if (L.regionLabel) {
+        const lbl = document.createElement('div');
+        lbl.className = 'region-label'; lbl.style.left = L.colX(k) + 'px'; lbl.style.width = L.colW + 'px'; lbl.style.top = (L.midY - 26) + 'px';
+        lbl.textContent = `Регион ${k + 1}`;
+        b.appendChild(lbl);
+      }
       for (const side of [0, 1]) {
         const mine = side === this.me;
         for (const row of ['ally', 'place']) {
           const s = document.createElement('div');
           s.className = `slot ${row}`;
-          s.style.left = (COL_X(k) + (row === 'ally' ? 10 : 5)) + 'px';
-          s.style.top = (row === 'ally' ? (mine ? Y.myAlly : Y.oppAlly) : (mine ? Y.myPlace : Y.oppPlace)) + 'px';
+          const sz = L[row];
+          s.style.left = (L.colX(k) + sz.dx) + 'px';
+          s.style.top = (row === 'ally' ? (mine ? L.y.myAlly : L.y.oppAlly) : (mine ? L.y.myPlace : L.y.oppPlace)) + 'px';
+          s.style.width = sz.w + 'px'; s.style.height = sz.h + 'px';
           s.dataset.region = r; s.dataset.row = row; s.dataset.side = side;
           s.addEventListener('click', () => this.clickSlot(s));
           b.appendChild(s);
@@ -91,41 +111,57 @@ export class BoardUI {
     // Piles, names, coins.
     const mk = (cls, pos, html = '') => { const e = document.createElement('div'); e.className = cls; e.style.left = pos.x + 'px'; e.style.top = pos.y + 'px'; e.innerHTML = html; b.appendChild(e); return e; };
     this.piles = {
-      myDeck: mk('pile deck', POS.myDeck, '<div class="lbl">Скрижаль</div><div class="card-back" style="left:0;top:0"></div><div class="count">0</div>'),
-      oppDeck: mk('pile deck', POS.oppDeck, '<div class="lbl">Скрижаль</div><div class="card-back" style="left:0;top:0"></div><div class="count">0</div>'),
-      myGrave: mk('pile grave', POS.myGrave, '<div class="lbl">Кладбище</div><div class="empty">🪦</div><div class="count">0</div>'),
-      oppGrave: mk('pile grave', POS.oppGrave, '<div class="lbl">Кладбище</div><div class="empty">🪦</div><div class="count">0</div>'),
+      myDeck: mk('pile deck', L.piles.myDeck, '<div class="lbl">Скрижаль</div><div class="card-back" style="left:0;top:0"></div><div class="count">0</div>'),
+      oppDeck: mk('pile deck', L.piles.oppDeck, '<div class="lbl">Скрижаль</div><div class="card-back" style="left:0;top:0"></div><div class="count">0</div>'),
+      myGrave: mk('pile grave', L.piles.myGrave, '<div class="lbl">Кладбище</div><div class="empty">🪦</div><div class="count">0</div>'),
+      oppGrave: mk('pile grave', L.piles.oppGrave, '<div class="lbl">Кладбище</div><div class="empty">🪦</div><div class="count">0</div>'),
     };
+    for (const [k, t] of Object.entries({ myDeck: 'Ваша Скрижаль (колода)|Сколько карт осталось. Карты берутся сверху.', oppDeck: 'Скрижаль соперника|Сколько карт у него осталось.', myGrave: 'Ваше кладбище|Сыгранные, сброшенные и погибшие карты. Нажмите, чтобы посмотреть.', oppGrave: 'Кладбище соперника|Нажмите, чтобы посмотреть его карты.' })) this.piles[k].setAttribute('data-tip', t);
     this.piles.myGrave.addEventListener('click', () => this.showGrave(this.me));
     this.piles.oppGrave.addEventListener('click', () => this.showGrave(1 - this.me));
-    this.names = { me: mk('pname', { x: 205, y: 722 }), opp: mk('pname', { x: 205, y: 28 }) };
+    this.names = { me: mk('pname', L.names.me), opp: mk('pname', L.names.opp) };
     this.coinsEl = {
-      me: mk('coins', { x: 205, y: 760 }, '<div class="coin-ico">₽</div><span>0</span>'),
-      opp: mk('coins', { x: 205, y: 66 }, '<div class="coin-ico">₽</div><span>0</span>'),
+      me: mk('coins', L.coins.me, '<div class="coin-ico">💰</div><span>0</span>'),
+      opp: mk('coins', L.coins.opp, '<div class="coin-ico">💰</div><span>0</span>'),
     };
-    this.coinsEl.me.querySelector('.coin-ico').textContent = '💰';
-    this.coinsEl.opp.querySelector('.coin-ico').textContent = '💰';
-    this.roundBox = mk('round-box', { x: 1250, y: 398 });
-    // UI layer: end turn, log, stack, top buttons, prompt.
+    this.coinsEl.me.setAttribute('data-tip', 'Ваши монеты 💰|Ими платят за карты и свойства. Монеты не сгорают между ходами.');
+    this.coinsEl.opp.setAttribute('data-tip', 'Монеты соперника 💰|Сколько он может потратить.');
+    this.oppHandCount = L.name === 'port' ? mk('opp-hand-count', { x: 700, y: 24 }, '') : null;
+    this.roundBox = mk('round-box', L.round);
+    this.roundBox.setAttribute('data-tip', 'Раунд|Ход первого игрока → ход второго → Сражение. Каждый раунд очерёдность меняется.');
+    // UI layer: end turn, hint, log, stack, top buttons, prompt.
     const u = this.ui;
     u.innerHTML = `
-      <button class="end-turn wait" id="end-turn">Ход соперника</button>
-      <div class="log-panel" id="log"></div>
+      <button class="end-turn wait" id="end-turn" data-tip="Кнопка хода|Когда закончите разыгрывать карты — завершите ход. Во время ответа на Опережение — это «Пас»." style="left:${L.end.x}px;top:${L.end.y}px">Ход соперника</button>
+      <div class="hint-bar" id="hint" style="left:${L.hint.x}px;top:${L.hint.y}px;width:${L.hint.w}px"></div>
+      ${L.log ? `<div class="log-panel" id="log" style="left:${L.log.x}px;top:${L.log.y}px;width:${L.log.w}px;height:${L.log.h}px"></div>` : '<div class="log-panel hidden" id="log"></div>'}
       <div class="stack-panel" id="stack"></div>
       <div class="top-btns">
-        <button class="icon-btn" id="btn-fast" title="Спрашивать об Опережении">⚡</button>
-        <button class="icon-btn" id="btn-speed" title="Скорость анимаций">⏩</button>
-        <button class="icon-btn" id="btn-music" title="Музыка">🎵</button>
-        <button class="icon-btn" id="btn-sound" title="Звук">🔊</button>
-        <button class="icon-btn" id="btn-menu" title="В меню">☰</button>
+        <button class="icon-btn" id="btn-help" data-tip="Как играть|Правила, значки и подсказки.">❔</button>
+        <button class="icon-btn" id="btn-fast" data-tip="Опережение ⚡|Включить или выключить вопросы «ответить картой с Опережением?».">⚡</button>
+        <button class="icon-btn" id="btn-opts" data-tip="Меню|Журнал, скорость, музыка, звук, выход.">☰</button>
       </div>
-      <div class="prompt" id="prompt"></div>`;
+      <div class="opts-pop hidden" id="opts-pop">
+        <button class="btn" id="btn-log">📜 Журнал</button>
+        <button class="btn" id="btn-speed">⏩ Скорость</button>
+        <button class="btn" id="btn-music">🎵 Музыка</button>
+        <button class="btn" id="btn-sound">🔊 Звук</button>
+        <button class="btn danger" id="btn-menu">🚪 Выйти в меню</button>
+      </div>
+      <div class="prompt" id="prompt" style="top:${L.midY + 6}px"></div>`;
     this.endBtn = u.querySelector('#end-turn');
     this.endBtn.addEventListener('click', () => this.clickEnd());
     this.logEl = u.querySelector('#log');
+    this.hintEl = u.querySelector('#hint');
     this.stackEl = u.querySelector('#stack');
     this.promptEl = u.querySelector('#prompt');
     u.querySelector('#btn-menu').addEventListener('click', () => this.onMenu && this.onMenu());
+    u.querySelector('#btn-help').addEventListener('click', () => this.showHelp());
+    u.querySelector('#btn-log').addEventListener('click', () => { this.showLog(); u.querySelector('#opts-pop').classList.add('hidden'); });
+    u.querySelector('#btn-opts').addEventListener('click', (e) => { e.stopPropagation(); u.querySelector('#opts-pop').classList.toggle('hidden'); });
+    this.ui.addEventListener('click', (e) => { if (!e.target.closest('#opts-pop') && !e.target.closest('#btn-opts')) u.querySelector('#opts-pop')?.classList.add('hidden'); });
+    this.stage.style.setProperty('--banner-y', L.bannerY + 'px');
+    if (this.onRebuild) this.onRebuild();
   }
 
   // ---------- geometry ----------
@@ -138,11 +174,11 @@ export class BoardUI {
     if (el && el.isConnected) return this.stagePoint(el);
     return null;
   }
-  leaderPoint(side) { const v = this.view; const L = v?.players[side]?.leader; return L ? this.pointOf(L.uid) : { x: 115, y: side === this.me ? 787 : 97 }; }
 
   // ---------- rendering ----------
   render(view) {
     this.view = view;
+    const L = this.L;
     const me = this.me, op = 1 - me;
     const P = view.players;
     const want = new Map();
@@ -150,31 +186,35 @@ export class BoardUI {
     for (const side of [me, op]) {
       const mine = side === me;
       const p = P[side];
-      place(p.leader, 'leader', (mine ? POS.myLeader : POS.oppLeader).x, (mine ? POS.myLeader : POS.oppLeader).y, 2);
+      const lp = mine ? L.leader.me : L.leader.opp;
+      place(p.leader, 'leader', lp.x, lp.y, 2);
       p.regions.forEach((reg, r) => {
         const k = this.regionCol(r);
-        place(reg.ally, 'ally', COL_X(k) + 10, mine ? Y.myAlly : Y.oppAlly, 3);
-        place(reg.place, 'place', COL_X(k) + 5, mine ? Y.myPlace : Y.oppPlace, 2);
+        place(reg.ally, 'ally', L.colX(k) + L.ally.dx, mine ? L.y.myAlly : L.y.oppAlly, 3);
+        place(reg.place, 'place', L.colX(k) + L.place.dx, mine ? L.y.myPlace : L.y.oppPlace, 2);
       });
-      const sp = mine ? POS.mySupport : POS.oppSupport;
+      const sp = mine ? L.support.me : L.support.opp;
       const n = p.support.length;
-      const step = n > 4 ? Math.floor(300 / (n - 1)) : 86;
-      p.support.forEach((c, k) => place(c, 'small', sp.x + k * step, sp.y + (n > 4 && k % 2 ? 6 : 0), 3 + k));
+      const step = n > 1 ? Math.min(L.small.w + 8, Math.floor((sp.max - L.small.w) / (n - 1))) : 0;
+      p.support.forEach((c, k) => place(c, 'small', sp.x + k * step, sp.y, 3 + k));
       // Hands.
       const hand = p.hand;
       if (mine) {
-        const n2 = hand.length, w = Math.min(118, 760 / Math.max(1, n2));
-        const x0 = 800 - (w * (n2 - 1)) / 2 - 75;
+        const H = L.hand;
+        const n2 = hand.length, w = n2 > 1 ? Math.min(H.step, (H.width - H.cardW) / (n2 - 1)) : 0;
+        const x0 = H.cx - (w * (n2 - 1)) / 2 - H.cardW / 2;
         hand.forEach((c, k) => {
           const mid = (n2 - 1) / 2;
-          want.set(c.uid, { c, mode: c.hidden ? 'back' : 'hand', x: x0 + k * w, y: 768 + Math.abs(k - mid) * 4, z: 10 + k, rot: (k - mid) * 2.2 });
+          const fan = L.name === 'port' ? 0 : 1;
+          want.set(c.uid, { c, mode: c.hidden ? 'back' : 'hand', x: x0 + k * w, y: H.y + Math.abs(k - mid) * 4 * fan, z: 10 + k, rot: (k - mid) * 2.2 * fan });
         });
       } else {
-        const n2 = hand.length, w = Math.min(64, 520 / Math.max(1, n2));
-        const x0 = 800 - (w * (n2 - 1)) / 2 - 48;
+        const H = L.oppHand;
+        const n2 = hand.length, w = n2 > 1 ? Math.min(H.step, H.width / (n2 - 1)) : 0;
+        const x0 = H.cx - (w * (n2 - 1)) / 2 - 49;
         hand.forEach((c, k) => {
           const mid = (n2 - 1) / 2;
-          want.set(c.uid, { c, mode: c.hidden ? 'back' : 'ohand', x: x0 + k * w, y: -76 + Math.abs(k - mid) * 3, z: 10 + k, rot: -(k - mid) * 2.5 });
+          want.set(c.uid, { c, mode: c.hidden ? 'back' : 'ohand', x: x0 + k * w, y: H.y + Math.abs(k - mid) * 3, z: 10 + k, rot: -(k - mid) * 2.5 });
         });
       }
     }
@@ -192,9 +232,8 @@ export class BoardUI {
         el = document.createElement('div');
         el.dataset.uid = uid;
         el.addEventListener('click', (e) => { e.stopPropagation(); this.clickCard(Number(uid)); });
-        el.addEventListener('mouseenter', () => this.showPreview(Number(uid), el));
-        el.addEventListener('mouseleave', () => this.hidePreview());
-        // Start from a sensible origin.
+        el.addEventListener('mouseenter', () => { if (!this.touch()) this.showPreview(Number(uid), el); });
+        el.addEventListener('mouseleave', () => { if (!this.touch()) this.hidePreview(); });
         const origin = this.originFor(w, uid);
         el.style.left = origin.x + 'px'; el.style.top = origin.y + 'px';
         el.style.transition = 'none';
@@ -203,29 +242,30 @@ export class BoardUI {
       }
       this.fillCard(el, w);
       el.style.zIndex = w.z;
-      if (fresh) {
-        el.getBoundingClientRect();
-        el.style.transition = '';
-      }
+      if (fresh) el.getBoundingClientRect();
       el.style.transition = 'left .45s cubic-bezier(.2,.8,.3,1), top .45s cubic-bezier(.2,.8,.3,1), transform .25s';
       el.style.left = w.x + 'px'; el.style.top = w.y + 'px';
       el.style.transform = w.rot ? `rotate(${w.rot}deg)` : '';
     }
+    if (this.oppHandCount) this.oppHandCount.innerHTML = `🂠 ${P[op].handCount}`;
     this.renderSide(view);
     this.applyInteractivity();
+    this.updateHint();
   }
+  touch() { return window.matchMedia('(hover: none)').matches; }
+  /** Full-screen layer (real screen pixels) for windows and panels. */
+  overlay() { return document.querySelector('#game'); }
   originFor(w, uid) {
-    const mine = w.c.owner === this.me || w.c.ctrl === this.me;
-    if (w.mode === 'hand') return { x: POS.myDeck.x, y: POS.myDeck.y };
-    if (w.mode === 'back' || w.mode === 'ohand') return { x: POS.oppDeck.x, y: POS.oppDeck.y - 100 };
-    if (this._spawnFrom) return { x: this._spawnFrom.x - 67, y: this._spawnFrom.y - 87 };
+    const L = this.L;
+    if (w.mode === 'hand') return { x: L.piles.myDeck.x, y: L.piles.myDeck.y };
+    if (w.mode === 'back' || w.mode === 'ohand') return { x: L.piles.oppDeck.x, y: L.piles.oppDeck.y - 100 };
+    if (this._spawnFrom) return { x: this._spawnFrom.x - L.ally.w / 2, y: this._spawnFrom.y - L.ally.h / 2 };
     return { x: w.x, y: w.y };
   }
   animateOut(el, uid, view) {
-    // Where did it go?
     let to = null;
     for (const p of view.players) {
-      if (p.grave.some((c) => c.uid === uid)) to = p.i === this.me ? POS.myGrave : POS.oppGrave;
+      if (p.grave.some((c) => c.uid === uid)) to = p.i === this.me ? this.L.piles.myGrave : this.L.piles.oppGrave;
     }
     el.style.pointerEvents = 'none';
     if (to) {
@@ -286,15 +326,15 @@ export class BoardUI {
     let stats = '';
     if (c.atk != null && d.type === 'ally') {
       const buffed = c.atk > (d.atk ?? 0);
-      stats += `<div class="stat atk ${buffed ? 'buffed' : ''}">${c.atk}</div>`;
+      stats += `<div class="stat atk ${buffed ? 'buffed' : ''}" data-tip="Атака ${c.atk}|Столько ран этот союзник наносит в бою.${buffed ? ' Усилен (зелёное число).' : ''}">${c.atk}</div>`;
     }
     if (c.hp != null) {
       const hurt = c.dmg > 0 || (d.type === 'leader' && c.hp < c.maxHp);
       const buffed = c.maxHp > (d.hp ?? 0) && !hurt;
-      stats += `<div class="stat hp ${hurt ? 'hurt' : ''} ${buffed ? 'buffed' : ''}">${c.hp}</div>`;
+      stats += `<div class="stat hp ${hurt ? 'hurt' : ''} ${buffed ? 'buffed' : ''}" data-tip="Здоровье ${c.hp}${c.maxHp ? ' из ' + c.maxHp : ''}|${d.type === 'leader' ? 'Если здоровье Лидера упадёт до 0 — игрок проиграл.' : 'Когда раны сравняются со здоровьем, карта погибнет.'}${hurt ? ' Ранен (красное число).' : ''}">${c.hp}</div>`;
     }
-    const kwIcons = kws.filter((k) => KW_ICON[k] && k !== 'defense' && k !== 'ward').map((k) => `<div class="kw" title="${KW_NAME[k]}">${KW_ICON[k]}</div>`).join('');
-    const toks = Object.entries(c.tok || {}).filter(([, n]) => n > 0).map(([t, n]) => `<div class="tok ${t}">${TOK_ICON[t] || t}${n}</div>`).join('');
+    const kwIcons = kws.filter((k) => KW_ICON[k] && k !== 'defense' && k !== 'ward').map((k) => `<div class="kw" data-tip="${KW_NAME[k]}|${KW_HELP[k]}">${KW_ICON[k]}</div>`).join('');
+    const toks = Object.entries(c.tok || {}).filter(([, n]) => n > 0).map(([t, n]) => `<div class="tok ${t}" data-tip="${TOK_TIP[t] || 'Фишки'}|${n} шт. Тратятся на свойства этой карты.">${TOK_ICON[t] || t}${n}</div>`).join('');
     const showName = mode !== 'leader';
     el.innerHTML = `
       <div class="shadow"></div>
@@ -392,8 +432,11 @@ export class BoardUI {
     this.q = q;
     this.chosen.clear();
     this.closeModal();
+    this.closePriority();
     this.applyInteractivity();
     this.renderPrompt();
+    this.updateHint();
+    this.maybeTip(q);
   }
   myOptions() { return this.q && this.q.player === this.me ? this.q.options : []; }
   applyInteractivity() {
@@ -446,7 +489,7 @@ export class BoardUI {
     let text = q.prompt || '';
     switch (q.type) {
       case 'main': text = ''; break;
-      case 'priority': text = q.prompt; btns.push(['Пас', 'pass']); break;
+      case 'priority': this.openPriority(q); return;
       case 'draw':
         el.innerHTML = `<div class="ptext">${esc(q.prompt)}</div><div class="draw-choice">${q.options.map((o) => `<button data-id="${o.id}"><span class="big-ico">${o.id === 'card' ? '🂠' : '🪙'}</span>${o.id === 'card' ? 'Карта' : 'Монета'}</button>`).join('')}</div>`;
         el.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { sfx.click(); this.answer(b.dataset.id); }));
@@ -475,7 +518,9 @@ export class BoardUI {
     this.applyInteractivity();
     this.promptEl.innerHTML = '';
     this.closeModal();
+    this.closePriority();
     this.hidePreview();
+    this.updateHint();
     this.onAnswer(q, a);
   }
   clickEnd() {
@@ -495,15 +540,9 @@ export class BoardUI {
   }
   clickCard(uid) {
     const q = this.q;
-    // Touch screens: first tap shows the card large, second tap uses it.
-    if (window.matchMedia('(hover: none)').matches) {
-      const el = this.els.get(uid);
-      if (el && this.armed !== uid && (el.classList.contains('hand-card') || el.classList.contains('usable'))) {
-        this.armed = uid; this.showPreview(uid, el); return;
-      }
-      this.armed = null;
-    }
-    if (!q || q.player !== this.me) { this.togglePreview(uid); return; }
+    // Touch screens: a tap opens the big card with its buttons (except picking a target).
+    if (this.touch() && !(q && q.player === this.me && q.type === 'target' && q.options.some((o) => o.id === uid))) { this.openSheet(uid); return; }
+    if (!q || q.player !== this.me) { this.openSheet(uid); return; }
     if (q.type === 'target' && q.options.some((o) => o.id === uid)) { sfx.click(); this.answer(uid); return; }
     if (q.type === 'main' || q.type === 'priority') {
       const plays = q.options.filter((o) => o.kind === 'play' && o.uid === uid);
@@ -512,10 +551,8 @@ export class BoardUI {
       if (all.length === 1) { sfx.click(); this.answer(all[0].id); return; }
       if (all.length > 1) { this.openChoiceMenu(uid, all); return; }
     }
-    if (q.type === 'region' && this.view) {
-      // Clicking an occupied card in a selectable row does nothing.
-    }
-    this.togglePreview(uid);
+    this.hidePreview();
+    this.openSheet(uid);
   }
   openChoiceMenu(uid, opts) {
     const labels = opts.map((o) => o.kind === 'play' ? `Разыграть «${CARDS[o.side].name}»${o.cost != null ? ` — ${o.cost} 💰` : ''}` : `Свойство: ${o.label}`);
@@ -541,13 +578,194 @@ export class BoardUI {
     return null;
   }
 
+  // ---------- explanations ----------
+  /** One line under the board that always says what is going on and what to do. */
+  updateHint() {
+    const el = this.hintEl;
+    if (!el || !this.view) return;
+    const v = this.view, q = this.q, me = this.me;
+    let icon = '💡', text = '';
+    if (v.over) text = '';
+    else if (!q || q.player !== me) {
+      if (v.phase === 'battle') { icon = '⚔️'; text = 'Идёт Сражение. Союзники напротив друг друга бьют одновременно; если напротив пусто — удар идёт в Лидера или Напарника.'; }
+      else if (v.phase === 'turn' && v.turn !== me) { icon = '⏳'; text = 'Ход соперника. Если у вас есть карта или свойство с ⚡ Опережением, игра предложит ответить.'; }
+      else text = 'Подождите…';
+    } else {
+      const coins = v.players[me].coins;
+      switch (q.type) {
+        case 'main': {
+          const plays = q.options.filter((o) => o.kind === 'play').length, abs = q.options.filter((o) => o.kind === 'ability').length;
+          text = plays || abs
+            ? `Ваш ход, у вас ${coins} 💰. ${plays ? 'Карты в руке с зелёной рамкой можно разыграть' : ''}${plays && abs ? ', ' : ''}${abs ? 'у карт на поле с синей рамкой есть свойство' : ''}. Нажмите на карту. Когда закончите — «Завершить ход».`
+            : `Разыграть больше нечего (${coins} 💰). Нажмите «Завершить ход».`;
+          break;
+        }
+        case 'draw': text = 'Начало хода: возьмите 2 — карты или монеты в любом сочетании (выбор по одной).'; break;
+        case 'region': text = q.row === 'place' ? 'Выберите место для карты Места — подсвеченная ячейка в дальнем ряду.' : 'Выберите регион — подсвеченная ячейка. Союзник будет сражаться с тем, кто стоит напротив.'; break;
+        case 'target':
+          if (q.defense) { icon = '🛡️'; text = 'Оборона: можно принять удар на свою карту с Обороной вместо Лидера/Напарника — или «Отмена», чтобы не прикрывать.'; }
+          else if (q.maneuver) { icon = '🏃'; text = 'Манёвр: перед боем можно передвинуть союзника в свободный регион. Нажмите на союзника или «Отмена».'; }
+          else if (q.hint === 'face') { icon = '⚔️'; text = 'Напротив никого: выберите, кого бьёт ваш союзник — Лидера или Напарника соперника.'; }
+          else text = `${q.prompt}. ${q.hint === 'buff' ? 'Подсвечены зелёным.' : 'Подсвечены красным.'}`;
+          break;
+        case 'priority': icon = '⚡'; text = 'Можно ответить картой или свойством с Опережением — или нажать «Пропустить».'; break;
+        default: text = q.prompt || '';
+      }
+    }
+    el.innerHTML = text ? `<span class="hint-ico">${icon}</span><span>${esc(text)}</span>` : '';
+    el.classList.toggle('empty', !text);
+  }
+  /** The «Опережение» decision, explained. */
+  openPriority(q) {
+    const ctx = q.context || {};
+    const me = this.me;
+    let what;
+    if (ctx.kind === 'stack') {
+      const who = ctx.by === me ? 'Вы' : 'Соперник';
+      const tg = (ctx.targets || []).map((t) => `${t.ctrl === me ? 'ваш(у)' : 'вражеский(ую)'} «${CARDS[t.id]?.name?.split(',')[0]}»`).join(', ');
+      what = `${who} ${ctx.by === me ? 'используете' : 'использует'} «${esc(ctx.label)}»${tg ? ` → ${esc(tg)}` : ''}. Это ещё не сработало.`;
+    } else if (ctx.kind === 'battleStart') what = 'Начинается Сражение.';
+    else if (ctx.kind === 'regionStart') what = `Начинается бой в регионе ${this.regionCol(ctx.region) + 1}.`;
+    else if (ctx.kind === 'turnStart') what = 'Начинается ход соперника.';
+    else if (ctx.kind === 'turnEnd') what = 'Соперник заканчивает ход.';
+    else what = 'Сейчас можно сыграть карту с Опережением.';
+    const opts = q.options.filter((o) => o.id !== 'pass');
+    const optHtml = opts.map((o, k) => {
+      if (o.kind === 'play') {
+        const d = CARDS[o.side];
+        return `<button class="pri-card" data-k="${k}"><div class="pri-img" style="background-image:url('${d.img || ''}')"></div><span>${esc(d.name.split(',')[0])}<br><b>${o.cost} 💰</b></span></button>`;
+      }
+      const id = this.cardIdOf(o.uid);
+      return `<button class="pri-card ab" data-k="${k}"><div class="pri-img" style="background-image:url('${CARDS[id]?.img || ''}')"></div><span>${esc(o.label)}<br><b>${costText(o.abCost)}</b></span></button>`;
+    }).join('');
+    const html = `<div class="pri-head">⚡ Опережение — можно ответить</div>
+      <div class="pri-what">${what}</div>
+      <div class="pri-opts">${optHtml}</div>
+      <div class="pri-btns"><button class="btn primary" data-pass>Пропустить</button><button class="btn small" data-why>Что это?</button></div>
+      <div class="pri-why hidden">Карты и свойства со значком ⚡ можно играть не только в свой ход, но и в ответ на действия соперника, в начале хода и в бою. Ваш ответ срабатывает <b>раньше</b> того, на что вы отвечаете: например, можно усилить союзника до того, как по нему ударит заклинание. Если отвечать не нужно — «Пропустить». Кнопка ⚡ сверху выключает эти вопросы совсем.</div>`;
+    const panel = document.createElement('div');
+    panel.className = 'priority-panel';
+    panel.innerHTML = html;
+    this.overlay().appendChild(panel);
+    this.priEl = panel;
+    panel.querySelector('[data-pass]').addEventListener('click', () => { sfx.click(); this.answer('pass'); });
+    panel.querySelector('[data-why]').addEventListener('click', () => panel.querySelector('.pri-why').classList.toggle('hidden'));
+    panel.querySelectorAll('.pri-card').forEach((b) => {
+      const o = opts[Number(b.dataset.k)];
+      b.addEventListener('click', () => { sfx.click(); this.answer(o.id); });
+      b.addEventListener('mouseenter', () => { const id = o.kind === 'play' ? o.side : this.cardIdOf(o.uid); this.showPreviewId(id, b); });
+      b.addEventListener('mouseleave', () => this.hidePreview());
+    });
+  }
+  closePriority() { if (this.priEl) { this.priEl.remove(); this.priEl = null; } }
+
+  /** Big readable card sheet with the actions available for it. */
+  openSheet(uid) {
+    const c = this.findCard(uid);
+    if (!c || c.hidden) return;
+    const d = CARDS[c.id];
+    const q = this.q && this.q.player === this.me ? this.q : null;
+    const acts = [];
+    if (q && (q.type === 'main' || q.type === 'priority')) {
+      for (const o of q.options) {
+        if (o.kind === 'play' && o.uid === uid) acts.push([`▶ Разыграть${o.side !== c.id ? ` «${CARDS[o.side].name.split(',')[0]}»` : ''} — ${o.cost} 💰`, o.id, 'primary']);
+        if (o.kind === 'ability' && o.uid === uid) acts.push([`✦ ${o.label} — ${costText(o.abCost)}`, o.id, 'primary']);
+      }
+    }
+    if (q && q.type === 'target' && q.options.some((o) => o.id === uid)) acts.push(['🎯 Выбрать целью', uid, 'primary']);
+    this.modal(`<div class="sheet">
+        <div class="sheet-img">${d.img ? `<img src="${d.img}" alt="">` : `<div class="gen-card">${GEN_EMOJI[c.id] || '✨'}<br>${esc(d.name)}</div>`}</div>
+        <div class="sheet-info">${cardInfoHtml(d, c)}
+          <div class="sheet-acts">${acts.map(([l], k) => `<button class="btn ${acts[k][2]}" data-k="${k}">${esc(l)}</button>`).join('')}<button class="btn" data-close>Закрыть</button></div>
+        </div></div>`, (m) => {
+      m.querySelectorAll('[data-k]').forEach((b) => b.addEventListener('click', () => { const a = acts[Number(b.dataset.k)]; this.closeModal(); sfx.click(); this.answer(a[1]); }));
+      m.querySelector('[data-close]').addEventListener('click', () => this.closeModal());
+      m.addEventListener('click', (e) => { if (e.target === m) this.closeModal(); });
+    });
+    this.modalEl.classList.add('sheet-back');
+  }
+  showHelp() {
+    this.modal(`<div class="help">
+      <h3>Как играть</h3>
+      <p><b>Цель:</b> довести здоровье вражеского Лидера до 0 (число в красной капле на его портрете).</p>
+      <p><b>Ход:</b> возьмите 2 — карты или монеты 💰. Потом разыгрывайте карты: цена в монетах — в кружке слева вверху карты. Союзников ставьте в ближний ряд, Места — в дальний; Напарники и Предметы встают к Лидеру.</p>
+      <p><b>Раунд:</b> ход первого игрока → ход второго → ⚔ Сражение. Потом очерёдность меняется.</p>
+      <p><b>Сражение:</b> в каждом регионе союзники напротив друг друга бьют одновременно (жёлтое число — атака, красное — здоровье). Если напротив пусто — удар идёт в Лидера или Напарника.</p>
+      <p><b>⚡ Опережение:</b> такие карты и свойства можно играть в ответ на действия соперника и в бою — они срабатывают раньше. Игра сама предложит.</p>
+      <div class="help-icons">
+        <div>💥 <b>Прорыв</b> — лишние раны идут Лидеру</div><div>🛡️ <b>Оборона</b> — принимает удар на себя</div>
+        <div>✨ <b>Оберег</b> — нельзя выбрать целью</div><div>🏃 <b>Манёвр</b> — перебегает перед боем</div>
+        <div>☠️ <b>Смертельный удар</b> — убивает любой раной</div><div>🩸 <b>Кровопийца</b> — копит кровь за удары</div>
+        <div>🪨 <b>Нерушимость</b> — не уничтожить эффектом</div><div>💫 <b>Оглушён</b> — не бьёт в следующем бою</div>
+      </div>
+      <p><b>Подсветка:</b> зелёная — можно сыграть, синяя — есть свойство, красная — цель-враг. Нажмите на любую карту, чтобы прочитать её крупно.</p>
+      <div class="row-btns"><button class="btn primary" data-close>Понятно</button><button class="btn small" data-tips>Показать подсказки заново</button></div></div>`, (m) => {
+      m.querySelector('[data-close]').addEventListener('click', () => this.closeModal());
+      m.querySelector('[data-tips]').addEventListener('click', () => { tipStore.reset(); this.closeModal(); });
+    });
+  }
+  showLog() {
+    const log = this.view?.log || [];
+    this.modal(`<h3>Журнал</h3><div class="log-full">${log.slice(-80).map((l) => `<div>${esc(l)}</div>`).join('')}</div><div class="row-btns"><button class="btn" data-close>Закрыть</button></div>`, (m) => {
+      m.querySelector('[data-close]').addEventListener('click', () => this.closeModal());
+      const lf = m.querySelector('.log-full'); lf.scrollTop = lf.scrollHeight;
+    });
+  }
+  /** One-time tutorial tips (first game). */
+  maybeTip(q) {
+    if (!q || q.player !== this.me || this.noTips) return;
+    const key = q.type === 'target' ? (q.defense ? 'defense' : q.maneuver ? 'maneuver' : q.hint === 'face' ? 'face' : 'target') : q.type;
+    const tip = TIPS[key];
+    if (!tip || tipStore.seen(key)) return;
+    tipStore.mark(key);
+    this.showTip(tip);
+  }
+  showTip(tip) {
+    const el = document.createElement('div');
+    el.className = 'tip-card';
+    el.innerHTML = `<div class="tip-ico">${tip.icon}</div><div class="tip-body"><b>${tip.title}</b><p>${tip.text}</p>
+      <div class="tip-btns"><button class="btn primary small" data-ok>Понятно</button><button class="btn small" data-off>Больше не показывать</button></div></div>`;
+    this.overlay().appendChild(el);
+    el.querySelector('[data-ok]').addEventListener('click', () => el.remove());
+    el.querySelector('[data-off]').addEventListener('click', () => { tipStore.off(); el.remove(); });
+  }
+  /** Caption at the top of the board describing an action. */
+  caption(html, ms = 2200) {
+    if (!this.capEl) { this.capEl = document.createElement('div'); this.capEl.className = 'caption'; this.ui.appendChild(this.capEl); }
+    const el = this.capEl;
+    el.innerHTML = html;
+    el.classList.remove('show'); el.getBoundingClientRect(); el.classList.add('show');
+    clearTimeout(this._capT);
+    this._capT = setTimeout(() => el.classList.remove('show'), ms / FX.speed);
+  }
+  /** Glowing arrow from a point to a card. */
+  arrow(from, to, color = '#ffd27a') {
+    if (!from || !to) return;
+    const layer = this.stage.querySelector('#fx-layer');
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('class', 'arrow-svg');
+    svg.setAttribute('width', this.L.W); svg.setAttribute('height', this.L.H);
+    const mx = (from.x + to.x) / 2, my = (from.y + to.y) / 2 - Math.min(160, Math.hypot(to.x - from.x, to.y - from.y) / 3);
+    const id = 'ah' + Math.random().toString(36).slice(2, 7);
+    svg.innerHTML = `<defs><marker id="${id}" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${color}"/></marker></defs>
+      <path d="M${from.x},${from.y} Q${mx},${my} ${to.x},${to.y}" stroke="${color}" stroke-width="9" fill="none" stroke-linecap="round" marker-end="url(#${id})" class="arrow-path" style="filter:drop-shadow(0 0 8px ${color})"/>`;
+    layer.appendChild(svg);
+    const path = svg.querySelector('path');
+    const len = path.getTotalLength();
+    path.style.strokeDasharray = len; path.style.strokeDashoffset = len;
+    path.animate([{ strokeDashoffset: len }, { strokeDashoffset: 0 }], { duration: 380 / FX.speed, fill: 'forwards', easing: 'ease-out' });
+    svg.animate([{ opacity: 1 }, { opacity: 1, offset: 0.75 }, { opacity: 0 }], { duration: 1900 / FX.speed });
+    setTimeout(() => svg.remove(), 1950 / FX.speed);
+  }
+
   // ---------- modals ----------
   modal(html, bind) {
     this.closeModal();
     const back = document.createElement('div');
     back.className = 'modal-back';
     back.innerHTML = `<div class="modal">${html}</div>`;
-    this.ui.appendChild(back);
+    this.overlay().appendChild(back);
     this.modalEl = back;
     bind && bind(back);
     return back;
@@ -653,7 +871,8 @@ export class BoardUI {
     switch (ev.type) {
       case 'declare': case 'declareAbility': {
         const id = ev.id ?? this.cardIdOf(ev.uid);
-        if (ev.type === 'declare') await this.showStageCard(ev.uid, id, ev.player);
+        this.announce(ev, id);
+        if (ev.type === 'declare') await this.showStageCard(ev.uid, id, ev.player, ev.targets);
         else {
           const p = this.pointOf(ev.uid);
           if (p) {
@@ -663,7 +882,8 @@ export class BoardUI {
             const el = this.els.get(ev.uid);
             el?.animate([{ transform: 'scale(1)', filter: 'brightness(1)' }, { transform: 'scale(1.12)', filter: 'brightness(1.6)' }, { transform: 'scale(1)', filter: 'brightness(1)' }], { duration: 420 / FX.speed });
           }
-          sfx.magic(p?.x); await W(320);
+          for (const t of ev.targets || []) this.arrow(p, this.pointOf(t), ev.player === this.me ? '#7fd4ff' : '#ff8a6a');
+          sfx.magic(p?.x); await W(ev.player === this.me ? 320 : 700);
         }
         break;
       }
@@ -683,7 +903,13 @@ export class BoardUI {
           tgtPt = nx ? this.pointOf(nx.ev.tgt) : null;
         }
         const ap = this.stagePoint(a);
-        if (!tgtPt) tgtPt = { x: ap.x, y: ap.y + (ap.y > 430 ? -300 : 300) };
+        if (!tgtPt) tgtPt = { x: ap.x, y: ap.y + (ap.y > this.L.midY ? -300 : 300) };
+        {
+          const nx = batch.slice(k + 1).find((b) => b.ev.type === 'damage' && b.ev.src === ev.src);
+          const an = CARDS[this.cardIdOf(ev.src)]?.name.split(',')[0] || '';
+          const tn = nx ? CARDS[this.cardIdOf(nx.ev.tgt)]?.name.split(',')[0] : null;
+          this.caption(`⚔️ Регион ${this.regionCol(ev.region) + 1}: <b>${esc(an)}</b> бьёт ${tn ? `<b>${esc(tn)}</b>` : ''}`, 1600);
+        }
         const dx = (tgtPt.x - ap.x) * 0.8, dy = (tgtPt.y - ap.y) * 0.8;
         a.style.zIndex = 40;
         const dur = 760 / FX.speed;
@@ -889,7 +1115,17 @@ export class BoardUI {
       default: break;
     }
   }
-  async showStageCard(uid, id, player) {
+  announce(ev, id) {
+    const v = this.view;
+    if (!v) return;
+    const who = ev.player === this.me ? 'Вы' : esc(v.players[ev.player]?.name || 'Соперник');
+    const nm = ev.type === 'declare' ? `«${esc(CARDS[id]?.name.split(',')[0] || '')}»` : `«${esc(CARDS[id]?.name.split(',')[0] || '')}» — ${esc(ev.name || 'свойство')}`;
+    const tg = (ev.targets || []).map((u) => { const t = this.findCard(u); return t ? `${t.ctrl === this.me ? 'ваш' : 'чужой'} «${esc(CARDS[t.id]?.name.split(',')[0])}»` : null; }).filter(Boolean).join(', ');
+    const mine = ev.player === this.me;
+    const verb = ev.type === 'declare' ? (mine ? 'играете' : 'играет') : (mine ? 'используете' : 'использует');
+    this.caption(`<span class="cap-who ${mine ? 'me' : 'opp'}">${who}</span> ${verb} ${nm}${tg ? ` → ${tg}` : ''}`, mine ? 1800 : 3200);
+  }
+  async showStageCard(uid, id, player, targets = []) {
     const d = CARDS[id];
     if (!d) return;
     const el = this.els.get(uid);
@@ -898,7 +1134,7 @@ export class BoardUI {
     sc.className = 'stage-card';
     sc.style.backgroundImage = d.img ? `url('${d.img}')` : '';
     if (!d.img) sc.innerHTML = `<div class="gen-card" style="width:100%;height:100%">${esc(d.name)}</div>`;
-    const tx = 1010, ty = 230;
+    const tx = this.L.stageCard.x, ty = this.L.stageCard.y;
     sc.style.left = tx + 'px'; sc.style.top = ty + 'px';
     this.stage.querySelector('#fx-layer').appendChild(sc);
     if (el) el.style.opacity = '0';
@@ -911,9 +1147,10 @@ export class BoardUI {
       { transform: 'scale(1)', opacity: 1 },
     ], { duration: 480 / FX.speed, easing: 'cubic-bezier(.2,.8,.3,1)' });
     await FX.wait(480);
-    FX.glow(tx + 150, ty + 209, d.legend ? 'rgba(255,210,90,.75)' : 'rgba(255,200,120,.45)', 230, 700);
+    FX.glow(tx + 150, ty + 209, d.legend ? 'rgba(255,210,90,.6)' : 'rgba(255,200,120,.32)', 170, 600);
     if (d.legend) FX.rays(tx + 150, ty + 209, '#ffd84a');
-    await FX.wait(player === this.me ? 480 : 1000);
+    for (const t of targets || []) this.arrow({ x: tx + 150, y: ty + 209 }, this.pointOf(t), player === this.me ? '#7fd4ff' : '#ff8a6a');
+    await FX.wait(player === this.me ? 480 : 1200);
     this._spawnFrom = { x: tx + 150, y: ty + 209 };
     sc.animate([{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(.55) translateY(40px)' }], { duration: 280 / FX.speed });
     setTimeout(() => sc.remove(), 300 / FX.speed);
@@ -938,3 +1175,50 @@ export class BoardUI {
 }
 
 export function esc(s) { return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+// ---------- helpers for explanations ----------
+function costText(c) {
+  if (!c) return 'бесплатно';
+  const parts = [];
+  if (c.coins) parts.push(`${c.coins} 💰`);
+  if (c.blood) parts.push(`${c.blood} 🩸`);
+  if (c.goods) parts.push(`${c.goods} 📦`);
+  if (c.star) parts.push(`${c.star} ✨`);
+  if (c.selfDestroy) parts.push('уничтожить эту карту');
+  return parts.join(' + ') || 'бесплатно';
+}
+function cardInfoHtml(d, c) {
+  const kws = [...new Set([...(d.kw || []), ...((c && c.kws) || [])])].filter((k) => KW_NAME[k]);
+  const toks = c ? Object.entries(c.tok || {}).filter(([, n]) => n > 0).map(([t, n]) => `${TOK_ICON[t] || t} ×${n}`).join('  ') : '';
+  const stats = [];
+  if (d.cost != null) stats.push(`<span class="st cost">💰 ${c && c.cost != null && c.cost !== d.cost ? `${c.cost} <s>${d.cost}</s>` : d.cost}</span>`);
+  if (c && c.atk != null) stats.push(`<span class="st atk">⚔️ ${c.atk}</span>`); else if (d.atk != null) stats.push(`<span class="st atk">⚔️ ${d.atk}</span>`);
+  if (c && c.hp != null) stats.push(`<span class="st hp">❤️ ${c.hp}${c.maxHp != null && c.maxHp !== c.hp ? ` / ${c.maxHp}` : ''}</span>`); else if (d.hp != null) stats.push(`<span class="st hp">❤️ ${d.hp}</span>`);
+  const text = (d.text || '').replace(/💰/g, '💰');
+  return `<div class="ci-name">${esc(d.name)}</div>
+    <div class="ci-type">${TYPE_RU[d.type] || ''}${d.subtypes?.length ? ' · ' + d.subtypes.map((x) => x.toLowerCase()).join(', ') : ''}${d.legend ? ' · <b>Легенда</b>' : ''}</div>
+    <div class="ci-stats">${stats.join('')}</div>
+    ${toks ? `<div class="ci-toks">На карте: ${toks}</div>` : ''}
+    ${c && c.stunned ? '<div class="ci-warn">💫 Оглушён: не нанесёт ран в следующем Сражении</div>' : ''}
+    <div class="ci-text">${linkTerms(esc(text)).replace(/\n/g, '<br>')}</div>
+    ${kws.length ? `<div class="ci-kws">${kws.map((k) => `<div><span>${KW_ICON[k] || '•'}</span> <b>${KW_NAME[k]}</b> — ${KW_HELP[k]}</div>`).join('')}</div>` : ''}`;
+}
+const TIPS = {
+  mulligan: { icon: '🃏', title: 'Стартовая рука', text: 'Выберите 5 карт, которые оставите. Не нравится расклад — «Муллиган»: карты замешаются, и вы возьмёте на 2 меньше. Хорошая рука — дешёвые союзники и Места, которые приносят монеты.' },
+  draw: { icon: '🪙', title: 'Начало хода', text: 'Каждый ход вы берёте две вещи: карту из колоды или монету. Можно 2 карты, 2 монеты или по одной. Монеты нужны, чтобы разыгрывать карты.' },
+  main: { icon: '▶️', title: 'Ваш ход', text: 'Нажмите на карту с зелёной рамкой, чтобы разыграть её. Цена — в монетах. Союзники встают в ближний ряд и бьются в Сражении; Места дают монеты и свойства. Когда закончите — «Завершить ход».' },
+  region: { icon: '🗺️', title: 'Выбор региона', text: 'На поле 5 регионов. Союзник бьётся с тем, кто стоит прямо напротив. Если напротив пусто — он бьёт Лидера соперника.' },
+  target: { icon: '🎯', title: 'Выбор цели', text: 'Нажмите на подсвеченную карту. Красная подсветка — враг, зелёная — ваша карта. Карты с ✨ Оберегом выбрать нельзя.' },
+  priority: { icon: '⚡', title: 'Опережение', text: 'У вас есть карта или свойство со значком ⚡. Их можно играть в ответ на действия соперника — ваш ответ сработает раньше. Если не нужно — «Пропустить». Кнопка ⚡ сверху выключает эти вопросы.' },
+  defense: { icon: '🛡️', title: 'Оборона', text: 'Ваш союзник с Обороной может принять удар на себя вместо Лидера или Напарника. Выберите его — или «Отмена», чтобы удар прошёл как есть.' },
+  maneuver: { icon: '🏃', title: 'Манёвр', text: 'Перед боем союзник с Манёвром может перебежать в свободный регион — например, чтобы ударить в Лидера или уйти от сильного врага.' },
+  face: { icon: '⚔️', title: 'Удар по Лидеру', text: 'Напротив вашего союзника никого нет — он бьёт напрямую. Выберите: Лидера (цель игры) или Напарника соперника.' },
+};
+const tipStore = {
+  get() { try { return JSON.parse(localStorage.getItem('pchk_tips') || '{}'); } catch { return {}; } },
+  put(v) { try { localStorage.setItem('pchk_tips', JSON.stringify(v)); } catch { /* private mode */ } },
+  seen(k) { const v = this.get(); return v.off || v[k]; },
+  mark(k) { const v = this.get(); v[k] = 1; this.put(v); },
+  off() { const v = this.get(); v.off = 1; this.put(v); },
+  reset() { this.put({}); },
+};

@@ -395,7 +395,7 @@ export class Game {
     }
     for (const c of this.field(i)) {
       (this.script(c).abilities || []).forEach((ab, k) => {
-        if (this.canUseAbility(i, c, k, { main: true })) opts.push({ id: `ab:${c.uid}:${k}`, kind: 'ability', uid: c.uid, ab: k, label: ab.name });
+        if (this.canUseAbility(i, c, k, { main: true })) opts.push({ id: `ab:${c.uid}:${k}`, kind: 'ability', uid: c.uid, ab: k, label: ab.name, abCost: this.abilityCost(c, ab), fast: !!ab.fast });
       });
     }
     opts.push({ id: 'end', kind: 'end', label: 'Завершить ход' });
@@ -410,7 +410,7 @@ export class Game {
     }
     for (const c of this.field(i)) {
       (this.script(c).abilities || []).forEach((ab, k) => {
-        if (this.canUseAbility(i, c, k, { main: false })) opts.push({ id: `ab:${c.uid}:${k}`, kind: 'ability', uid: c.uid, ab: k, label: ab.name });
+        if (this.canUseAbility(i, c, k, { main: false })) opts.push({ id: `ab:${c.uid}:${k}`, kind: 'ability', uid: c.uid, ab: k, label: ab.name, abCost: this.abilityCost(c, ab), fast: true });
       });
     }
     return opts;
@@ -664,17 +664,17 @@ export class Game {
     const quiet = !this.cfg.options?.allWindows && ['turnStart', 'turnEnd', 'maneuver', 'regionEnd', 'battleEnd'].includes(kind);
     for (;;) {
       if (quiet && !this.fastOptions(i).some((o) => o.kind === 'play')) return;
-      if (!(yield* this.offerPriority(i))) return;
+      if (!(yield* this.offerPriority(i, kind))) return;
     }
   }
-  *offerPriority(i) {
+  *offerPriority(i, kind = 'stack') {
     if (this.s.over) return false;
     const opts = this.fastOptions(i);
     if (!opts.length) return false;
     if (this.cfg.options?.autoPass?.[i]) return false;
     const a = yield* this.ask(i, {
       type: 'priority', prompt: this.s.stack.length ? `Опередить «${this.s.stack[this.s.stack.length - 1].label}»?` : 'Можно сыграть карту с Опережением',
-      options: [{ id: 'pass', kind: 'pass', label: 'Пас' }, ...opts], auto: false,
+      options: [{ id: 'pass', kind: 'pass', label: 'Пас' }, ...opts], auto: false, context: this.priorityContext(kind),
     });
     if (a === 'pass' || a == null) return false;
     const o = opts.find((x) => x.id === a);
@@ -683,6 +683,15 @@ export class Game {
     return this.s.stack.length !== before || true;
   }
 
+  /** What the player is being offered to respond to (for the UI). */
+  priorityContext(kind) {
+    const s = this.s;
+    if (s.stack.length) {
+      const top = s.stack[s.stack.length - 1];
+      return { kind: 'stack', label: top.label, by: top.player, id: top.inst.id, targets: top.ctx.targets.map((u) => { const t = this.card(u); return t ? { uid: u, id: t.id, ctrl: t.ctrl } : null; }).filter(Boolean) };
+    }
+    return { kind, region: s.battleRegion, turn: s.turn, phase: s.phase };
+  }
   /** Re-check that a stack item can still legally resolve. */
   legal(item) {
     const { ctx } = item;
