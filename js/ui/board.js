@@ -26,6 +26,7 @@ const plural = (n, one, few, many) => (n % 10 === 1 && n % 100 !== 11 ? one : n 
 const PLACE_THEME = { tavern: 160, castle: 8, dungeon: 33 };
 // Short Leader names for the ribbon on the board.
 const LEADER_SHORT = { 20: 'Лёвенхарт', 41: 'Крыса Лариса', 62: 'Дан Балан', 63: 'Граф Влад', 117: 'Эрик Пэнисов', 118: 'София' };
+const LEADER_ACC = { 20: 'Лёвенхарта', 41: 'Крысу Ларису', 62: 'Дана Балана', 63: 'Графа Влада', 117: 'Эрика Пэнисова', 118: 'Софию' };
 /** Background CSS that fits the painted part of a card scan (x 6–94%, y 12–50% — above the name ribbon on every card type) into a w×h box. */
 export function artCover(img, w, h, fy = 0.2) {
   const s = Math.max(w / 0.88, h / 0.53);
@@ -1667,7 +1668,7 @@ ${optHtml}</div></div>
         <div class="ov-side ov-op ${!win || draw ? 'bright' : 'dim'}" style="background-image:url('${art(op)}')"></div>
         <div class="ov-center">
           <div class="ov-title">${draw ? 'Ничья' : win ? 'Победа' : 'Поражение'}</div>
-          <div class="ov-sub">${draw ? 'Оба Лидера пали одновременно' : `${name(win ? me : op)} побеждает ${name(win ? op : me)}`} · раунд ${this.view.round || 1}</div>
+          <div class="ov-sub">${draw ? 'Оба Лидера пали одновременно' : `${name(win ? me : op)} побеждает ${esc(LEADER_ACC[P[win ? op : me].leader?.id] || name(win ? op : me))}`} · раунд ${this.view.round || 1}</div>
           <table class="ov-stats"><tr><th></th><th>Вы</th><th>Соперник</th></tr>
             ${row('Нанесено ран', st.dmg[me], st.dmg[op])}${row('Из них Лидеру', st.face[me], st.face[op])}${row('Уничтожено союзников', st.kills[me], st.kills[op])}${row('Сыграно карт', st.played[me], st.played[op])}</table>
           <div class="ov-highs">
