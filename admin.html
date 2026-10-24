@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Отзывы — Карточные битвы ПЧК</title>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Sans+Extra+Condensed:wght@600;700;800&family=PT+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+:root { --bg: #14060c; --frame: #0f1418; --line: #d9c48a; --parch: #efe2c4; --ink: #2a1e14; --gold: #f6d77a; --red: #9a2420; --blue: #2a63b0; --green: #3d7a3a; --slate: #3a4652; }
+* { box-sizing: border-box; }
+body { margin: 0; background: radial-gradient(ellipse at 50% 0, #3e1424, var(--bg) 70%) fixed; color: var(--parch); font: 16px/1.4 'PT Serif', serif; }
+.wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px 60px; }
+h1 { font: 800 34px 'Fira Sans Extra Condensed', sans-serif; letter-spacing: .5px; margin: 0 0 4px; color: var(--gold); }
+.sub { color: #cbbd9c; margin: 0 0 18px; }
+.login { background: var(--frame); border-radius: 14px; padding: 20px; box-shadow: inset 0 0 0 1.5px var(--line); max-width: 520px; }
+input, button, select { font: 700 17px 'Fira Sans Extra Condensed', sans-serif; }
+input[type=password], input[type=text] { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #6b4b25; background: #1d130b; color: var(--parch); margin: 10px 0; }
+button { cursor: pointer; border: 3px solid var(--frame); border-radius: 8px; padding: 8px 18px; color: #fff; text-transform: uppercase; letter-spacing: .4px;
+  background: linear-gradient(rgba(255, 255, 255, .13), rgba(0, 0, 0, .2)), var(--c, var(--red)); box-shadow: inset 0 0 0 1.5px var(--line); }
+button.blue { --c: var(--blue); } button.green { --c: var(--green); } button.slate { --c: var(--slate); }
+button:disabled { opacity: .5; cursor: default; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 16px; }
+.tabs button { --c: #2a1f18; } .tabs button.on { --c: var(--red); }
+.item { background: radial-gradient(ellipse at 50% 30%, #f3e7c8, #e2cfa4 70%, #c9b07e); color: var(--ink); border-radius: 12px; padding: 16px 18px; margin: 0 0 16px;
+  box-shadow: inset 0 0 14px rgba(120, 80, 30, .3), 0 0 0 2px var(--line), 0 0 0 5px var(--frame); }
+.head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+.kind { font: 800 15px 'Fira Sans Extra Condensed', sans-serif; text-transform: uppercase; color: #fff; padding: 3px 10px; border-radius: 3px; background: var(--slate); }
+.kind.bug { background: var(--red); } .kind.idea { background: var(--blue); } .kind.review { background: var(--green); } .kind.rights { background: #7a1a6a; }
+.st { font: 700 15px 'Fira Sans Extra Condensed', sans-serif; padding: 3px 10px; border-radius: 20px; background: #0f1418; color: var(--gold); }
+.meta { color: #6a5a40; font-size: 14px; }
+.text { font-size: 17px; white-space: pre-wrap; margin: 6px 0 10px; }
+.triage { background: rgba(15, 20, 24, .9); color: var(--parch); border-radius: 8px; padding: 12px 14px; margin: 10px 0; }
+.triage h4 { margin: 0 0 6px; font: 800 17px 'Fira Sans Extra Condensed', sans-serif; text-transform: uppercase; color: var(--gold); }
+.rec { display: inline-block; font: 800 16px 'Fira Sans Extra Condensed', sans-serif; padding: 2px 10px; border-radius: 3px; margin-right: 8px; }
+.rec.accept { background: #8fe0a0; color: #0f1418; } .rec.reject { background: #ff9a84; color: #0f1418; } .rec.done, .rec.already { background: #9fdcff; color: #0f1418; }
+.triage ul { margin: 6px 0 0 18px; padding: 0; }
+.cards { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.cards span { width: 54px; height: 75px; border-radius: 5px; background-size: cover; box-shadow: 0 0 0 2px #0f1418; }
+.none { color: #8a7a60; font-style: italic; }
+.acts { display: flex; gap: 8px; flex-wrap: wrap; }
+details { margin-top: 8px; } summary { cursor: pointer; font: 700 15px 'Fira Sans Extra Condensed', sans-serif; color: #5a4a30; }
+pre { white-space: pre-wrap; font-size: 13px; background: rgba(0, 0, 0, .06); padding: 8px; border-radius: 6px; max-height: 300px; overflow: auto; }
+.err { color: #ff9a84; margin: 8px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Отзывы и ошибки</h1>
+  <p class="sub">Сообщения игроков. Я (Claude) разбираю новые: на что влияет и стоит ли принимать. Решение — за вами: «Принять» или «Отклонить».</p>
+  <div id="app"></div>
+</div>
+<script type="module">
+import { CARDS } from './js/data/cards.js';
+const BASE = 'https://fwwiwazpivgzfyqhgtsp.supabase.co/rest/v1/rpc/';
+const KEY = 'sb_publishable_Ks5sPhKPZxt9B2yB4dirsA_3T_b4ims';
+const KIND = { bug: 'Ошибка', idea: 'Идея', review: 'Отзыв', rights: 'Правообладателю' };
+const STATUS = { new: 'Новый — ждёт разбора', triaged: 'Разобран — ждёт вашего решения', accepted: 'Принят — в работе', rejected: 'Отклонён', done: 'Исправлено' };
+const REC = { accept: 'Рекомендую принять', reject: 'Рекомендую отклонить', already: 'Уже исправлено', done: 'Готово' };
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const app = document.getElementById('app');
+let token = '';
+try { token = localStorage.getItem('pchk_admin') || ''; } catch {}
+let filter = 'open', items = [];
+
+async function rpc(fn, body) {
+  const r = await fetch(BASE + fn, { method: 'POST', headers: { apikey: KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error((await r.text()).includes('denied') ? 'denied' : 'net');
+  const t = await r.text(); return t ? JSON.parse(t) : null;
+}
+function login(msg = '') {
+  app.innerHTML = `<div class="login"><b>Код администратора</b><input type="password" placeholder="pchk-…" autocomplete="off">${msg ? `<div class="err">${msg}</div>` : ''}<button class="blue" data-go>Войти</button></div>`;
+  const inp = app.querySelector('input');
+  const go = () => { token = inp.value.trim(); try { localStorage.setItem('pchk_admin', token); } catch {} load(); };
+  app.querySelector('[data-go]').onclick = go; inp.onkeydown = (e) => { if (e.key === 'Enter') go(); };
+}
+async function load() {
+  app.innerHTML = '<p class="none">Загружаем…</p>';
+  try { items = await rpc('admin_feedback', { token }); draw(); }
+  catch (e) { login(e.message === 'denied' ? 'Неверный код.' : 'Нет связи с сервером.'); }
+}
+function draw() {
+  const groups = { open: (x) => x.status === 'new' || x.status === 'triaged', accepted: (x) => x.status === 'accepted', closed: (x) => x.status === 'rejected' || x.status === 'done', all: () => true };
+  const count = (k) => items.filter(groups[k]).length;
+  const list = items.filter(groups[filter]);
+  app.innerHTML = `<div class="tabs">${[['open', 'Ждут решения'], ['accepted', 'Приняты'], ['closed', 'Закрыты'], ['all', 'Все']].map(([k, t]) => `<button class="${filter === k ? 'on' : ''}" data-f="${k}">${t} · ${count(k)}</button>`).join('')}<button class="slate" data-reload>Обновить</button></div>
+    ${list.length ? list.map(card).join('') : '<p class="none">Здесь пусто.</p>'}`;
+  app.querySelectorAll('[data-f]').forEach((b) => { b.onclick = () => { filter = b.dataset.f; draw(); }; });
+  app.querySelector('[data-reload]').onclick = load;
+  app.querySelectorAll('[data-set]').forEach((b) => { b.onclick = async () => {
+    b.disabled = true;
+    try { await rpc('admin_set_status', { token, fid: Number(b.dataset.id), new_status: b.dataset.set }); const it = items.find((x) => x.id === Number(b.dataset.id)); if (it) it.status = b.dataset.set; draw(); }
+    catch { b.disabled = false; alert('Не получилось сохранить.'); }
+  }; });
+}
+function card(x) {
+  const t = x.triage;
+  const tri = t ? `<div class="triage"><h4>Разбор Claude</h4>
+      <span class="rec ${esc(t.recommendation)}">${esc(REC[t.recommendation] || t.recommendation)}</span>${t.severity ? `<b>Важность:</b> ${esc(t.severity)}` : ''}
+      ${t.summary ? `<p>${esc(t.summary)}</p>` : ''}
+      ${t.impact?.length ? `<b>На что влияет:</b><ul>${t.impact.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>` : ''}
+      ${t.reason ? `<p><b>Почему:</b> ${esc(t.reason)}</p>` : ''}
+      ${t.cards?.length ? `<div class="cards">${t.cards.filter((id) => CARDS[id]).map((id) => `<span title="${esc(CARDS[id].name)}" style="background-image:url('${CARDS[id].img}')"></span>`).join('')}</div>` : ''}
+    </div>` : '<p class="none">Ещё не разобрано. Скажите Claude «разбери отзывы».</p>';
+  const ctx = x.context?.game ? `<details><summary>Ход партии, приложенный игроком</summary><pre>${esc(JSON.stringify(x.context.game, null, 1))}</pre></details>` : '';
+  return `<div class="item">
+    <div class="head"><span class="kind ${x.kind}">${KIND[x.kind] || x.kind}</span><span class="st">${STATUS[x.status] || x.status}</span>
+      <span class="meta">№${x.id} · ${new Date(x.created_at).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}${x.author ? ' · ' + esc(x.author) : ''}${x.context?.screen ? ' · экран ' + esc(x.context.screen) : ''}</span></div>
+    <div class="text">${esc(x.text)}</div>
+    ${tri}
+    <div class="acts">
+      ${x.status !== 'accepted' && x.status !== 'done' ? `<button class="green" data-set="accepted" data-id="${x.id}">Принять</button>` : ''}
+      ${x.status !== 'rejected' ? `<button data-set="rejected" data-id="${x.id}">Отклонить</button>` : ''}
+      ${x.status === 'accepted' ? `<button class="blue" data-set="done" data-id="${x.id}">Отметить исправленным</button>` : ''}
+      ${x.status === 'rejected' || x.status === 'done' ? `<button class="slate" data-set="triaged" data-id="${x.id}">Вернуть на решение</button>` : ''}
+    </div>${ctx}</div>`;
+}
+token ? load() : login();
+</script>
+</body>
+</html>

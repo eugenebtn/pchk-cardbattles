@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#0b0604">
+<meta name="robots" content="noindex, nofollow">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -38,6 +39,7 @@
     <div class="fan-wrap"><div class="fan" data-fan></div></div>
     <h1 class="fan-logo">Карточные битвы</h1>
     <div class="press">Нажмите, чтобы начать</div>
+    <div class="splash-legal">Неофициальный некоммерческий фан-проект для игры с друзьями</div>
   </section>
 
   <!-- Menu -->
@@ -50,6 +52,7 @@
       <button data-act="stats">Статистика</button>
       <button data-act="rules">Правила</button>
       <button data-act="settings">Настройки</button>
+      <button data-act="feedback">Отзыв</button>
     </nav>
     <div id="join-banner" class="join-banner hidden"></div>
     <div class="fan-wrap"><div class="fan" data-fan></div></div>
@@ -67,7 +70,7 @@
       <label class="name-row">Ваше имя: <input type="text" id="opt-name" maxlength="20" placeholder="Игрок"></label>
       <label class="name-row">Поле: <select id="opt-board"><option value="random">Случайное место</option><option value="160">Таверна «Кайф»</option><option value="8">Замок Вёрджинвальд</option><option value="33">Пороховой склад</option><option value="5">Кёнигпон</option><option value="125">Подземный тайник</option><option value="130">Рыночная площадь</option><option value="116">Замок Нассератт</option></select></label>
     </div>
-    <p class="credits">Фанатская версия для игры с друзьями. Карты, персонажи и арты — «Подземелья Чикен Карри». Иконки — game-icons.net (CC BY 3.0). Звуки — <a href="https://www.littlerobotsoundfactory.com" target="_blank" rel="noopener">Little Robot Sound Factory</a> (CC BY 3.0), artisticdude и Kenney (CC0). Музыка — Kevin MacLeod, <a href="https://incompetech.com" target="_blank" rel="noopener">incompetech.com</a> (CC BY 4.0).</p>
+    <p class="credits"><span>Неофициальный фан-проект, не связан с «Чикен Карри»</span><button data-act="legal">Правовая информация и авторы</button></p>
   </section>
 
   <!-- Hero select -->
@@ -94,6 +97,9 @@
 
   <!-- Stats -->
   <section id="stats" class="screen"></section>
+
+  <!-- Legal -->
+  <section id="legal" class="screen"></section>
 
   <!-- Game -->
   <section id="game" class="screen">

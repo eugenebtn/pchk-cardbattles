@@ -21,6 +21,7 @@ const GEN_EMOJI = { 901: '🤡', 902: '🧌' };
 const TOK_TIP = { blood: 'Кровь 🩸', goods: 'Товары 📦', star: 'Тайная магия ✨', web: 'Паутина 🕸️', coins: 'Монеты 💰' };
 
 export const cardDef = (id) => CARDS[id];
+const plural = (n, one, few, many) => (n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? few : many);
 // Old board themes now map to Place cards whose painting fills the battlefield.
 const PLACE_THEME = { tavern: 160, castle: 8, dungeon: 33 };
 // Short Leader names for the ribbon on the board.
@@ -154,6 +155,7 @@ export class BoardUI {
       </div>
       <div class="opts-pop hidden" id="opts-pop">
         <button class="btn" id="btn-log">📜 Журнал</button>
+        <button class="btn" id="btn-bug">✉ Сообщить об ошибке</button>
         <button class="btn" id="btn-speed">⏩ Скорость</button>
         <button class="btn" id="btn-music">🎵 Музыка</button>
         <button class="btn" id="btn-sound">🔊 Звук</button>
@@ -173,6 +175,7 @@ export class BoardUI {
     this.powersEl = u.querySelector('#powers');
     u.querySelector('#btn-emote').addEventListener('click', (e) => { e.stopPropagation(); this.openEmotes(); });
     u.querySelector('#btn-log').addEventListener('click', () => { this.showLog(); u.querySelector('#opts-pop').classList.add('hidden'); });
+    u.querySelector('#btn-bug').addEventListener('click', () => { u.querySelector('#opts-pop').classList.add('hidden'); this.onFeedback?.(); });
     u.querySelector('#btn-opts').addEventListener('click', (e) => { e.stopPropagation(); u.querySelector('#opts-pop').classList.toggle('hidden'); });
     this.ui.addEventListener('click', (e) => { if (!e.target.closest('#opts-pop') && !e.target.closest('#btn-opts')) u.querySelector('#opts-pop')?.classList.add('hidden'); });
     this.stage.style.setProperty('--banner-y', L.bannerY + 'px');
@@ -894,37 +897,38 @@ export class BoardUI {
     const el = this.hintEl;
     if (!el || !this.view) return;
     const v = this.view, q = this.q, me = this.me;
-    let icon = '💡', text = '';
-    if (v.over) text = '';
+    // A short heading in the card-name style + one line in the italic of card quotes, with a gold icon medal.
+    let ico = 'scroll-unfurled', title = '', sub = '';
+    if (v.over) title = '';
     else if (!q || q.player !== me) {
-      if (v.phase === 'battle') { icon = '⚔️'; text = 'Идёт Сражение. Союзники напротив друг друга бьют одновременно; если напротив пусто — удар идёт в Лидера или Напарника.'; }
-      else if (v.phase === 'turn' && v.turn !== me) { icon = '⏳'; text = 'Ход соперника. Если у вас есть карта или свойство с ⚡ Опережением, игра предложит ответить.'; }
-      else text = 'Подождите…';
+      if (v.phase === 'battle') { ico = 'crossed-swords'; title = 'Сражение'; sub = 'Союзники бьют друг друга; если напротив пусто — удар по Лидеру.'; }
+      else if (v.phase === 'turn' && v.turn !== me) { ico = 'hourglass'; title = 'Ход соперника'; sub = 'Если сможете ответить Опережением — игра спросит.'; }
+      else { ico = 'hourglass'; title = 'Подождите…'; }
     } else {
       const coins = v.players[me].coins;
       switch (q.type) {
         case 'main': {
           const plays = q.options.filter((o) => o.kind === 'play').length, abs = q.options.filter((o) => o.kind === 'ability').length;
-          text = plays || abs
-            ? `Ваш ход, у вас ${coins} 💰. ${plays ? 'Карты в руке с зелёной рамкой можно разыграть' : ''}${plays && abs ? ', ' : ''}${abs ? 'у карт с меткой «✦ Свойство» можно использовать свойство' : ''}. Нажмите на карту. Когда закончите — «Завершить ход».`
-            : `Разыграть больше нечего (${coins} 💰). Нажмите «Завершить ход».`;
+          ico = 'card-play'; title = `Ваш ход · ${coins} ${plural(coins, 'монета', 'монеты', 'монет')}`;
+          sub = plays || abs ? `${plays ? 'Разыграйте карту с зелёной рамкой' : 'Используйте ✦ Свойство'}${plays && abs ? ' или ✦ Свойство' : ''}, затем — «Завершить ход».` : 'Больше нечего разыграть — завершите ход.';
           break;
         }
-        case 'draw': text = 'Начало хода: возьмите 2 — карты или монеты в любом сочетании (выбор по одной).'; break;
-        case 'region': text = q.row === 'place' ? 'Выберите место для карты Места — подсвеченная ячейка в дальнем ряду.' : 'Выберите регион — подсвеченная ячейка. Союзник будет сражаться с тем, кто стоит напротив.'; break;
+        case 'draw': ico = 'card-draw'; title = 'Начало хода'; sub = 'Возьмите две: карты или монеты, по одной.'; break;
+        case 'region': ico = 'targeted'; title = q.row === 'place' ? 'Куда положить Место?' : 'Куда поставить Союзника?'; sub = q.row === 'place' ? 'Нажмите на подсвеченную ячейку дальнего ряда.' : 'Он бьётся с тем, кто напротив. На ячейках — его сила там.'; break;
         case 'target':
-          if (q.defense) { icon = '🛡️'; text = 'Оборона: можно принять удар на свою карту с Обороной вместо Лидера/Напарника — или «Отмена», чтобы не прикрывать.'; }
-          else if (q.maneuver) { icon = '🏃'; text = 'Манёвр: перед боем можно передвинуть союзника в свободный регион. Нажмите на союзника или «Отмена».'; }
-          else if (q.hint === 'face') { icon = '⚔️'; text = 'Напротив никого: выберите, кого бьёт ваш союзник — Лидера или Напарника соперника.'; }
-          else text = `${q.prompt}. ${q.hint === 'buff' ? 'Подсвечены зелёным.' : 'Подсвечены красным.'}`;
+          if (q.defense) { ico = 'checked-shield'; title = 'Оборона'; sub = 'Принять удар на карту с Обороной — или «Отмена».'; }
+          else if (q.maneuver) { ico = 'sprint'; title = 'Манёвр'; sub = 'Можно передвинуть союзника в свободный регион.'; }
+          else if (q.hint === 'face') { ico = 'crossed-swords'; title = 'Кого бить?'; sub = 'Напротив пусто: выберите Лидера или Напарника соперника.'; }
+          else { ico = 'targeted'; title = q.prompt || 'Выберите цель'; sub = q.hint === 'buff' ? 'Подходящие карты подсвечены зелёным.' : 'Цели подсвечены красным.'; }
           break;
-        case 'priority': icon = '⚡'; text = 'Можно ответить картой или свойством с Опережением — или нажать «Пропустить».'; break;
-        default: text = q.prompt || '';
+        case 'priority': ico = 'bolt-shield'; title = 'Опережение'; sub = 'Ответьте картой или свойством — или «Пропустить».'; break;
+        default: title = q.prompt || '';
       }
     }
-    el.innerHTML = text ? `<span class="hint-ico">${icon}</span><span>${esc(text)}</span>` : '';
-    el.classList.toggle('empty', !text);
+    el.innerHTML = title ? `<span class="hint-ico"><i style="-webkit-mask-image:url(assets/icons/${ico}.svg);mask-image:url(assets/icons/${ico}.svg)"></i></span><span class="hint-txt"><b>${esc(title)}</b>${sub ? `<em>${esc(sub)}</em>` : ''}</span>` : '';
+    el.classList.toggle('empty', !title);
   }
+
   /** The «Опережение» decision, explained. */
   openPriority(q) {
     const ctx = q.context || {};

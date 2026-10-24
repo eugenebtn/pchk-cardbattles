@@ -392,3 +392,15 @@
 .rk-medal.m2 { background: radial-gradient(circle at 34% 28%, #ffffff, #c9ced6 35%, #7c838c 85%); }
 .rk-medal.m3 { background: radial-gradient(circle at 34% 28%, #ffe2c8, #d08a4a 35%, #7a4418 85%); }
 .rk-place { display: inline-block; width: 32px; text-align: center; font-weight: 700; color: #cbbd9c; }
+
+/* ---------- hint: like a card's text box — name-style heading and an italic line ---------- */
+.hint-bar { gap: 12px !important; justify-content: flex-start !important; text-align: left !important; padding: 7px 16px 7px 8px !important; }
+.hint-bar .hint-ico { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 0 !important;
+  background: radial-gradient(circle at 34% 28%, #fff1c0, #d6a948 45%, #7a5212); box-shadow: 0 0 0 2px #5a3e10, 0 2px 4px rgba(0, 0, 0, .5); }
+.hint-bar .hint-ico i { width: 64%; height: 64%; background: #3a2404; -webkit-mask-size: contain; mask-size: contain; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center; }
+.hint-bar .hint-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.hint-bar .hint-txt b { font: 800 18px/1.1 'Fira Sans Extra Condensed', sans-serif; text-transform: uppercase; letter-spacing: .4px; color: #2a1e14; }
+.hint-bar .hint-txt em { font: italic 400 15px/1.2 'PT Serif', serif; color: #4a3826; }
+#stage.port .hint-bar .hint-ico { width: 44px; height: 44px; }
+#stage.port .hint-bar .hint-txt b { font-size: 24px; }
+#stage.port .hint-bar .hint-txt em { font-size: 20px; }

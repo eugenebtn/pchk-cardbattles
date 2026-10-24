@@ -12,6 +12,8 @@ import { renderBuilder, loadCustomDecks } from './ui/builder.js';
 import { installTooltips, linkTerms } from './ui/glossary.js';
 import { renderStats, recordGame } from './ui/stats.js';
 import { submitResult } from './net/ranking.js';
+import { openFeedback } from './ui/feedback.js';
+import { renderLegal } from './ui/legal.js';
 import { showTutorial } from './ui/tutorial.js';
 installTooltips();
 
@@ -95,6 +97,19 @@ $('#splash').addEventListener('click', () => { sfx.confirm(); show('menu'); });
 $('#menu [data-act=settings]')?.addEventListener('click', () => { $('#menu-opts').classList.toggle('hidden'); });
 
 // ---------- decks ----------
+// What each Leader does, in plain words for a first game, and how hard the deck is to play.
+// Where the face is on each Leader card (for round portraits).
+const FOCUS = { 20: '71% 25%', 41: '32% 21%', 62: '50% 24%', 63: '54% 21%', 117: '41% 25%', 118: '50% 21%' };
+const focus = (id) => FOCUS[id] || '50% 26%';
+const DIFF_RU = { 1: '★ Просто — для первой партии', 2: '★★ Средне', 3: '★★★ Сложно — для опытных' };
+const LEADER_PLAIN = {
+  20: { d: 1, t: ['Каждый ход получает +2 монеты', 'За 2 монеты делает союзника сильнее на +1/+1 — даже в ход соперника'] },
+  41: { d: 2, t: ['В начале каждого боя призывает крысу 1/1', 'Первая карта за ход дешевле на 1 монету за каждое ваше Животное'] },
+  62: { d: 3, t: ['Показывайте карты Вампиров из руки — копится кровь 🩸', 'Кровью платите за свойства Вампиров; за 4 🩸 — две Челюсти 1/1'] },
+  63: { d: 2, t: ['За 3 монеты наносит 2 раны врагу — даже в ход соперника', 'Кровь 🩸 меняет на новую карту или на монету'] },
+  117: { d: 3, t: ['Может сыграть карту в ход соперника — по одной за фазу', 'Его союзники, ранив вражеского Лидера, становятся сильнее'] },
+  118: { d: 1, t: ['Каждый ход либо берёт карту, либо лечит себе 2 раны', 'Карты Природы стоят на 1 монету дешевле'] },
+};
 const DECK_STYLE = {
   sfinkteirion: 'Стабильный доход, сильные Воины и постепенное давление. Хороший выбор для первой партии.',
   larisa: 'Рой зверей: много дешёвых Животных, скидки на первую карту и быстрый натиск числом.',
@@ -127,20 +142,22 @@ function pickDecks(steps) {
       const paint = () => {
         const L = sel.random ? null : CARDS[sel.leader];
         root.innerHTML = `<div class="hero-select">
+          ${steps.length > 1 ? `<div class="hs-step s${step}">Шаг ${step + 1} из ${steps.length}</div>` : ''}
           <div class="hs-title">${esc(st.title)}</div>
+          ${chosen.length ? `<div class="hs-chosen">${chosen.map((c, k) => `<span><i style="background-image:url('${CARDS[c.leader].img}');background-position:${focus(c.leader)}"></i>${k === 0 ? 'Ваш выбор' : 'Выбор ' + (k + 1)}: <b>${esc(c.title)}</b> ✓</span>`).join('')}</div>` : ''}
           <div class="hs-main">
-            <div class="hs-portrait" style="background-image:url('${L ? L.img : CARDS[63].img}')${sel.random ? ';filter:brightness(.35) blur(2px)' : ''}">${sel.random ? '<div style="position:absolute;inset:0;display:grid;place-items:center;font-size:120px;filter:none">🎲</div>' : ''}</div>
+            <div class="hs-portrait art" style="background-image:url('${L ? L.img : CARDS[63].img}')${sel.random ? ';filter:brightness(.35) blur(2px)' : `;background-position:${focus(sel.leader)}`}">${L ? `<div class="hs-port-name">${esc(L.name.split(',')[0])}</div>` : ''}${sel.random ? '<div style="position:absolute;inset:0;display:grid;place-items:center;font-size:120px;filter:none">🎲</div>' : ''}</div>
             <div class="hs-info">
               <div class="hs-name">${esc(sel.random ? 'Случайный соперник' : L.name)}</div>
               <div class="hs-sub">${sel.random ? 'Компьютер возьмёт любую стартовую колоду' : `${esc(sel.title)} · ${sel.official ? 'стартовая скрижаль' : 'своя колода'} · ${sel.cards.length} карт`}</div>
-              ${L ? `<div class="hs-hp" data-tip="Здоровье Лидера|Если упадёт до 0 — поражение.">❤️ ${L.hp}</div>
-              <div class="hs-ability">${linkTerms(esc(L.text)).replace(/\n/g, '<br>')}</div>
+              ${L ? `<div class="hs-row"><div class="hs-hp" data-tip="Здоровье Лидера|Если упадёт до 0 — поражение.">❤️ ${L.hp}</div>${LEADER_PLAIN[sel.leader] ? `<div class="hs-diff d${LEADER_PLAIN[sel.leader].d}">${DIFF_RU[LEADER_PLAIN[sel.leader].d]}</div>` : ''}</div>
               <div class="hs-style">${esc(DECK_STYLE[sel.deckKey] || 'Ваша собственная скрижаль.')}</div>
-              <div class="hs-sub" style="margin-top:10px">${deckMix(sel.cards)}</div>` : ''}
+              ${LEADER_PLAIN[sel.leader] ? `<ul class="hs-plain">${LEADER_PLAIN[sel.leader].t.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+              <details class="hs-more"><summary>Подробнее: точный текст карты</summary><div class="hs-ability">${linkTerms(esc(L.text)).replace(/\n/g, '<br>')}</div></details>` : ''}
             </div>
           </div>
           <div class="hs-roster"><div class="hs-medal newdeck" data-new><div class="m">＋</div>Своя колода<div class="tag">собрать</div></div>${list.map((d) => `<div class="hs-medal ${d === sel ? 'sel' : ''} ${d.random ? 'random' : ''}" data-key="${d.key}">
-            <div class="m" ${d.random ? '' : `style="background-image:url('${CARDS[d.leader].img}')"`}>${d.random ? '🎲' : ''}</div>
+            <div class="m" ${d.random ? '' : `style="background-image:url('${CARDS[d.leader].img}');background-position:${focus(d.leader)}"`}>${d.random ? '🎲' : ''}</div>
             ${esc(d.random ? 'Случайный' : d.title)}${!d.random && !d.official ? '<div class="tag">своя</div>' : ''}</div>`).join('')}</div>
           <div class="hs-bar"><button class="btn" data-back>← Назад</button><button class="btn hs-go" data-go>${esc(step === steps.length - 1 ? (st.goLabel || 'В бой!') : 'Далее')}</button></div>
         </div>`;
@@ -160,7 +177,13 @@ function pickDecks(steps) {
           if (d.random) { const off = decks.filter((x) => x.official); d = off[Math.floor(Math.random() * off.length)]; }
           chosen.push(d);
           step++;
-          if (step >= steps.length) resolve(chosen); else draw();
+          if (step >= steps.length) { resolve(chosen); return; }
+          // A short pause that shows the choice was taken, then the next step slides in.
+          const box = root.querySelector('.hero-select');
+          box.classList.add('picked');
+          box.insertAdjacentHTML('beforeend', `<div class="hs-picked"><div class="hs-picked-in"><i style="background-image:url('${CARDS[d.leader].img}');background-position:${focus(d.leader)}"></i><span>Выбрано: <b>${esc(d.title)}</b></span><small>Теперь: ${esc(steps[step].title)}</small></div></div>`);
+          root.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+          setTimeout(() => { draw(); root.querySelector('.hero-select')?.classList.add('step-in'); }, 1300);
         };
       };
       paint();
@@ -296,6 +319,7 @@ function startBoard(session) {
   });
   session.attach(ui);
   ui.noTips = session.controllers ? session.controllers[session.me] !== 'human' : false;
+  ui.onFeedback = () => openFeedback({ ui, name: opt.name });
   ui.onEmote = (text) => { if (session.remote) session.remote.send({ t: 'emote', text }); if (session.conn) session.conn.send({ t: 'emote', text }); };
   ui.onGameEnd = (winner, view, played) => {
     if (session.controllers && session.controllers[session.me] !== 'human') return; // bot vs bot
@@ -498,6 +522,8 @@ $('#splash').addEventListener('click', () => {
 // Test shortcut: ?screen=menu opens a screen directly.
 const screenParam = new URLSearchParams(location.search).get('screen');
 if (screenParam) show(screenParam);
+const actParam = new URLSearchParams(location.search).get('act');
+if (actParam) setTimeout(() => document.querySelector(`#menu [data-act="${actParam}"]`)?.click(), 300);
 // ---------- quick start for testing: ?quick=deckA,deckB ----------
 const quick = new URLSearchParams(location.search).get('quick');
 if (quick) {
@@ -524,6 +550,8 @@ document.querySelectorAll('#menu [data-act]').forEach((b) => b.addEventListener(
   else if (a === 'host') startHost();
   else if (a === 'rules') { renderRules($('#rules'), () => show('menu')); show('rules'); }
   else if (a === 'tutorial') openTutorial();
+  else if (a === 'feedback') openFeedback({ name: opt.name });
+  else if (a === 'legal') { renderLegal($('#legal'), () => show('menu'), { onRights: () => openFeedback({ name: opt.name, kind: 'rights' }) }); show('legal'); }
   else if (a === 'stats' || a === 'ranking') {
     renderStats($('#stats'), () => show('menu'), { tab: a === 'ranking' ? 'world' : 'mine', name: () => opt.name, setName: (v) => { opt.name = v; store.set('name', v); $('#opt-name').value = v; } });
     show('stats');
