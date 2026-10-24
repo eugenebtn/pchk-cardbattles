@@ -536,7 +536,7 @@ export class BoardUI {
     if (q.player !== this.me) {
       if (this.view?.phase === 'battle') { el.innerHTML = ''; return; }
       el.className = 'prompt wait';
-      el.innerHTML = `<div class="ptext">Соперник думает…</div>`;
+      el.innerHTML = `<div class="ptext">${q.type === 'priority' ? 'Соперник может ответить…' : 'Соперник думает…'}</div>`;
       return;
     }
     const btns = [];
@@ -900,7 +900,7 @@ export class BoardUI {
     // A short heading in the card-name style + one line in the italic of card quotes, with a gold icon medal.
     let ico = 'scroll-unfurled', title = '', sub = '';
     if (v.over) title = '';
-    else if (this._fakeWait || (q && q.player !== me && q.type === 'priority')) { ico = 'bolt-shield'; title = 'Соперник может ответить'; sub = 'Ждём, ответит ли он Опережением.'; }
+    else if (q && q.player !== me && q.type === 'priority') { ico = 'bolt-shield'; title = 'Соперник может ответить'; sub = 'Ждём, ответит ли он Опережением.'; }
     else if (!q || q.player !== me) {
       if (v.phase === 'battle') { ico = 'crossed-swords'; title = 'Сражение'; sub = 'Союзники бьют друг друга; если напротив пусто — удар по Лидеру.'; }
       else if (v.phase === 'turn' && v.turn !== me) { ico = 'hourglass'; title = 'Ход соперника'; sub = 'Если сможете ответить Опережением — игра спросит.'; }
@@ -1261,11 +1261,13 @@ ${optHtml}</div></div>
     if (ev.type === 'declareAbility' || ev.type === 'ability') this._actId = this.cardIdOf(ev.uid) ?? this._actId;
     switch (ev.type) {
       case 'pause': {
-        // The opponent «may answer» (real or not — it looks the same, so stops don't reveal their hand).
+        // The opponent «may answer»: shown exactly like a real wait for their answer (hint, prompt, end button),
+        // so a stop never reveals whether they hold a card with Опережение.
         if (ev.player === this.me) break;
-        this._fakeWait = true; this.updateHint();
+        const keep = this.q;
+        this.setPending({ player: ev.player, type: 'priority', options: [], pause: true });
         await W(ev.ms || 1000);
-        this._fakeWait = false; this.updateHint();
+        if (this.q?.pause) this.setPending(keep);
         break;
       }
       case 'declare': case 'declareAbility': {

@@ -233,7 +233,14 @@ export class Game {
     try {
       const g2 = new Game({ ...this.cfg, seed: this.seedUsed, options: { ...this.cfg.options, previews: false } });
       for (const a of this.history) { if (!g2.pending || !g2.respond(g2.pending.player, a)) return null; }
-      if (g2.pending?.type !== 'region' || !g2.respond(i, r)) return null;
+      if (g2.pending?.type !== 'region') return null;
+      // If the outcome depends on chance or on hidden cards (deck, hands), the preview would give it away:
+      // then fall back to the plain «always-on bonuses» preview.
+      const fake = g2.cfg.options; if (fake) fake.fakeStops = null;
+      let chance = false; const rnd = g2.rand; g2.rand = () => { chance = true; return rnd(); };
+      const hidden = () => g2.s.players.map((p) => [p.deck.length, p.deck[0]?.uid, ...p.hand.map((x) => x.uid).filter((u) => u !== c.uid)].join(',')).join('|');
+      const before = hidden();
+      if (!g2.respond(i, r)) return null;
       for (let k = 0; k < 300 && g2.pending && !g2.s.over; k++) {
         const q = g2.pending;
         if (q.type === 'main' && g2.s.stack.length === 0) break;
@@ -246,6 +253,7 @@ export class Game {
       }
       const c2 = g2.card(c.uid);
       if (!c2 || !g2.onField(c2)) return null;
+      if (chance || hidden() !== before) return null;
       const d = defOf(side);
       const kws = Object.keys(KW_RU).filter((k) => g2.has(c2, k) && !d.kw.includes(k));
       const place = g2.placeAt(i, r);

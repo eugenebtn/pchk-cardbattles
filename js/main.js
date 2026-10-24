@@ -64,8 +64,10 @@ $('#opt-autopass').addEventListener('change', (e) => { opt.autopass = e.target.c
 $('#opt-name').addEventListener('input', (e) => { opt.name = e.target.value.trim(); store.set('name', opt.name); });
 const myName = () => opt.name || 'Игрок';
 
-// Preload card art.
-setTimeout(() => { for (const c of Object.values(CARDS)) if (c.img) { const i = new Image(); i.src = c.img; } }, 300);
+// Preload only what is needed: the Leaders now, the two decks of a game when it starts (saves ~10 MB on phones).
+const preloaded = new Set();
+const preload = (ids) => { for (const id of ids) { const img = CARDS[id]?.img; if (img && !preloaded.has(img)) { preloaded.add(img); const i = new Image(); i.src = img; } } };
+setTimeout(() => preload([20, 41, 62, 63, 117, 118]), 300);
 
 // ---------- scene behind the splash, menu and hero select: velvet, leader art slices, a fan of leader cards ----------
 const LEADER_IDS = [62, 117, 41, 20, 118, 63];
@@ -307,6 +309,7 @@ class Session {
 
 let current = null;
 function startBoard(session) {
+  preload((session.cfgPlayers || []).flatMap((p) => [p.leader, ...(p.deck || [])]));
   show('game');
   const themes = ['160', '8', '33', '5', '125', '130', '116'];
   const theme = themes.includes(String(opt.board)) ? String(opt.board) : themes[Math.floor(Math.random() * themes.length)];

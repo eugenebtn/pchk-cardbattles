@@ -36,12 +36,12 @@ async function get(path) {
 }
 /** Players of one mode, best first. */
 export async function loadPlayers(mode) {
-  const rows = await get(`leaderboard?select=*&mode=eq.${encodeURIComponent(mode)}&limit=500`);
+  const rows = await get(`leaderboard?select=*&mode=eq.${encodeURIComponent(mode)}&order=wins.desc,winrate.desc&limit=300`);
   return rows.sort((a, b) => b.wins - a.wins || b.winrate - a.winrate || a.games - b.games);
 }
 /** Decks of one mode: games, wins and leader, counted from the latest results. */
 export async function loadDecks(mode) {
-  const rows = await get(`results?select=deck,leader,won&mode=eq.${encodeURIComponent(mode)}&order=created_at.desc&limit=5000`);
+  const rows = await get(`results?select=deck,leader,won&mode=eq.${encodeURIComponent(mode)}&order=created_at.desc&limit=1000`);
   const m = new Map();
   for (const r of rows) {
     const d = m.get(r.deck) || { deck: r.deck, leader: r.leader, games: 0, wins: 0 };

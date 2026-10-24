@@ -8,6 +8,7 @@ let manifest = null;
 const buffers = new Map();
 let loading = null;
 const BASE = 'assets/audio/';
+const USED = new Set(['book', 'boom', 'chain', 'chop', 'die', 'dragon', 'fire', 'fireball', 'goblin', 'jEpic', 'jLose', 'jWin', 'lrGold', 'lrMenu', 'lrSpell', 'lrTrap', 'monster', 'plate', 'punch', 'punchMed', 'rpgArmor', 'rpgCloth', 'rpgCoin', 'rpgMetal', 'rpgSwing', 'rpgSword', 'rpgUi', 'rpgWood', 'slime', 'soft']);
 
 function ac() {
   if (!ctx) {
@@ -49,7 +50,8 @@ async function loadAll() {
   loading = (async () => {
     try {
       manifest = await (await fetch(BASE + 'manifest.json')).json();
-      const names = Object.keys(manifest).filter((n) => !n.startsWith('music'));
+      // Only the groups the effects below actually use (older packs stay on disk but are not downloaded).
+      const names = Object.keys(manifest).filter((n) => USED.has(n));
       await Promise.all(names.flatMap((n) => manifest[n].map((f) => load(f))));
     } catch (e) { console.warn('audio load failed', e); }
   })();
