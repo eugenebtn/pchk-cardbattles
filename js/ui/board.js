@@ -544,6 +544,20 @@ export class BoardUI {
     if (low <= 10 && !this._tense) { this._tense = true; playMusic('musicTense'); }
     if (low <= 5 && !this._danger) { this._danger = true; sfx.danger(); }
   }
+  /** Move clock (online games with a timer): seconds left shown under the end-turn button. */
+  setDeadline(ms) {
+    clearInterval(this._clock);
+    let el = this.ui.querySelector('.turn-clock');
+    if (!ms) { el?.remove(); return; }
+    if (!el) { el = document.createElement('div'); el.className = 'turn-clock'; el.style.left = (this.L.end.x) + 'px'; el.style.top = (this.L.end.y + (this.L.name === 'port' ? 80 : 74)) + 'px'; this.ui.appendChild(el); }
+    const tick = () => {
+      const left = Math.max(0, Math.round((ms - Date.now()) / 1000));
+      el.textContent = `⏳ ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+      el.classList.toggle('low', left <= 10);
+      if (left <= 0) clearInterval(this._clock);
+    };
+    tick(); this._clock = setInterval(tick, 500);
+  }
   /** Short name of a side (its Leader), for the spectator view. */
   sideName(i) { const id = this.view?.players?.[i]?.leader?.id; return LEADER_SHORT[id] || CARDS[id]?.name.split(',')[0] || this.view?.players?.[i]?.name || ''; }
   setPending(q) {

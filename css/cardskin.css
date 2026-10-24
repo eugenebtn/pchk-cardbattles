@@ -638,3 +638,6 @@
 .rec-dot { position: fixed; z-index: 500; top: 10px; left: 50%; transform: translateX(-50%); padding: 6px 14px; border: none; border-radius: 16px; cursor: pointer;
   font: 700 15px 'Fira Sans Extra Condensed', sans-serif; color: #fff; background: #b8281c; box-shadow: 0 0 0 2px #0f1418, 0 6px 14px rgba(0, 0, 0, .6); animation: recblink 1.4s ease-in-out infinite; }
 @keyframes recblink { 50% { opacity: .65; } }
+
+.turn-clock { position: absolute; z-index: 60; padding: 3px 12px; border-radius: 12px; font: 800 18px 'Fira Sans Extra Condensed', sans-serif; color: #f6e2a8; background: rgba(15, 10, 6, .85); box-shadow: inset 0 0 0 1px #d9c48a; }
+.turn-clock.low { color: #fff; background: #b8281c; animation: recblink 1s ease-in-out infinite; }
