@@ -14,6 +14,9 @@ const DECK_RU = { levenheart: 'Лёвенхарт', larisa: 'Лариса', vamp
 const MIN = 40, MAX_COPIES = 3;
 
 export function loadCustomDecks(store) { return store.get('decks', []); }
+// The six Leaders have new paintings (square face crops); other cards keep their card picture.
+const LEADER_FACES = new Set([20, 41, 62, 63, 117, 118]);
+const leaderPic = (id) => (LEADER_FACES.has(Number(id)) ? `background-image:url('assets/leaders/face/${id}.webp');background-size:cover;background-position:50% 40%` : `background-image:url('${CARDS[id]?.img}')`);
 const costNum = (c) => (typeof c.cost === 'number' ? c.cost : 0);
 
 // Win rates for the builder: world numbers from the shared ranking (players' games), else your own games.
@@ -55,12 +58,12 @@ export function renderBuilder(root, store, onBack, opts = {}) {
       <div class="bld-top"><button class="btn" data-back>← Назад</button><h2>Мои колоды</h2><span></span></div>
       <div class="bld-gal">
         <div class="bld-tile new" data-new><div class="plus">＋</div><b>Новая колода</b><small>Выберите Лидера и соберите 40+ карт</small></div>
-        ${decks.map((d, k) => `<div class="bld-tile" data-edit="${k}"><div class="face" style="background-image:url('${CARDS[d.leader]?.img}')"></div>
+        ${decks.map((d, k) => `<div class="bld-tile" data-edit="${k}"><div class="face" style="${leaderPic(d.leader)}"></div>
           <b>${esc(d.name)}</b><small>${esc((CARDS[d.leader]?.name || '').split(',')[0])} · ${d.cards.length} карт ${d.cards.length >= MIN ? '✔' : '⚠'}</small></div>`).join('')}
       </div>
       ${FEATURES.community ? '<h3 class="bld-h3">Колоды сообщества</h3><div class="bld-gal small bld-comm"><p class="bld-note">Загружаем…</p></div>' : ''}
       <h3 class="bld-h3">Начать со стартовой скрижали</h3>
-      <div class="bld-gal small">${Object.values(DECKS).map((d) => `<div class="bld-tile" data-copy="${d.key}"><div class="face" style="background-image:url('${CARDS[d.leader].img}')"></div><b>${esc(d.title)}</b><small>скопировать и изменить${(() => { const r = WR?.decks.get(d.title); return r && r.games >= MIN_GAMES ? ` · побед ${Math.round((r.wins / r.games) * 100)}% из ${r.games}` : ''; })()}</small></div>`).join('')}</div>
+      <div class="bld-gal small">${Object.values(DECKS).map((d) => `<div class="bld-tile" data-copy="${d.key}"><div class="face" style="${leaderPic(d.leader)}"></div><b>${esc(d.title)}</b><small>скопировать и изменить${(() => { const r = WR?.decks.get(d.title); return r && r.games >= MIN_GAMES ? ` · побед ${Math.round((r.wins / r.games) * 100)}% из ${r.games}` : ''; })()}</small></div>`).join('')}</div>
     </div>`;
     root.querySelector('[data-back]').onclick = () => { sfx.click(); onBack(); };
     root.querySelector('[data-new]').onclick = () => { sfx.select(); pickLeader(); };
@@ -69,7 +72,7 @@ export function renderBuilder(root, store, onBack, opts = {}) {
       loadCommunityDecks().then((list) => {
         const box = root.querySelector('.bld-comm'); if (!box) return;
         const wr = (t) => { const r = WR?.decks.get(t); return r && r.games >= MIN_GAMES ? ` · побед ${Math.round((r.wins / r.games) * 100)}%` : ''; };
-        box.innerHTML = list.length ? list.map((d, k) => `<div class="bld-tile" data-comm="${k}"><div class="face" style="background-image:url('${CARDS[d.leader]?.img}')"></div><b>${esc(d.name)}</b><small>${esc(d.author || 'Игрок')} · ${d.cards.length} карт${wr(d.name)} · скопировать</small></div>`).join('') : '<p class="bld-note">Пока никто не опубликовал колоду. Соберите свою и нажмите «Опубликовать».</p>';
+        box.innerHTML = list.length ? list.map((d, k) => `<div class="bld-tile" data-comm="${k}"><div class="face" style="${leaderPic(d.leader)}"></div><b>${esc(d.name)}</b><small>${esc(d.author || 'Игрок')} · ${d.cards.length} карт${wr(d.name)} · скопировать</small></div>`).join('') : '<p class="bld-note">Пока никто не опубликовал колоду. Соберите свою и нажмите «Опубликовать».</p>';
         box.querySelectorAll('[data-comm]').forEach((e) => { e.onclick = () => { sfx.select(); const d = list[Number(e.dataset.comm)]; editor({ name: d.name + ' — копия', leader: d.leader, cards: [...d.cards].filter((id) => CARDS[id]) }, -1); }; });
       }).catch(() => { const box = root.querySelector('.bld-comm'); if (box) box.innerHTML = '<p class="bld-note">Колоды сообщества сейчас недоступны.</p>'; });
     }
@@ -79,7 +82,7 @@ export function renderBuilder(root, store, onBack, opts = {}) {
   // ---------- leader choice ----------
   function pickLeader() {
     root.innerHTML = `<div class="bld"><div class="bld-top"><button class="btn" data-back>← Назад</button><h2>Выберите Лидера</h2><span></span></div>
-      <div class="bld-leaders">${leaders.map((l) => `<div class="bld-leader" data-id="${l.id}"><div class="face" style="background-image:url('${l.img}')"></div><b>${esc(l.name.split(',')[0])}</b><small>❤️ ${l.hp}</small></div>`).join('')}</div>
+      <div class="bld-leaders">${leaders.map((l) => `<div class="bld-leader" data-id="${l.id}"><div class="face" style="${leaderPic(l.id)}"></div><b>${esc(l.name.split(',')[0])}</b><small>❤️ ${l.hp}</small></div>`).join('')}</div>
       <p class="bld-note">Карты не привязаны к Лидеру: можно смешивать любые наборы. Лидер даёт здоровье и особые свойства.</p></div>`;
     root.querySelector('[data-back]').onclick = () => { sfx.click(); gallery(); };
     root.querySelectorAll('.bld-leader').forEach((e) => { e.onclick = () => { sfx.confirm(); const L = CARDS[Number(e.dataset.id)]; editor({ name: 'Колода: ' + L.name.split(',')[0], leader: L.id, cards: [] }, -1); }; });

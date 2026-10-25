@@ -483,7 +483,8 @@ function startBoard(session) {
     try {
       const st = ui.stats || {};
       const ctx = { won: winner === me, mode: session.remote || session.conn ? 'online' : 'bot', level: session.botLevel, myLeader: P[me].leader.id, oppLeader: P[1 - me].leader.id,
-        myHp: P[me].leader.hp, round: view.round, best: st.best && st.best.side === me ? st.best.amount : 0, oppKills: st.kills ? st.kills[1 - me] : 0 };
+        myHp: P[me].leader.hp, round: view.round, best: st.best && st.best.side === me ? st.best.amount : 0, oppKills: st.kills ? st.kills[1 - me] : 0,
+        dmg: st.dmg ? st.dmg[me] : 0, face: st.face ? st.face[me] : 0, kills: st.kills ? st.kills[me] : 0, played: played || [] };
       ui.newAch = checkAchievements(ctx);
       if (checkDaily(ctx)) { const d = dailyState(); ui.newAch = [{ icon: '📜', title: 'Задание дня выполнено', text: `${d.task.text}. Дней подряд: ${d.streak}` }, ...(ui.newAch || [])]; }
       drawDaily();

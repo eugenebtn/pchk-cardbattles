@@ -104,3 +104,74 @@
   box-shadow: inset 0 0 0 1.5px #fff6d0, inset 0 0 0 4px #9a611c, inset 0 0 0 5px #ffe39a, 0 0 26px rgba(240, 190, 90, .5), 0 8px 20px rgba(0, 0, 0, .6) !important; animation: plq-glow 2.6s ease-in-out infinite; }
 .over3 .ov-buy { color: rgba(232, 200, 140, .75) !important; }
 @media (max-width: 760px) { .over3 .ov-btn.gold { max-width: 260px; margin: 0 calc(50% - 130px) 4px; font-size: 20px !important; } .over3 .ov-btn { font-size: 14px !important; padding: 9px 12px !important; } }
+
+/* ---------- end screen v4: painted crest, round medallions, gold plaque «Реванш», round icon buttons ---------- */
+.over4 { display: flex !important; flex-direction: column; align-items: center; justify-content: center; gap: clamp(6px, 1.4vh, 16px); padding: 2vh 2vw; overflow-y: auto;
+  background: radial-gradient(ellipse at 50% 35%, rgba(60, 30, 10, .55), rgba(6, 3, 2, .94) 70%) !important; }
+.over4.lose { background: radial-gradient(ellipse at 50% 35%, rgba(20, 28, 40, .6), rgba(4, 5, 8, .95) 70%) !important; }
+.ov4-rays { position: absolute; left: 50%; top: 28%; width: 160vmax; height: 160vmax; transform: translate(-50%, -50%); pointer-events: none; z-index: 0; opacity: .5;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 210, 120, .16) 0 6deg, transparent 6deg 18deg); -webkit-mask-image: radial-gradient(circle, #000 8%, transparent 45%); mask-image: radial-gradient(circle, #000 8%, transparent 45%);
+  animation: ov4-spin 60s linear infinite; }
+.over4.lose .ov4-rays { opacity: .18; filter: grayscale(1); }
+@keyframes ov4-spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+.ov4-top, .ov4-duel, .ov4-bottom { position: relative; z-index: 1; }
+.ov4-top { display: flex; flex-direction: column; align-items: center; }
+.ov4-crest { position: relative; width: min(560px, 80vw); animation: ov4-crest-in .8s cubic-bezier(.2, .8, .3, 1) both; }
+.ov4-crest img { display: block; width: 100%; height: auto; filter: drop-shadow(0 14px 30px rgba(0, 0, 0, .8)); }
+.over4.win .ov4-crest img { filter: drop-shadow(0 14px 30px rgba(0, 0, 0, .8)) drop-shadow(0 0 40px rgba(255, 200, 90, .45)); }
+.ov4-title { position: absolute; left: 22%; right: 22%; top: 37%; height: 30%; display: grid; place-items: center; white-space: nowrap;
+  font: 800 clamp(26px, 4.4vw, 52px)/1 var(--k-font); letter-spacing: .06em; text-transform: uppercase; color: #fff3cf;
+  text-shadow: 0 3px 0 rgba(60, 10, 4, .95), 0 0 20px rgba(255, 190, 90, .55); }
+.over4.lose .ov4-title { top: 33%; color: #d8dde6; text-shadow: 0 3px 0 rgba(0, 0, 0, .9), 0 0 18px rgba(140, 170, 210, .4); font-size: clamp(24px, 4.4vw, 52px); }
+@keyframes ov4-crest-in { from { transform: scale(1.7); opacity: 0; } 60% { transform: scale(.96); opacity: 1; } to { transform: scale(1); } }
+.ov4-sub { margin-top: -4px; font: 700 clamp(15px, 1.6vw, 20px) var(--k-font); color: #e8cf98; text-shadow: 0 2px 0 rgba(0, 0, 0, .7); }
+.ov4-duel { display: flex; align-items: center; justify-content: center; gap: clamp(10px, 3vw, 40px); }
+.ov4-fighter { position: relative; display: flex; flex-direction: column; align-items: center; animation: ov4-in .7s .2s cubic-bezier(.2, .8, .3, 1) both; }
+.ov4-port { width: clamp(110px, 15vw, 190px); aspect-ratio: 1; border-radius: 50%; background: #2a1c12 center 40% / cover;
+  box-shadow: 0 0 0 3px #160c06, 0 0 0 7px #e8b85a, 0 0 0 9px #160c06, 0 18px 40px rgba(0, 0, 0, .75); }
+.ov4-fighter.won .ov4-port { width: clamp(140px, 19vw, 240px); box-shadow: 0 0 0 3px #160c06, 0 0 0 8px #ffd770, 0 0 0 10px #160c06, 0 0 60px rgba(255, 205, 100, .7), 0 18px 40px rgba(0, 0, 0, .75); }
+.ov4-fighter.lost .ov4-port { filter: grayscale(.85) brightness(.55); }
+.ov4-glow { position: absolute; left: 50%; top: 40%; width: 150%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; z-index: -1;
+  background: radial-gradient(circle, rgba(255, 210, 110, .5), transparent 65%); animation: ov4-pulse 2.4s ease-in-out infinite; }
+@keyframes ov4-pulse { 50% { opacity: .55; transform: translate(-50%, -50%) scale(1.08); } }
+.ov4-crown { position: absolute; top: -12px; padding: 3px 14px; border-radius: 5px; font: 800 14px var(--k-font); letter-spacing: 1px; text-transform: uppercase; color: #3a1206;
+  background: linear-gradient(#fff0b0, #f0c25e 45%, #c98a2a 55%, #e9b24e); box-shadow: inset 0 0 0 1px #fff6d0, 0 0 0 2px #160c06, 0 0 18px rgba(255, 200, 90, .6); }
+.ov4-plate { margin-top: -14px; min-width: 150px; padding: 7px 18px 6px; border-radius: 8px; text-align: center; position: relative;
+  background: linear-gradient(rgba(255, 255, 255, .12), rgba(0, 0, 0, .3)), url('../assets/tex/walnut.webp') center / 360px, var(--k-wood-2); box-shadow: inset 0 0 0 1.5px var(--k-gold), inset 0 0 0 3.5px #160c06, 0 8px 18px rgba(0, 0, 0, .6); }
+.ov4-fighter.won .ov4-plate { background: linear-gradient(rgba(255, 255, 255, .14), rgba(0, 0, 0, .3)), var(--k-red); }
+.ov4-plate b { display: block; font: 800 clamp(16px, 1.8vw, 22px) var(--k-font); text-transform: uppercase; color: #fff4d8; }
+.ov4-plate small { font: 600 13px var(--k-font); color: #e8d6ae; }
+.ov4-hp { position: absolute; right: 2%; top: 52%; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font: 900 20px var(--k-font); color: #fff;
+  background: radial-gradient(circle at 35% 30%, #ff9a8a, #d0322a 50%, #7a1410); box-shadow: 0 0 0 2px #160c06, 0 0 0 4px #e8b85a, 0 6px 12px rgba(0, 0, 0, .6); text-shadow: 0 2px 0 #3a0a06; }
+.ov4-vs img { width: clamp(60px, 8vw, 110px); filter: drop-shadow(0 8px 14px rgba(0, 0, 0, .8)); opacity: .9; }
+@keyframes ov4-in { from { transform: translateY(30px); opacity: 0; } }
+.ov4-bottom { display: flex; flex-direction: column; align-items: center; gap: clamp(8px, 1.4vh, 14px); width: min(760px, 94vw); }
+.ov4-bottom .ov-rank { width: 100%; }
+.ov4-play { position: relative; width: min(360px, 76vw); aspect-ratio: 3.09; border: none; cursor: pointer; background: url('../assets/ui/btn_gold.webp') center / 100% 100% no-repeat; padding: 0;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, .65)) drop-shadow(0 0 18px rgba(255, 200, 90, .35)); transition: transform .12s, filter .15s; animation: ov4-play-glow 2.4s ease-in-out infinite; }
+.ov4-play span { position: absolute; inset: 0 14%; display: grid; place-items: center; font: 900 clamp(22px, 2.6vw, 32px) var(--k-font); letter-spacing: .16em; text-transform: uppercase; color: #4a1a04; text-shadow: 0 1px 0 rgba(255, 245, 210, .7); }
+.ov4-play:hover { transform: translateY(-2px) scale(1.02); filter: brightness(1.1) drop-shadow(0 10px 20px rgba(0, 0, 0, .65)) drop-shadow(0 0 30px rgba(255, 210, 110, .65)); }
+@keyframes ov4-play-glow { 50% { filter: drop-shadow(0 8px 16px rgba(0, 0, 0, .65)) drop-shadow(0 0 32px rgba(255, 210, 110, .7)); } }
+.ov4-icons { display: flex; justify-content: center; gap: clamp(10px, 2.4vw, 26px); flex-wrap: wrap; }
+.ov4-ib { display: flex; flex-direction: column; align-items: center; gap: 5px; background: none; border: none; cursor: pointer; padding: 0; }
+.ov4-ib-c { width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; color: #ffe39a;
+  background: radial-gradient(circle at 50% 35%, #4a2c16, #1e120a 75%); box-shadow: inset 0 0 0 2px #e8b85a, inset 0 0 0 4px #160c06, inset 0 0 0 5px rgba(232, 184, 90, .5), 0 6px 14px rgba(0, 0, 0, .65); transition: transform .12s, box-shadow .15s, color .15s; }
+.ov4-ib-c svg { width: 26px; height: 26px; filter: drop-shadow(0 1px 0 rgba(0, 0, 0, .7)); }
+.ov4-ib-l { font: 700 13px var(--k-font); letter-spacing: .5px; text-transform: uppercase; color: #e8d6ae; text-shadow: 0 1px 0 rgba(0, 0, 0, .8); }
+.ov4-ib:hover .ov4-ib-c { transform: translateY(-3px); color: #fff6d0; box-shadow: inset 0 0 0 2px #fff0b0, inset 0 0 0 4px #160c06, inset 0 0 0 5px rgba(255, 230, 160, .7), 0 0 22px rgba(255, 210, 110, .55), 0 8px 16px rgba(0, 0, 0, .65); }
+.over4 .ov-buy { position: relative; z-index: 1; font-size: 13px; }
+@media (max-height: 760px) { .ov4-crest { width: min(420px, 70vw); } .ov4-port { width: 100px; } .ov4-fighter.won .ov4-port { width: 130px; } }
+/* end screen v4: fit any window height (sizes follow vh; top never cut), darker backdrop, health gem on the portrait */
+.over4 { justify-content: safe center !important; gap: clamp(4px, 1.1vh, 14px) !important;
+  background: radial-gradient(ellipse at 50% 35%, rgba(50, 24, 8, .86), rgba(6, 3, 2, .97) 72%) !important; }
+.over4.lose { background: radial-gradient(ellipse at 50% 35%, rgba(18, 24, 34, .88), rgba(4, 5, 8, .97) 72%) !important; }
+.ov4-crest { width: min(560px, 80vw, 34vh * 1.63) !important; flex: none; }
+.ov4-port { width: clamp(84px, 14vw, 17vh) !important; }
+.ov4-fighter.won .ov4-port { width: clamp(104px, 18vw, 22vh) !important; }
+.ov4-hp { top: 0 !important; right: -6px !important; width: 40px; height: 40px; font-size: 18px; }
+.ov4-play { width: min(340px, 72vw, 11vh * 3.09) !important; flex: none; }
+.ov4-ib-c { width: clamp(44px, 6.4vh, 58px); height: clamp(44px, 6.4vh, 58px); }
+.over4 .ov-medals { margin: 0 !important; }
+.over4 .ov-rank-in { padding: 6px 12px !important; }
+@media (max-height: 960px) { .ov4-crest { width: min(560px, 80vw, 25vh * 1.63) !important; } .over4 .ov-buy { display: none; } .ov4-port { width: clamp(76px, 12vw, 14vh) !important; } .ov4-fighter.won .ov4-port { width: clamp(92px, 15vw, 18vh) !important; }
+  .over4 .ov-medal .medal { --m: 44px !important; } .ov4-ib-l { font-size: 11px; } }

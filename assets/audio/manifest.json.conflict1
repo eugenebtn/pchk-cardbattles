@@ -1,0 +1,717 @@
+{
+ "draw": [
+  "draw_0.mp3",
+  "draw_1.mp3",
+  "draw_2.mp3",
+  "draw_3.mp3",
+  "draw_4.mp3",
+  "draw_5.mp3"
+ ],
+ "cardFan": [
+  "cardFan_0.mp3",
+  "cardFan_1.mp3"
+ ],
+ "shuffle": [
+  "shuffle_0.mp3"
+ ],
+ "play": [
+  "play_0.mp3",
+  "play_1.mp3",
+  "play_2.mp3",
+  "play_3.mp3"
+ ],
+ "cardPlace": [
+  "cardPlace_0.mp3",
+  "cardPlace_1.mp3",
+  "cardPlace_2.mp3",
+  "cardPlace_3.mp3"
+ ],
+ "whoosh": [
+  "whoosh_0.mp3",
+  "whoosh_1.mp3",
+  "whoosh_2.mp3",
+  "whoosh_3.mp3",
+  "whoosh_4.mp3",
+  "whoosh_5.mp3"
+ ],
+ "land": [
+  "land_0.mp3",
+  "land_1.mp3",
+  "land_2.mp3",
+  "land_3.mp3",
+  "land_4.mp3"
+ ],
+ "landStone": [
+  "landStone_0.mp3",
+  "landStone_1.mp3",
+  "landStone_2.mp3",
+  "landStone_3.mp3",
+  "landStone_4.mp3"
+ ],
+ "punch": [
+  "punch_0.mp3",
+  "punch_1.mp3",
+  "punch_2.mp3",
+  "punch_3.mp3",
+  "punch_4.mp3"
+ ],
+ "punchMed": [
+  "punchMed_0.mp3",
+  "punchMed_1.mp3",
+  "punchMed_2.mp3",
+  "punchMed_3.mp3",
+  "punchMed_4.mp3"
+ ],
+ "metal": [
+  "metal_0.mp3",
+  "metal_1.mp3",
+  "metal_2.mp3",
+  "metal_3.mp3",
+  "metal_4.mp3"
+ ],
+ "metalMed": [
+  "metalMed_0.mp3",
+  "metalMed_1.mp3",
+  "metalMed_2.mp3",
+  "metalMed_3.mp3",
+  "metalMed_4.mp3"
+ ],
+ "plate": [
+  "plate_0.mp3",
+  "plate_1.mp3",
+  "plate_2.mp3",
+  "plate_3.mp3",
+  "plate_4.mp3"
+ ],
+ "bell": [
+  "bell_0.mp3",
+  "bell_1.mp3",
+  "bell_2.mp3",
+  "bell_3.mp3",
+  "bell_4.mp3"
+ ],
+ "glass": [
+  "glass_0.mp3",
+  "glass_1.mp3",
+  "glass_2.mp3",
+  "glass_3.mp3",
+  "glass_4.mp3"
+ ],
+ "glassLight": [
+  "glassLight_0.mp3",
+  "glassLight_1.mp3",
+  "glassLight_2.mp3",
+  "glassLight_3.mp3",
+  "glassLight_4.mp3"
+ ],
+ "soft": [
+  "soft_0.mp3",
+  "soft_1.mp3",
+  "soft_2.mp3",
+  "soft_3.mp3",
+  "soft_4.mp3"
+ ],
+ "blade": [
+  "blade_0.mp3",
+  "blade_1.mp3",
+  "blade_2.mp3"
+ ],
+ "knife": [
+  "knife_0.mp3",
+  "knife_1.mp3",
+  "knife_2.mp3",
+  "knife_3.mp3",
+  "knife_4.mp3"
+ ],
+ "chop": [
+  "chop_0.mp3"
+ ],
+ "coins": [
+  "coins_0.mp3",
+  "coins_1.mp3",
+  "coins_2.mp3",
+  "coins_3.mp3",
+  "coins_4.mp3",
+  "coins_5.mp3"
+ ],
+ "chips": [
+  "chips_0.mp3",
+  "chips_1.mp3",
+  "chips_2.mp3",
+  "chips_3.mp3",
+  "chips_4.mp3",
+  "chips_5.mp3"
+ ],
+ "gem": [
+  "gem_0.mp3",
+  "gem_1.mp3",
+  "gem_2.mp3",
+  "gem_3.mp3"
+ ],
+ "stones": [
+  "stones_0.mp3",
+  "stones_1.mp3",
+  "stones_2.mp3",
+  "stones_3.mp3"
+ ],
+ "wood": [
+  "wood_0.mp3",
+  "wood_1.mp3",
+  "wood_2.mp3",
+  "wood_3.mp3",
+  "wood_4.mp3"
+ ],
+ "chain": [
+  "chain_0.mp3",
+  "chain_1.mp3",
+  "chain_2.mp3"
+ ],
+ "book": [
+  "book_0.mp3",
+  "book_1.mp3",
+  "book_2.mp3",
+  "book_3.mp3",
+  "book_4.mp3",
+  "book_5.mp3",
+  "book_6.mp3"
+ ],
+ "spell": [
+  "spell_0.mp3",
+  "spell_1.mp3"
+ ],
+ "fire": [
+  "fire_0.mp3",
+  "fire_1.mp3",
+  "fire_2.mp3",
+  "fire_3.mp3",
+  "fire_4.mp3",
+  "fire_5.mp3",
+  "fire_6.mp3"
+ ],
+ "fireball": [
+  "fireball_0.mp3"
+ ],
+ "magic": [
+  "magic_0.mp3",
+  "magic_1.mp3",
+  "magic_2.mp3",
+  "magic_3.mp3",
+  "magic_4.mp3",
+  "magic_5.mp3",
+  "magic_6.mp3"
+ ],
+ "die": [
+  "die_0.mp3",
+  "die_1.mp3",
+  "die_2.mp3"
+ ],
+ "creature": [
+  "creature_0.mp3",
+  "creature_1.mp3",
+  "creature_2.mp3",
+  "creature_3.mp3",
+  "creature_4.mp3",
+  "creature_5.mp3",
+  "creature_6.mp3",
+  "creature_7.mp3"
+ ],
+ "monster": [
+  "monster_0.mp3",
+  "monster_1.mp3",
+  "monster_2.mp3",
+  "monster_3.mp3",
+  "monster_4.mp3",
+  "monster_5.mp3",
+  "monster_6.mp3"
+ ],
+ "slime": [
+  "slime_0.mp3",
+  "slime_1.mp3",
+  "slime_2.mp3",
+  "slime_3.mp3"
+ ],
+ "boom": [
+  "boom_0.mp3",
+  "boom_1.mp3",
+  "boom_2.mp3",
+  "boom_3.mp3",
+  "boom_4.mp3"
+ ],
+ "bang": [
+  "bang_0.mp3",
+  "bang_1.mp3",
+  "bang_2.mp3",
+  "bang_3.mp3",
+  "bang_4.mp3"
+ ],
+ "click": [
+  "click_0.mp3",
+  "click_1.mp3",
+  "click_2.mp3",
+  "click_3.mp3",
+  "click_4.mp3"
+ ],
+ "select": [
+  "select_0.mp3",
+  "select_1.mp3",
+  "select_2.mp3",
+  "select_3.mp3"
+ ],
+ "confirm": [
+  "confirm_0.mp3",
+  "confirm_1.mp3",
+  "confirm_2.mp3",
+  "confirm_3.mp3"
+ ],
+ "error": [
+  "error_0.mp3",
+  "error_1.mp3",
+  "error_2.mp3"
+ ],
+ "tick": [
+  "tick_0.mp3",
+  "tick_1.mp3",
+  "tick_2.mp3"
+ ],
+ "jingleTurn": [
+  "jingleTurn_0.mp3",
+  "jingleTurn_1.mp3",
+  "jingleTurn_2.mp3",
+  "jingleTurn_3.mp3"
+ ],
+ "jingleBattle": [
+  "jingleBattle_0.mp3",
+  "jingleBattle_1.mp3",
+  "jingleBattle_2.mp3",
+  "jingleBattle_3.mp3",
+  "jingleBattle_4.mp3"
+ ],
+ "jingleWin": [
+  "jingleWin_0.mp3",
+  "jingleWin_1.mp3",
+  "jingleWin_2.mp3"
+ ],
+ "jingleLose": [
+  "jingleLose_0.mp3",
+  "jingleLose_1.mp3",
+  "jingleLose_2.mp3"
+ ],
+ "musicMenu": [
+  "musicMenuEl.mp3"
+ ],
+ "musicGame": [
+  "musicGame_lute.mp3"
+ ],
+ "musicGame2": [
+  "musicGame2_lute.mp3"
+ ],
+ "lrSpell": [
+  "lrSpell_0.mp3",
+  "lrSpell_1.mp3",
+  "lrSpell_2.mp3",
+  "lrSpell_3.mp3",
+  "lrSpell_4.mp3"
+ ],
+ "lrGold": [
+  "lrGold_0.mp3",
+  "lrGold_1.mp3",
+  "lrGold_2.mp3",
+  "lrGold_3.mp3",
+  "lrGold_4.mp3"
+ ],
+ "lrMenu": [
+  "lrMenu_0.mp3"
+ ],
+ "lrBag": [
+  "lrBag_0.mp3",
+  "lrBag_1.mp3"
+ ],
+ "lrTrap": [
+  "lrTrap_0.mp3",
+  "lrTrap_1.mp3",
+  "lrTrap_2.mp3"
+ ],
+ "jWin": [
+  "jWin_0.mp3"
+ ],
+ "jLose": [
+  "jLose_0.mp3"
+ ],
+ "jEpic": [
+  "jEpic_0.mp3"
+ ],
+ "goblin": [
+  "goblin_0.mp3",
+  "goblin_1.mp3",
+  "goblin_2.mp3",
+  "goblin_3.mp3",
+  "goblin_4.mp3"
+ ],
+ "dragon": [
+  "dragon_0.mp3",
+  "dragon_1.mp3"
+ ],
+ "rpgSwing": [
+  "rpgSwing_0.mp3",
+  "rpgSwing_1.mp3",
+  "rpgSwing_2.mp3"
+ ],
+ "rpgSword": [
+  "rpgSword_0.mp3",
+  "rpgSword_1.mp3",
+  "rpgSword_2.mp3",
+  "rpgSword_3.mp3",
+  "rpgSword_4.mp3"
+ ],
+ "rpgMagic": [
+  "rpgMagic_0.mp3",
+  "rpgMagic_1.mp3"
+ ],
+ "rpgCloth": [
+  "rpgCloth_0.mp3",
+  "rpgCloth_1.mp3"
+ ],
+ "rpgWood": [
+  "rpgWood_0.mp3"
+ ],
+ "rpgCoin": [
+  "rpgCoin_0.mp3",
+  "rpgCoin_1.mp3",
+  "rpgCoin_2.mp3"
+ ],
+ "rpgMetal": [
+  "rpgMetal_0.mp3",
+  "rpgMetal_1.mp3",
+  "rpgMetal_2.mp3"
+ ],
+ "rpgArmor": [
+  "rpgArmor_0.mp3",
+  "rpgArmor_1.mp3",
+  "rpgArmor_2.mp3"
+ ],
+ "rpgUi": [
+  "rpgUi_0.mp3",
+  "rpgUi_1.mp3",
+  "rpgUi_2.mp3",
+  "rpgUi_3.mp3",
+  "rpgUi_4.mp3",
+  "rpgUi_5.mp3"
+ ],
+ "rpgBottle": [
+  "rpgBottle_0.mp3",
+  "rpgBottle_1.mp3"
+ ],
+ "musicTense": [
+  "musicTense_lute.mp3"
+ ],
+ "musicWin": [
+  "musicWin_lute.mp3"
+ ],
+ "musicMid": [
+  "musicMid_lute.mp3"
+ ],
+ "musicBattle": [
+  "musicBattle_lute.mp3"
+ ],
+ "ambDungeon": [
+  "ambDungeon_lute.mp3"
+ ],
+ "elAnimal": [
+  "elAnimal_0.mp3",
+  "elAnimal_1.mp3"
+ ],
+ "elAxe": [
+  "elAxe_0.mp3"
+ ],
+ "elBattle": [
+  "elBattle_0.mp3",
+  "elBattle_1.mp3"
+ ],
+ "elBlood": [
+  "elBlood_0.mp3"
+ ],
+ "elBook": [
+  "elBook_0.mp3"
+ ],
+ "elBuff": [
+  "elBuff_0.mp3"
+ ],
+ "elChain": [
+  "elChain_0.mp3"
+ ],
+ "elClick": [
+  "elClick_0.mp3"
+ ],
+ "elCoin": [
+  "elCoin_0.mp3",
+  "elCoin_1.mp3"
+ ],
+ "elConfirm": [
+  "elConfirm_0.mp3"
+ ],
+ "elDanger": [
+  "elDanger_0.mp3"
+ ],
+ "elDark": [
+  "elDark_0.mp3"
+ ],
+ "elDeath": [
+  "elDeath_0.mp3"
+ ],
+ "elDebuff": [
+  "elDebuff_0.mp3"
+ ],
+ "elDraw": [
+  "elDraw_0.mp3",
+  "elDraw_1.mp3"
+ ],
+ "elExplosion": [
+  "elExplosion_0.mp3"
+ ],
+ "elFace": [
+  "elFace_0.mp3"
+ ],
+ "elFire": [
+  "elFire_0.mp3"
+ ],
+ "elFlip": [
+  "elFlip_0.mp3"
+ ],
+ "elHeal": [
+  "elHeal_0.mp3"
+ ],
+ "elHit": [
+  "elHit_0.mp3",
+  "elHit_1.mp3"
+ ],
+ "elHitBig": [
+  "elHitBig_0.mp3"
+ ],
+ "elLandBig": [
+  "elLandBig_0.mp3"
+ ],
+ "elLegend": [
+  "elLegend_0.mp3"
+ ],
+ "elLose": [
+  "elLose_0.mp3"
+ ],
+ "elMagic": [
+  "elMagic_0.mp3"
+ ],
+ "elMonster": [
+  "elMonster_0.mp3"
+ ],
+ "elPlay": [
+  "elPlay_0.mp3"
+ ],
+ "elShield": [
+  "elShield_0.mp3"
+ ],
+ "elShuffle": [
+  "elShuffle_0.mp3"
+ ],
+ "elStun": [
+  "elStun_0.mp3"
+ ],
+ "elSwing": [
+  "elSwing_0.mp3",
+  "elSwing_1.mp3"
+ ],
+ "elTurn": [
+  "elTurn_0.mp3",
+  "elTurn_1.mp3"
+ ],
+ "elWin": [
+  "elWin_0.mp3"
+ ],
+ "elVo117Intro": [
+  "elVo117Intro_0.mp3"
+ ],
+ "elVo117Win": [
+  "elVo117Win_0.mp3"
+ ],
+ "elVo118Intro": [
+  "elVo118Intro_0.mp3"
+ ],
+ "elVo118Win": [
+  "elVo118Win_0.mp3"
+ ],
+ "elVo20Intro": [
+  "elVo20Intro_0.mp3"
+ ],
+ "elVo20Win": [
+  "elVo20Win_0.mp3"
+ ],
+ "elVo41Intro": [
+  "elVo41Intro_0.mp3"
+ ],
+ "elVo41Win": [
+  "elVo41Win_0.mp3"
+ ],
+ "elVo62Intro": [
+  "elVo62Intro_0.mp3"
+ ],
+ "elVo62Win": [
+  "elVo62Win_0.mp3"
+ ],
+ "elVo63Intro": [
+  "elVo63Intro_0.mp3"
+ ],
+ "elVo63Win": [
+  "elVo63Win_0.mp3"
+ ],
+ "elVo20Hello": [
+  "elVo20Hello_0.mp3"
+ ],
+ "elRegion": [
+  "elRegion_0.mp3"
+ ],
+ "elVs": [
+  "elVs_0.mp3"
+ ],
+ "elVo101Play": [
+  "elVo101Play_0.mp3"
+ ],
+ "elVo107Play": [
+  "elVo107Play_0.mp3"
+ ],
+ "elVo10Play": [
+  "elVo10Play_0.mp3"
+ ],
+ "elVo111Play": [
+  "elVo111Play_0.mp3"
+ ],
+ "elVo112Play": [
+  "elVo112Play_0.mp3"
+ ],
+ "elVo113Play": [
+  "elVo113Play_0.mp3"
+ ],
+ "elVo119Play": [
+  "elVo119Play_0.mp3"
+ ],
+ "elVo121Play": [
+  "elVo121Play_0.mp3"
+ ],
+ "elVo123Play": [
+  "elVo123Play_0.mp3"
+ ],
+ "elVo126Play": [
+  "elVo126Play_0.mp3"
+ ],
+ "elVo127Play": [
+  "elVo127Play_0.mp3"
+ ],
+ "elVo129Play": [
+  "elVo129Play_0.mp3"
+ ],
+ "elVo137Play": [
+  "elVo137Play_0.mp3"
+ ],
+ "elVo139Play": [
+  "elVo139Play_0.mp3"
+ ],
+ "elVo146Play": [
+  "elVo146Play_0.mp3"
+ ],
+ "elVo153Play": [
+  "elVo153Play_0.mp3"
+ ],
+ "elVo158Play": [
+  "elVo158Play_0.mp3"
+ ],
+ "elVo15Play": [
+  "elVo15Play_0.mp3"
+ ],
+ "elVo164Play": [
+  "elVo164Play_0.mp3"
+ ],
+ "elVo166Play": [
+  "elVo166Play_0.mp3"
+ ],
+ "elVo16Play": [
+  "elVo16Play_0.mp3"
+ ],
+ "elVo174Play": [
+  "elVo174Play_0.mp3"
+ ],
+ "elVo1Play": [
+  "elVo1Play_0.mp3"
+ ],
+ "elVo27Play": [
+  "elVo27Play_0.mp3"
+ ],
+ "elVo29Play": [
+  "elVo29Play_0.mp3"
+ ],
+ "elVo30Play": [
+  "elVo30Play_0.mp3"
+ ],
+ "elVo31Play": [
+  "elVo31Play_0.mp3"
+ ],
+ "elVo374Play": [
+  "elVo374Play_0.mp3"
+ ],
+ "elVo3Play": [
+  "elVo3Play_0.mp3"
+ ],
+ "elVo40Play": [
+  "elVo40Play_0.mp3"
+ ],
+ "elVo42Play": [
+  "elVo42Play_0.mp3"
+ ],
+ "elVo43Play": [
+  "elVo43Play_0.mp3"
+ ],
+ "elVo44Play": [
+  "elVo44Play_0.mp3"
+ ],
+ "elVo4Play": [
+  "elVo4Play_0.mp3"
+ ],
+ "elVo52Play": [
+  "elVo52Play_0.mp3"
+ ],
+ "elVo54Play": [
+  "elVo54Play_0.mp3"
+ ],
+ "elVo58Play": [
+  "elVo58Play_0.mp3"
+ ],
+ "elVo60Play": [
+  "elVo60Play_0.mp3"
+ ],
+ "elVo69Play": [
+  "elVo69Play_0.mp3"
+ ],
+ "elVo73Play": [
+  "elVo73Play_0.mp3"
+ ],
+ "elVo77Play": [
+  "elVo77Play_0.mp3"
+ ],
+ "elVo84Play": [
+  "elVo84Play_0.mp3"
+ ],
+ "elVo87Play": [
+  "elVo87Play_0.mp3"
+ ],
+ "elVo88Play": [
+  "elVo88Play_0.mp3"
+ ],
+ "elVo92Play": [
+  "elVo92Play_0.mp3"
+ ],
+ "elVo93Play": [
+  "elVo93Play_0.mp3"
+ ],
+ "elVo97Play": [
+  "elVo97Play_0.mp3"
+ ],
+ "elVo98Play": [
+  "elVo98Play_0.mp3"
+ ]
+}

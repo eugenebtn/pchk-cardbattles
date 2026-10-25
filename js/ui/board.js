@@ -29,6 +29,12 @@ const plural = (n, one, few, many) => (n % 10 === 1 && n % 100 !== 11 ? one : n 
 const PLACE_THEME = { tavern: 160, castle: 8, dungeon: 33 };
 // Cards the game draws itself (tools/render-cards.mjs): on the field they use the art-only version in assets/cards/field.
 const DRAWN = /assets\/cards\/(levenheart|larisa)_/;
+// What each Leader says at the start (the voice lines elVo<id>Intro), shown as subtitles in the VS intro.
+const INTRO_LINE = { 20: 'Кёнигпон смотрит на нас. Строиться, бойцы!', 41: 'Хвост трубой, усы торчком — начинаем!', 62: 'Клан Баланов помнит каждую каплю крови. Начнём.',
+  63: 'Добро пожаловать в мой замок... ненадолго.', 117: 'Гениальный план! Никто его не поймёт — но проиграют все!', 118: 'Дети спят. У мамы есть время на войну.' };
+// Themed entrances for Places by what the picture shows (BoardUI.placeEntrance).
+const PLACE_KIND = { 19: 'sail', 162: 'sail', 95: 'ride', 38: 'grow', 5: 'city', 125: 'dark', 116: 'dark', 89: 'dark',
+  2: 'build', 8: 'build', 11: 'build', 13: 'build', 33: 'build', 65: 'build', 80: 'build', 81: 'build', 94: 'build', 108: 'build', 114: 'build', 124: 'build', 128: 'build', 130: 'build', 155: 'build', 160: 'build', 373: 'build' };
 // Short Leader names for the ribbon on the board.
 const LEADER_SHORT = { 20: 'Лёвенхарт', 41: 'Крыса Лариса', 62: 'Дан Балан', 63: 'Граф Влад', 117: 'Эрик Пэнисов', 118: 'София' };
 const LEADER_ACC = { 20: 'Лёвенхарта', 41: 'Крысу Ларису', 62: 'Дана Балана', 63: 'Графа Влада', 117: 'Эрика Пэнисова', 118: 'Софию' };
@@ -566,12 +572,12 @@ export class BoardUI {
     this.musicStep();
     if (low <= 5 && !this._danger) { this._danger = true; sfx.danger(); }
   }
-  /** Music rises with the game: calm → livelier (from round 3 or a Leader at 18 or less) → tense (a Leader at 10 or less) → battle finale (5 or less). */
+  /** Music rises with the game: calm lute → tavern (from round 3 or a Leader at 18 or less) → battle (a Leader at 10 or less). */
   musicStep() {
     const v = this.view; if (!v || v.over) return;
     const low = Math.min(...v.players.map((pl) => pl.leader?.hp ?? 99));
-    const step = low <= 5 ? 4 : low <= 10 ? 3 : (v.round >= 3 || low <= 18) ? 2 : 1;
-    if (step > (this._musicStep || 1)) { this._musicStep = step; playMusic(['', '', 'musicMid', 'musicTense', 'musicBattle'][step]); }
+    const step = low <= 10 ? 3 : (v.round >= 3 || low <= 18) ? 2 : 1;
+    if (step > (this._musicStep || 1)) { this._musicStep = step; playMusic(step === 3 ? 'musicBattle' : 'musicMid'); }
   }
   /** Move clock (online games with a timer): seconds left shown under the end-turn button. */
   setDeadline(ms) {
@@ -959,10 +965,50 @@ export class BoardUI {
     V.animate([{ transform: 'translate(-50%,-50%) scale(3)', opacity: 0 }, { transform: 'translate(-50%,-50%) scale(.9)', opacity: 1, offset: 0.7 }, { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 }], { duration: d(380), fill: 'forwards', easing: 'cubic-bezier(.5,0,.3,1.4)' });
     await FX.wait(300);
     sfx.explosion(); FX.shake(2);
-    // Both Leaders say their line: yours first, then the opponent's.
-    // The second Leader answers only after the first has finished, with a short pause between them.
-    setTimeout(() => { const len = voice(P[me].leader.id, 'Intro'); setTimeout(() => voice(P[1 - me].leader.id, 'Intro'), len ? len * 1000 + 1100 : 600); }, 500);
-    await FX.wait(1100);
+    await FX.wait(500);
+    // Both Leaders say their line, one after the other, with subtitles: the speaker steps forward and glows.
+    const speak = async (el, p, id) => {
+      const sub = document.createElement('div');
+      sub.className = 'vs-sub';
+      sub.textContent = `«${INTRO_LINE[id] || 'К бою!'}»`;
+      sub.style.cssText = `left:${p.x + hw / 2}px;top:${p.y + hh + 14}px`;
+      layer.appendChild(sub);
+      el.classList.add('speaking');
+      const len = voice(id, 'Intro');
+      await FX.wait(Math.max(len * 1000 + 350, 1900) * FX.speed); // the line's own length (not sped up), at least ~2 s to read
+      el.classList.remove('speaking');
+      sub.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: 'forwards' });
+      setTimeout(() => sub.remove(), 220);
+    };
+    await speak(A, pos.a, P[me].leader.id);
+    await FX.wait(350);
+    await speak(B, pos.b, P[1 - me].leader.id);
+    // Coin toss: who goes first. The coin spins up between them and flies to the one who starts.
+    if (view.first != null) {
+      const coin = document.createElement('img');
+      coin.src = 'assets/ui/coin.webp'; coin.alt = ''; coin.className = 'vs-coin';
+      layer.appendChild(coin);
+      const c0 = { x: W / 2, y: H / 2 }, tgt = view.first === me ? pos.a : pos.b, c1 = { x: tgt.x + hw / 2, y: tgt.y + hh * 0.12 };
+      const frames = [];
+      for (let k = 0; k <= 16; k++) {
+        const t = k / 16, up = t < 0.55 ? Math.sin((t / 0.55) * Math.PI) * 190 : 0;
+        const x = t < 0.55 ? c0.x : c0.x + (c1.x - c0.x) * ((t - 0.55) / 0.45), y = t < 0.55 ? c0.y - up : c0.y + (c1.y - c0.y) * ((t - 0.55) / 0.45);
+        frames.push({ transform: `translate(${x - 48}px,${y - 48}px) scaleX(${t < 0.7 ? Math.cos(t * Math.PI * 9).toFixed(2) : 1}) scale(${t < 0.55 ? 1.2 : 1.2 - (t - 0.55) * 0.9})` });
+      }
+      sfx.coin(); setTimeout(() => sfx.flip?.(), 300 / FX.speed);
+      coin.animate(frames, { duration: d(1500), easing: 'cubic-bezier(.3,.1,.4,1)', fill: 'forwards' });
+      await FX.wait(1500); // a timer, not the animation's promise (a hidden tab must not stall the game)
+      sfx.coin(); FX.flare?.(c1.x, c1.y, '#ffd770', 160, 400);
+      (view.first === me ? A : B).classList.add('first');
+      const mineFirst = view.first === me;
+      const ban = document.createElement('div');
+      ban.className = 'vs-turn';
+      ban.innerHTML = `<span>${this.spectator ? `Первым ходит ${esc(P[view.first].name)}` : mineFirst ? 'Вы ходите первым' : 'Соперник ходит первым'}</span>`;
+      layer.appendChild(ban);
+      ban.animate([{ transform: 'translate(-50%,-50%) scaleX(.2)', opacity: 0 }, { transform: 'translate(-50%,-50%) scaleX(1.05)', opacity: 1, offset: 0.15 }, { transform: 'translate(-50%,-50%) scaleX(1)', opacity: 1, offset: 0.25 }, { transform: 'translate(-50%,-50%) scaleX(1)', opacity: 1, offset: 0.85 }, { transform: 'translate(-50%,-50%) scaleX(1.02)', opacity: 0 }], { duration: d(1800), fill: 'forwards' });
+      await FX.wait(1800);
+      ban.remove(); coin.remove();
+    }
     // Leaders fly to their corners on the board.
     const sr = this.stage.getBoundingClientRect(), sc = this.scale;
     const dest = (lp) => ({ x: sr.left + lp.x * sc, y: sr.top + lp.y * sc, w: this.L.leaderSize.w * sc, h: this.L.leaderSize.h * sc });
@@ -1652,6 +1698,45 @@ ${optHtml}</div></div>
       default: break;
     }
   }
+  /** Themed Place entrances (PLACE_KIND): sail, ride, build, city, dark, grow. */
+  async placeEntrance(el, p, kind) {
+    const W = FX.wait, d = (ms) => ms / FX.speed, base = { x: p.x, y: p.y + 30 };
+    if (kind === 'sail') { // comes in from the side, rocking on the waves; a splash when it stops
+      const from = p.x < this.L.W / 2 ? -1 : 1;
+      el.animate([0, 0.2, 0.4, 0.6, 0.8, 1].map((t, k) => ({ transform: `translateX(${(1 - t) * 170 * from}px) translateY(${Math.sin(t * Math.PI * 3) * 7}px) rotate(${Math.sin(t * Math.PI * 3 + 1) * 4 * (1 - t)}deg)`, opacity: k === 0 ? 0 : 1 })), { duration: d(950), easing: 'cubic-bezier(.25,.7,.4,1)' });
+      for (let k = 0; k < 4; k++) setTimeout(() => FX.burst(p.x + from * (120 - k * 40), base.y, { color: ['#bfe4ff', '#7cc0ff', '#ffffff'], count: 6, speed: 2.4, angle: -Math.PI / 2, spread: 1.4, gravity: 0.12, size: 5, life: 600 }), d(k * 180));
+      await W(900);
+      FX.burst(p.x, base.y, { emoji: ['💧'], shape: 'emoji', count: 8, speed: 5, angle: -Math.PI / 2, spread: 2.2, gravity: 0.25, add: false, size: 11, life: 800 });
+      FX.burst(p.x, base.y, { color: ['#d8f0ff', '#8fd0ff', '#fff'], count: 18, speed: 5, angle: -Math.PI / 2, spread: 2.6, gravity: 0.2, size: 5, life: 700 });
+      sfx.land(false, p.x);
+    } else if (kind === 'ride') { // rolls in, hopping on the bumps, a trail of dust
+      const from = p.x < this.L.W / 2 ? -1 : 1;
+      el.animate([0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1].map((t) => ({ transform: `translateX(${(1 - t) * 190 * from}px) translateY(${t < 1 ? -Math.abs(Math.sin(t * Math.PI * 6)) * 6 : 0}px)` })), { duration: d(850), easing: 'cubic-bezier(.3,.7,.4,1)' });
+      for (let k = 0; k < 5; k++) setTimeout(() => FX.dust(p.x + from * (150 - k * 34), base.y + 6, 0.35), d(k * 150));
+      await W(820); sfx.land(true, p.x); FX.shake(0.5);
+    } else if (kind === 'grow') { // springs up out of the grass, leaves fly
+      el.animate([{ transform: 'translateY(40px) scale(.2)', opacity: 0 }, { transform: 'translateY(-6px) scale(1.08)', opacity: 1, offset: 0.65 }, { transform: 'scale(1)' }], { duration: d(750), easing: 'cubic-bezier(.3,1.4,.5,1)' });
+      sfx.buff(p.x);
+      await W(450);
+      FX.burst(p.x, p.y, { emoji: ['🍃', '🌿', '🌾'], shape: 'emoji', count: 12, speed: 5, gravity: 0.08, add: false, size: 12, spin: 0.3, life: 1100 });
+      await W(250);
+    } else if (kind === 'dark') { // rises out of purple smoke
+      FX.smoke(p.x, p.y + 10, { color: ['#3a1e4a', '#5a2e6a', '#1e1028'], count: 16, speed: 2.4 });
+      el.animate([{ transform: 'translateY(26px) scale(.92)', opacity: 0, filter: 'brightness(0) saturate(0)' }, { opacity: 1, filter: 'brightness(.4) saturate(.5)', offset: 0.5 }, { transform: 'none', filter: 'none' }], { duration: d(900), easing: 'ease-out' });
+      sfx.dark(p.x);
+      await W(850); FX.glow(p.x, p.y, 'rgba(170,90,230,.55)', 90, 500);
+    } else { // build / city: the building rises from the ground in three knocks, dust at the base
+      el.animate([
+        { clipPath: 'inset(100% 0 0 0)', transform: 'translateY(6px)' },
+        { clipPath: 'inset(66% 0 0 0)', transform: 'translateY(4px)', offset: 0.28 }, { clipPath: 'inset(66% 0 0 0)', offset: 0.36 },
+        { clipPath: 'inset(33% 0 0 0)', transform: 'translateY(2px)', offset: 0.62 }, { clipPath: 'inset(33% 0 0 0)', offset: 0.7 },
+        { clipPath: 'inset(0 0 0 0)', transform: 'translateY(-3px)', offset: 0.92 }, { clipPath: 'inset(0 0 0 0)', transform: 'none' },
+      ], { duration: d(1050), easing: 'ease-out' });
+      for (const [k, t] of [[0, 0], [1, 330], [2, 690]]) setTimeout(() => { sfx.wood?.(p.x); FX.dust(p.x + (k - 1) * 30, base.y, 0.45); if (k === 2) FX.shake(0.4); }, d(t));
+      await W(1050);
+      if (kind === 'city') { FX.stars(p.x, p.y - 20, { count: 16 }); FX.burst(p.x, p.y - 30, { emoji: ['🎉', '✨', '🎊'], shape: 'emoji', count: 14, speed: 6, gravity: 0.12, add: false, size: 12, life: 1200 }); sfx.legend?.(p.x); }
+    }
+  }
   attackColor(el) {
     if (el.classList.contains('deathtouch')) return 'death';
     if (el.classList.contains('breakthrough')) return 'fire';
@@ -1668,15 +1753,18 @@ ${optHtml}</div></div>
         const p = this.stagePoint(el);
         const big = (d.cost ?? 0) >= 6 || d.legend;
         const type = d.type;
+        // Places with a theme get their own entrance (a boat sails in, a building rises…); the rest are put down on the table.
+        const themed = type === 'place' && PLACE_KIND[ev.id];
+        if (themed) await this.placeEntrance(el, p, themed);
         // The card is put down on the table: it comes in a little above, its shadow shrinks, a small puff on landing.
-        el.animate([
+        else el.animate([
           { transform: 'translateY(-46px) scale(1.18) rotate(-2deg)', opacity: 0, filter: 'drop-shadow(0 46px 18px rgba(0,0,0,.45))' },
           { transform: 'translateY(-30px) scale(1.12) rotate(-1deg)', opacity: 1, filter: 'drop-shadow(0 34px 16px rgba(0,0,0,.5))', offset: 0.35 },
           { transform: 'translateY(0) scale(.98)', filter: 'drop-shadow(0 6px 6px rgba(0,0,0,.6))', offset: 0.8 },
           { transform: 'scale(1)', filter: 'none' },
         ], { duration: 520 / FX.speed, easing: 'cubic-bezier(.4,0,.6,1)' });
-        await W(400);
-        if (type === 'ally' || type === 'place') {
+        if (!themed) await W(400);
+        if (themed) { /* its own sound and dust already */ } else if (type === 'ally' || type === 'place') {
           sfx.land(big, p.x);
           FX.dust(p.x, p.y + (type === 'ally' ? 80 : 34), big ? 0.9 : 0.55);
           if (big) FX.shake((d.cost ?? 0) >= 9 ? 1.4 : 0.8);
@@ -1732,7 +1820,7 @@ ${optHtml}</div></div>
       case 'coins': {
         if (!ev.amount) break;
         const side = ev.player === this.me ? 'me' : 'opp';
-        const tgt = this.stagePoint(this.coinsEl[side].querySelector('.coin-ico'));
+        const tgt = this.stagePoint(this.coinsEl[side].querySelector('span') || this.coinsEl[side]); // the visible counter (the old icon is hidden)
         const src = ev.src != null ? this.pointOf(ev.src) : null;
         if (src) {
           sfx.coin(src.x);
@@ -1942,33 +2030,44 @@ ${optHtml}</div></div>
     const row = (lbl, a, b) => `<tr><td>${lbl}</td><td class="${a > b ? 'up' : ''}">${a}</td><td class="${b > a ? 'up' : ''}">${b}</td></tr>`;
     const fighter = (i) => {
       const won = !draw && winner === i, hp = Math.max(0, P[i].leader?.hp ?? 0);
-      return `<div class="ov-fighter ${i === me ? 'me' : 'op'} ${draw ? '' : won ? 'won' : 'lost'}">
-        <div class="ov-port" style="background-image:url('${art(i)}')"></div>
-        ${won ? '<div class="ov-crown">Победитель</div>' : ''}
-        <div class="ov-plate"><b>${name(i)}</b><small>${esc(P[i].name)}${i === me && !this.spectator ? ' · вы' : ''}</small><span class="ov-hp">❤ ${hp}</span></div>
+      return `<div class="ov4-fighter ${i === me ? 'me' : 'op'} ${draw ? '' : won ? 'won' : 'lost'}">
+        ${won ? '<div class="ov4-glow"></div>' : ''}
+        <div class="ov4-port" style="background-image:url('${art(i)}')"></div>
+        ${won ? '<div class="ov4-crown">Победитель</div>' : ''}
+        <div class="ov4-plate"><b>${name(i)}</b><small>${esc(P[i].name)}${i === me && !this.spectator ? ' · вы' : ''}</small></div>
+        <span class="ov4-hp">${hp}</span>
       </div>`;
     };
+    // Round gold buttons with a sign and a caption under it (like the icon bar of a game client).
+    const SV = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+    const IC = {
+      stats: SV('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
+      share: SV('<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/>'),
+      replay: SV('<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/><path d="M10 9l5 3-5 3z"/>'),
+      rank: SV('<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3a3 3 0 0 1-3 4M7 5H4a3 3 0 0 0 3 4"/>'),
+      menu: SV('<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>'),
+    };
+    const ib = (attr, ic, label) => `<button class="ov4-ib" ${attr}><span class="ov4-ib-c">${ic}</span><span class="ov4-ib-l">${label}</span></button>`;
     setTimeout(() => {
       document.querySelector('#game > .over-screen')?.remove();
       const o = document.createElement('div');
-      o.className = 'over-screen over2 over3' + (win || (this.spectator && !draw) ? ' win' : draw ? ' draw' : ' lose');
+      const res = win || (this.spectator && !draw) ? 'win' : draw ? 'draw' : 'lose';
+      o.className = 'over-screen over2 over3 over4 ' + res;
       // New awards: a row of medals that appear one by one; hover shows what each is for.
       const ach = (this.newAch || []).length ? `<div class="ov-medals"><span class="ov-medals-lbl">${this.newAch.length === 1 ? 'Новая награда' : 'Новые награды'}</span>${this.newAch.map((x, k) => `<span class="ov-medal" style="animation-delay:${0.9 + k * 0.25}s" data-tip="${esc(x.title)}|${esc(x.text)}">${x.id ? medalHtml(x.id, { size: 56, tip: false }) : `<span class="medal on" style="--m:56px"><i style="-webkit-mask-image:url(assets/icons/scroll-unfurled.svg);mask-image:url(assets/icons/scroll-unfurled.svg)"></i></span>`}</span>`).join('')}</div>` : '';
       o.innerHTML = `
-        <div class="ov-vs">
-          ${fighter(me)}
-          <div class="ov-mid">
-            <div class="ov-title">${draw ? 'Ничья' : win || this.spectator ? 'Победа' : 'Поражение'}</div>
-            <div class="ov-vsword">VS</div>
-            <div class="ov-sub">${draw ? 'Оба Лидера пали одновременно' : `${name(winner)} побеждает ${esc(LEADER_ACC[P[1 - winner].leader?.id] || name(1 - winner))}`}<br>раунд ${this.view.round || 1}</div>
-          </div>
-          ${fighter(op)}
+        <div class="ov4-rays"></div>
+        <div class="ov4-top">
+          <div class="ov4-crest"><img src="assets/ui/${res === 'lose' ? 'end_lose' : 'end_win'}.webp" alt=""><div class="ov4-title">${draw ? 'Ничья' : res === 'win' ? 'Победа' : 'Поражение'}</div></div>
+          <div class="ov4-sub">${draw ? 'Оба Лидера пали одновременно' : `${name(winner)} побеждает ${esc(LEADER_ACC[P[1 - winner].leader?.id] || name(1 - winner))}`} · раунд ${this.view.round || 1}</div>
         </div>
-        <div class="ov-bottom">
+        <div class="ov4-duel">${fighter(me)}<div class="ov4-vs"><img src="assets/ui/fx_vs.webp" alt="VS"></div>${fighter(op)}</div>
+        <div class="ov-bottom ov4-bottom">
           ${ach}
           <div class="ov-rank">${this._rankHtml || (this.noRank ? '' : '<span class="ov-wait">Обновляем мировой рейтинг…</span>')}</div>
           ${this.levelNote ? `<div class="ov-level">${esc(this.levelNote)}</div>` : ''}
-          <div class="ov-btns"><button class="ov-btn gold" data-again>Реванш</button><button class="ov-btn" data-stats>Статистика партии</button><button class="ov-btn" data-share>📤 Поделиться</button>${this.onReplay ? '<button class="ov-btn" data-replay>▶ Повтор</button>' : ''}<button class="ov-btn" data-rank>Рейтинг и награды</button><button class="ov-btn" data-menu>В меню</button></div>
+          <button class="ov4-play" data-again><span>Реванш</span></button>
+          <div class="ov4-icons">${ib('data-stats', IC.stats, 'Статистика')}${ib('data-share', IC.share, 'Поделиться')}${this.onReplay ? ib('data-replay', IC.replay, 'Повтор') : ''}${ib('data-rank', IC.rank, 'Рейтинг')}${ib('data-menu', IC.menu, 'В меню')}</div>
           <a class="ov-buy" href="https://cardbattles.cc" target="_blank" rel="noopener">Понравилось? Настоящая коробка — на cardbattles.cc ↗</a>
         </div>
         <div class="ov-statpanel hidden"><div class="ov-statin">

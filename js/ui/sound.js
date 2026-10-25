@@ -1,6 +1,6 @@
 // Sound engine: the game's own effects made with ElevenLabs Sound Effects (credited on the Legal page), mixed through a small desk —
 // compressor, a short room reverb (a table in a tavern, not a cathedral), stereo position by board location,
-// random pitch/volume per hit. Music: ElevenLabs Music (tools/build-music.py); dungeon ambience JaggedStone (CC0).
+// random pitch/volume per hit. Music: menu theme ElevenLabs Music (tools/build-music.py); match music Kevin MacLeod, incompetech.com (CC BY 4.0) and RandomMind (CC0).
 let ctx = null, master, sfxBus, musicBus, verb, verbSend, comp;
 let enabled = true, musicOn = true;
 let manifest = null;
