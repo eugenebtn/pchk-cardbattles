@@ -8,6 +8,7 @@ import { achievementsHtml } from './achievements.js';
 import { loadReplays } from './replay.js';
 import { unlocked, ACH, medalHtml } from './achievements.js';
 import { dailyState } from './daily.js';
+import { currentUser, signIn, signUp, signOut } from '../net/account.js';
 
 const KEY = 'pchk_stats';
 const MODE_RU = { bot: 'с компьютером', online: 'с другом онлайн', hotseat: 'за одним экраном' };
@@ -72,7 +73,10 @@ function profileHtml(games, tot, name) {
   let best = 0, cur = 0; for (const g of games) { cur = g.result === 'win' ? cur + 1 : 0; best = Math.max(best, cur); }
   const have = unlocked(), got = Object.keys(have).filter((k) => ACH[k]).sort((a, b) => have[b] - have[a]);
   const d = dailyState();
+  const u = currentUser();
   return `<div class="pf">
+    <div class="pf-acc">${u ? `🔐 Вы вошли: <b>${esc(u.email)}</b> — профиль, колоды и награды сохраняются на всех устройствах. <button class="btn small" data-logout>Выйти</button>`
+      : `💾 Профиль хранится только в этом браузере. <button class="btn small primary" data-login>Войти или зарегистрироваться</button> — и он будет на всех ваших устройствах.`}</div>
     <div class="pf-head"><div class="pf-ava" style="background-image:url('${fav ? `assets/leaders/${fav}.webp` : ''}')"></div>
       <div><div class="pf-name"><input type="text" maxlength="20" value="${esc(name)}" placeholder="Ваше имя"><button class="btn small">Сохранить</button></div>
       <div class="pf-sub">${fav ? `Любимый Лидер: <b>${esc(leaderName(fav))}</b> · ${byL[0][1].n} партий` : 'Сыграйте первую партию!'}</div>
@@ -161,6 +165,8 @@ export function renderStats(root, onBack, { tab: startTab = 'world', name = () =
     if (tab === 'profile') {
       const inp = root.querySelector('.pf-name input');
       root.querySelector('.pf-name button').onclick = () => { setName(inp.value.trim()); root.querySelector('.pf-name button').textContent = 'Сохранено'; };
+      const lo = root.querySelector('[data-logout]'); if (lo) lo.onclick = () => { signOut(); draw(); };
+      const li = root.querySelector('[data-login]'); if (li) li.onclick = () => loginDialog();
       loadPlayers('all').then((list) => { const k = list.findIndex((x) => x.player_id === playerId()); const el = root.querySelector('.pf-rank'); if (el) el.innerHTML = k < 0 ? 'Пока не в рейтинге — сыграйте партию' : `<b>${k + 1}</b> место из ${list.length} в общем рейтинге`; }).catch(() => { const el = root.querySelector('.pf-rank'); if (el) el.textContent = 'Рейтинг сейчас недоступен'; });
     }
     const reps = loadReplays().slice().reverse();
@@ -170,4 +176,35 @@ export function renderStats(root, onBack, { tab: startTab = 'world', name = () =
     if (clr) clr.onclick = () => { if (confirm('Удалить всю вашу статистику в этом браузере?')) { clearGames(); draw(); } };
   };
   draw();
+}
+
+/** Sign in / sign up window. After it the page reloads, so every screen shows the account's profile. */
+export function loginDialog() {
+  const b = document.createElement('div');
+  b.className = 'modal-back'; b.style.cssText = 'position:fixed;inset:0;z-index:400';
+  b.innerHTML = `<div class="modal login-box" style="max-width:460px"><h3>Вход в профиль</h3>
+    <p class="st-note">Почта и пароль. Партии, колоды и награды из этого браузера добавятся в профиль.</p>
+    <label>Почта<input type="email" autocomplete="email" data-em></label>
+    <label>Пароль (не меньше 6 символов)<input type="password" autocomplete="current-password" data-pw></label>
+    <p class="login-msg" data-msg></p>
+    <div class="row-btns"><button class="btn primary" data-in>Войти</button><button class="btn" data-up>Зарегистрироваться</button><button class="btn small" data-close>Отмена</button></div></div>`;
+  document.body.appendChild(b);
+  const $ = (s) => b.querySelector(s), msg = $('[data-msg]');
+  const go = async (fn) => {
+    const em = $('[data-em]').value.trim(), pw = $('[data-pw]').value;
+    if (!/^\S+@\S+\.\S+$/.test(em)) { msg.textContent = 'Проверьте адрес почты.'; return; }
+    if (pw.length < 6) { msg.textContent = 'Пароль слишком короткий: нужно не меньше 6 символов.'; return; }
+    b.querySelectorAll('button').forEach((x) => { x.disabled = true; });
+    msg.textContent = 'Подождите…';
+    try {
+      const r = await fn(em, pw);
+      if (r.confirm) { msg.textContent = 'Мы отправили письмо на эту почту — откройте ссылку в нём, затем нажмите «Войти».'; b.querySelectorAll('button').forEach((x) => { x.disabled = false; }); return; }
+      msg.textContent = 'Готово!'; setTimeout(() => location.reload(), 400);
+    } catch (e) { msg.textContent = e.message; b.querySelectorAll('button').forEach((x) => { x.disabled = false; }); }
+  };
+  $('[data-in]').onclick = () => go(signIn);
+  $('[data-up]').onclick = () => go(signUp);
+  $('[data-pw]').onkeydown = (e) => { if (e.key === 'Enter') go(signIn); };
+  $('[data-close]').onclick = () => b.remove();
+  $('[data-em]').focus();
 }

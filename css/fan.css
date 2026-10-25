@@ -218,3 +218,10 @@
 .tour-match span.win { color: #8fe0a0; font-weight: 800; }
 .tour-match .btn { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); }
 .tour-champ { color: #f6d77a; }
+
+/* Account */
+.pf-acc { margin: 8px 0 4px; padding: 10px 14px; border-radius: 8px; background: rgba(246,215,122,.08); border: 1px solid rgba(246,215,122,.3); font: 500 17px 'Fira Sans Extra Condensed', sans-serif; color: #e8d6a6; line-height: 1.6; }
+.pf-acc b { color: #f6d77a; }
+.login-box label { display: block; margin: 10px 0; font: 500 16px 'Fira Sans Extra Condensed', sans-serif; color: #d9c48a; text-align: left; }
+.login-box input { display: block; width: 100%; box-sizing: border-box; margin-top: 4px; font: 600 20px 'Fira Sans Extra Condensed', sans-serif; padding: 8px 10px; border-radius: 6px; border: none; background: #f3e7c8; color: #2a1e14; }
+.login-msg { min-height: 22px; color: #f6d77a; font: 500 16px 'Fira Sans Extra Condensed', sans-serif; }
