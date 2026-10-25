@@ -153,6 +153,20 @@ const LEADER_IDS = [62, 117, 41, 20, 118, 63];
 $('#splash').addEventListener('click', () => { sfx.confirm(); show('menu'); setTimeout(() => voiceSoon(20, 'Hello'), 900); }); // Lionheart greets the guest
 $('#menu [data-act=settings]')?.addEventListener('click', () => { $('#menu-opts').classList.toggle('hidden'); });
 
+/** Copies text to the clipboard. The modern API works only on https; on http (or if it is refused) an old-style copy
+ *  through a hidden text field is used, and as a last resort the link is shown in a window to copy by hand. */
+async function copyText(text, msg = 'Ссылка скопирована') {
+  try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); toast(msg); return true; } } catch { /* fall through */ }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+    document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length);
+    const ok = document.execCommand('copy'); ta.remove();
+    if (ok) { toast(msg); return true; }
+  } catch { /* fall through */ }
+  window.prompt('Скопируйте ссылку:', text);
+  return false;
+}
 // ---------- decks ----------
 // What each Leader does, in plain words for a first game, and how hard the deck is to play.
 // Where the face is on each Leader card (for round portraits).
@@ -583,7 +597,7 @@ async function startHost(direct = false) {
       ob.innerHTML = `Отправьте другу эту ссылку. Игра начнётся, как только он откроет её и выберет колоду.
         <div class="link"><input readonly value="${url}"><button class="btn small" id="copy-link">Копировать</button>${navigator.share ? '<button class="btn small" id="share-link">Поделиться</button>' : ''}</div>
         <p style="color:var(--ink-dim);font-size:15px;margin:10px 0 0">Код комнаты: <b>${code}</b>. Не закрывайте эту вкладку.</p>`;
-      $('#copy-link').onclick = () => { navigator.clipboard?.writeText(url).then(() => toast('Ссылка скопирована')); };
+      $('#copy-link').onclick = () => { copyText(url); };
       $('#share-link') && ($('#share-link').onclick = () => navigator.share({ title: 'Карточные битвы ПЧК', text: 'Сыграем в Карточные битвы?', url }));
     },
     onGuest(conn, hello) {
@@ -700,7 +714,7 @@ function inviteWatchers(code, server = false) {
     <div class="link"><input readonly value="${url}" style="width:100%"></div>
     <div class="row-btns"><button class="btn primary" data-copy>Копировать ссылку</button>${navigator.share ? '<button class="btn" data-share>Поделиться</button>' : ''}<button class="btn" data-close>Закрыть</button></div></div>`;
   document.body.appendChild(b);
-  b.querySelector('[data-copy]').onclick = () => navigator.clipboard?.writeText(url).then(() => toast('Ссылка для зрителей скопирована'));
+  b.querySelector('[data-copy]').onclick = () => copyText(url, 'Ссылка для зрителей скопирована');
   const sh = b.querySelector('[data-share]');
   if (sh) sh.onclick = () => navigator.share({ title: 'Карточные битвы ПЧК', text: 'Посмотри нашу партию!', url });
   b.querySelector('[data-close]').onclick = () => b.remove();
@@ -807,7 +821,7 @@ class ReplaySession {
         if (a === 'back') this.jump(this.pos - 6);
         if (a === 'end') { this.paused = true; bar.querySelector('[data-r=play]').textContent = '▶'; this.jump(this.r.history.length); }
         if (a === 'fast') { this.speed = this.speed === 1 ? 2 : this.speed === 2 ? 3.5 : 1; FX.setSpeed(this.speed * (opt.speed || 1)); b.textContent = '×' + this.speed; }
-        if (a === 'share') replayLink(this.r).then((url) => navigator.clipboard?.writeText(url)).then(() => toast('Ссылка на повтор скопирована — её можно отправить в чат'));
+        if (a === 'share') replayLink(this.r).then((url) => copyText(url, 'Ссылка на повтор скопирована — её можно отправить в чат'));
       });
     }
     bar.querySelector('.rb-pos').textContent = `${Math.round((this.pos / Math.max(1, this.r.history.length)) * 100)}% · раунд ${this.game.s.round || 1}`;
@@ -897,7 +911,7 @@ function serverPlay(code, deck, { creating = false, matched = false, tour: inTou
     ob.innerHTML = `Отправьте другу эту ссылку. Игра начнётся, как только он откроет её и выберет колоду.
       <div class="link"><input readonly value="${url}"><button class="btn small" id="copy-link">Копировать</button>${navigator.share ? '<button class="btn small" id="share-link">Поделиться</button>' : ''}</div>
       <p style="color:var(--ink-dim);font-size:15px;margin:10px 0 0">Партия идёт на сервере: её не потеряете, даже если закроете вкладку — откройте ссылку снова.</p>`;
-    $('#copy-link').onclick = () => navigator.clipboard?.writeText(url).then(() => toast('Ссылка скопирована'));
+    $('#copy-link').onclick = () => copyText(url);
     $('#share-link') && ($('#share-link').onclick = () => navigator.share({ title: 'Карточные битвы ПЧК', text: 'Сыграем в Карточные битвы?', url }));
   } else ob.textContent = 'Соединяемся с сервером…';
   let ss = null;
@@ -997,7 +1011,7 @@ function drawTour() {
     ${st?.champion != null ? `<h3 class="tour-champ">🏆 Победитель: ${name(st.champion)}</h3>` : ''}
     ${myMatch ? `<button class="btn primary big" data-play="${myMatch.room}">⚔ Играть свой матч</button>` : ''}
   </div>`;
-  ob.querySelector('[data-copy]')?.addEventListener('click', () => navigator.clipboard?.writeText(url).then(() => toast('Ссылка на турнир скопирована')));
+  ob.querySelector('[data-copy]')?.addEventListener('click', () => copyText(url, 'Ссылка на турнир скопирована'));
   ob.querySelector('[data-start]')?.addEventListener('click', () => tour.conn.send({ t: 'start' }));
   ob.querySelector('[data-play]')?.addEventListener('click', (e) => serverPlay(e.target.dataset.play, tour.deck, { tour: true }));
   ob.querySelectorAll('[data-watch]').forEach((b) => b.addEventListener('click', () => startServerWatch(b.dataset.watch)));
@@ -1125,7 +1139,7 @@ document.querySelectorAll('#menu [data-act]').forEach((b) => b.addEventListener(
   else if (a === 'feedback') openFeedback({ name: opt.name });
   else if (a === 'legal') { renderLegal($('#legal'), () => show('menu'), { onRights: () => openFeedback({ name: opt.name, kind: 'rights' }) }); show('legal'); }
   else if (a === 'stats' || a === 'ranking') {
-    renderStats($('#stats'), () => show('menu'), { tab: a === 'ranking' ? 'world' : 'profile', onReplay: (r) => startReplay(r), onShareReplay: (r) => replayLink(r).then((u) => navigator.clipboard?.writeText(u)).then(() => toast('Ссылка на повтор скопирована')), name: () => opt.name, setName: (v) => { opt.name = v; store.set('name', v); $('#opt-name').value = v; } });
+    renderStats($('#stats'), () => show('menu'), { tab: a === 'ranking' ? 'world' : 'profile', onReplay: (r) => startReplay(r), onShareReplay: (r) => replayLink(r).then((u) => copyText(u, 'Ссылка на повтор скопирована')), name: () => opt.name, setName: (v) => { opt.name = v; store.set('name', v); $('#opt-name').value = v; } });
     show('stats');
   }
   else if (a === 'decks') openBuilder();
