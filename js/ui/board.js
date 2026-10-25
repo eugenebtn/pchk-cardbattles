@@ -32,6 +32,25 @@ const DRAWN = /assets\/cards\/(levenheart|larisa)_/;
 // What each Leader says at the start (the voice lines elVo<id>Intro), shown as subtitles in the VS intro.
 /** The other side of a two-sided card (Женуария ⇄ паучиха), or null. */
 const otherSide = (id) => CARDS[id]?.back ?? Object.values(CARDS).find((c) => c.back === Number(id))?.id ?? null;
+// Little references between characters who know each other: [event][card id] → who says what (Leaders also say it aloud: elVo<id><voice>).
+const REACTIONS = {
+  death: {
+    164: [{ by: 118, say: 'Лёша! Сыночек!.. Я отомщу за тебя!', voice: 'React0' }, { by: 117, say: 'Мой гениальный сын! Это вам так не пройдёт!', voice: 'React0' }],
+    161: [{ by: 154, say: 'Мама-ёлка! Нееет!' }],
+    154: [{ by: 161, say: 'Папа-ёлка!.. Доченька, иди ко мне.' }],
+    107: [{ by: 63, say: 'Бьянка! Моя святая Бьянка…', voice: 'React1' }],
+    101: [{ by: 62, say: 'Вот так, Димитар. Клан Баланов не выдают.', voice: 'React1' }],
+  },
+  enter: {
+    136: [{ by: 117, say: 'Охотники за головами? Опять? Я спрячусь в своём гениальном плане.', voice: 'React1' }],
+    111: [{ by: 63, say: 'Блэйд?! А, Блэт… Ну тогда ладно.', voice: 'React0' }, { by: 62, say: 'Охотник на вампиров? Клан Баланов не боится!', voice: 'React0' }],
+    101: [{ by: 62, say: 'Димитар… Меня ты не получишь!', voice: 'React2' }],
+    50: [{ by: 117, say: 'А? Что? Я не сплю! Я думаю!', voice: 'React2' }],
+    25: [{ by: 41, say: 'Пэлиас! Пусть он будет жив!', voice: 'React0' }],
+    164: [{ by: 118, say: 'Лёшенька, мама рядом!', voice: 'React1' }],
+    378: [{ by: 20, say: 'Не сдадутся? Значит, и я не сдамся!', voice: 'React0' }],
+  },
+};
 const BOARD_ART = new Set([160, 8, 33, 5, 125, 130, 116]); // Places with a painted board background
 const MULL_SEC = 45; // seconds to choose the starting hand
 const INTRO_LINE = { 20: 'Кёнигпон смотрит на нас. Строиться, бойцы!', 41: 'Хвост трубой, усы торчком — начинаем!', 62: 'Клан Баланов помнит каждую каплю крови. Начнём.',
@@ -381,7 +400,7 @@ export class BoardUI {
       if (e) parts.push(a ? (hit(e) >= a.hp ? `<b class="dn">▼ ${hit(e)}</b> 💀` : `<b class="dn">▼ ${hit(e)}</b>`) : `<b class="dn">▼ ${hit(e)}</b> ${this.spectator ? 'Лидеру' : 'вам'}`);
       const f = document.createElement('div');
       f.className = 'forecast';
-      f.style.left = (L.colX(r) + L.colW / 2) + 'px';
+      f.style.left = (L.colX(this.regionCol(r)) + L.colW / 2) + 'px'; // the column where the cards of region r are drawn
       f.style.top = (L.midY - 13) + 'px';
       f.innerHTML = parts.join('<i>·</i>');
       f.dataset.tip = 'Прогноз боя|Примерно, без свойств карт: ▲ — сколько ран нанесёт ваш союзник, ▼ — сколько получит. 💀 — карта, скорее всего, погибнет.';
@@ -539,8 +558,8 @@ export class BoardUI {
       if (old.outerHTML !== want) { old.outerHTML = want; }
     }
     const turnDot = (i) => (view.turn === i && view.phase === 'turn' ? '<span class="turn-dot"></span>' : '');
-    this.names.me.innerHTML = `${turnDot(me)}${esc(P[me].name)}`; this.names.me.title = P[me].name;
-    this.names.opp.innerHTML = `${turnDot(op)}${esc(P[op].name)}`; this.names.opp.title = P[op].name;
+    this.names.me.innerHTML = `${turnDot(me)}${esc(P[me].name)}`;
+    this.names.opp.innerHTML = `${turnDot(op)}${esc(P[op].name)}`;
     for (const [el, p] of [[this.coinsEl.me, P[me]], [this.coinsEl.opp, P[op]]]) {
       const span = el.querySelector('span');
       if (span.textContent !== String(p.coins)) { span.textContent = p.coins; span.animate([{ transform: 'scale(1.6)' }, { transform: 'scale(1)' }], { duration: 300 }); }
@@ -643,6 +662,31 @@ export class BoardUI {
     });
     document.addEventListener('mouseout', (e) => { if (e.target.closest?.(SEL) && !e.relatedTarget?.closest?.(SEL)) hide(); });
     document.addEventListener('click', hide, true);
+  }
+  /** Characters who know each other react (REACTIONS): a speech bubble at the speaker, and the Leader's voice if it was recorded. */
+  react(ev, id, view) {
+    const on = REACTIONS[ev.type === 'resolve' ? 'enter' : ev.type]?.[id];
+    if (!on || !view?.players) return;
+    this._reacted ||= new Set();
+    for (const [k, r] of on.entries()) {
+      const key = `${ev.type}|${id}|${k}`;
+      if (this._reacted.has(key) && r.once !== false) continue;
+      // the speaker: a Leader in this game, or a card on the field
+      const leader = view.players.find((p) => p.leader?.id === r.by)?.leader;
+      const card = !leader && view.players.flatMap((p) => [...p.regions.flatMap((x) => [x.ally, x.place]), ...p.support]).find((c) => c && c.id === r.by);
+      const who = leader || card;
+      if (!who) continue;
+      this._reacted.add(key);
+      setTimeout(() => {
+        const p = this.pointOf(who.uid); if (!p) return;
+        const side = view.players.findIndex((pl) => pl.leader?.uid === who.uid);
+        if (side >= 0 && side !== this.me && this.muteOpp) return;
+        const mine = side === this.me;
+        this.bubbleAt(p.x + (leader ? 40 : -60), leader ? (mine ? p.y - 110 : p.y + 70) : p.y - 100, r.say, 3600, leader && !mine);
+        if (!(leader && voice(who.id, r.voice))) sfx.reveal();
+      }, 700);
+      return;
+    }
   }
   /** «+N» on the pile of extra companions and items; a click shows them all. */
   supportPile(side, cards, x, y) {
@@ -1626,9 +1670,11 @@ ${optHtml}</div></div>
       if (!this.introDone && view && view.players?.[0]?.leader && !this.noIntro) await this.intro(view);
       try { this.tally(ev, view); } catch (e) { console.warn(e); }
       try { this.noteFx(ev); } catch (e) { console.warn(e); }
+      const rid = ev.id ?? (ev.uid != null ? this.cardIdOf(ev.uid) : null); // before the card leaves the board
       try { await this.pre(ev, batch, k); } catch (e) { console.warn(e); }
       this.render(view);
       try { await this.post(ev); } catch (e) { console.warn(e); }
+      try { this.react(ev, rid, view); } catch (e) { console.warn(e); }
     }
   }
   async pre(ev, batch, k) {
