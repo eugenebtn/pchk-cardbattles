@@ -2056,6 +2056,8 @@ ${optHtml}</div></div>
       // New awards: a row of medals that appear one by one; hover shows what each is for.
       const ach = (this.newAch || []).length ? `<div class="ov-medals"><span class="ov-medals-lbl">${this.newAch.length === 1 ? 'Новая награда' : 'Новые награды'}</span>${this.newAch.map((x, k) => `<span class="ov-medal" style="animation-delay:${0.9 + k * 0.25}s" data-tip="${esc(x.title)}|${esc(x.text)}">${x.id ? medalHtml(x.id, { size: 56, tip: false }) : `<span class="medal on" style="--m:56px"><i style="-webkit-mask-image:url(assets/icons/scroll-unfurled.svg);mask-image:url(assets/icons/scroll-unfurled.svg)"></i></span>`}</span>`).join('')}</div>` : '';
       o.innerHTML = `
+        <div class="ov4-side me ${draw ? '' : winner === me ? 'won' : 'lost'}" style="background-image:url('${P[me].leader?.id != null ? `assets/leaders/${P[me].leader.id}.webp` : ''}')"></div>
+        <div class="ov4-side op ${draw ? '' : winner === op ? 'won' : 'lost'}" style="background-image:url('${P[op].leader?.id != null ? `assets/leaders/${P[op].leader.id}.webp` : ''}')"></div>
         <div class="ov4-rays"></div>
         <div class="ov4-top">
           <div class="ov4-crest"><img src="assets/ui/${res === 'lose' ? 'end_lose' : 'end_win'}.webp" alt=""><div class="ov4-title">${draw ? 'Ничья' : res === 'win' ? 'Победа' : 'Поражение'}</div></div>
