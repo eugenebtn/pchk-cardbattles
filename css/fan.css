@@ -202,7 +202,8 @@
 .pf-daily { margin: 12px 0; padding: 8px 12px; border-radius: 8px; background: rgba(255, 255, 255, .04); box-shadow: inset 0 0 0 1px rgba(217, 196, 138, .3); }
 .pf-daily.done { box-shadow: inset 0 0 0 1.5px #8fe0a0; }
 .pf-ach { display: flex; flex-wrap: wrap; gap: 8px; }
-.pf-ach span { padding: 4px 10px; border-radius: 6px; background: rgba(246, 215, 122, .12); box-shadow: inset 0 0 0 1px #d9c48a; font: 600 15px 'Fira Sans Extra Condensed', sans-serif; }
+.pf-ach { gap: 14px; }
+.pf-ach .medal { cursor: help; }
 
 /* Tournament */
 .tour { text-align: left; }

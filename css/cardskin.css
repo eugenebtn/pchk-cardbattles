@@ -641,3 +641,43 @@
 
 .turn-clock { position: absolute; z-index: 60; padding: 3px 12px; border-radius: 12px; font: 800 18px 'Fira Sans Extra Condensed', sans-serif; color: #f6e2a8; background: rgba(15, 10, 6, .85); box-shadow: inset 0 0 0 1px #d9c48a; }
 .turn-clock.low { color: #fff; background: #b8281c; animation: recblink 1s ease-in-out infinite; }
+
+/* «Совет» stays one line (full text on hover), so it never covers the history; the history opens taller on click. */
+.hint-bar .coach-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hint-bar .coach-line:hover { white-space: normal; }
+.log-panel { cursor: pointer; transition: top .25s ease, height .25s ease; }
+.log-panel.open { z-index: 75; background: rgba(10, 8, 6, .95) !important; box-shadow: inset 0 0 0 1.5px #d9c48a, 0 14px 30px rgba(0, 0, 0, .7) !important; }
+.log-panel::after { content: '⤢'; position: sticky; float: right; bottom: 0; color: #d9c48a; font-size: 14px; opacity: .7; }
+
+/* «Манёвр»: a clear box at the top of the field */
+.prompt.man-box { transform: translateX(-50%); z-index: 72; }
+.man-box .man-in { display: flex; align-items: center; gap: 14px; padding: 8px 10px 8px 16px; border-radius: 10px; max-width: 760px;
+  font: 600 18px/1.25 'Fira Sans Extra Condensed', sans-serif; color: #2a1e14; background: radial-gradient(ellipse at 50% 40%, #f3e7c8, #e2cfa4 70%, #c9b07e);
+  box-shadow: 0 0 0 3px #0f1418, 0 0 0 4.5px #d9c48a, 0 12px 26px rgba(0, 0, 0, .6); }
+.man-box .man-in b { white-space: nowrap; font-size: 20px; color: #6e2118; text-transform: uppercase; }
+.man-box .btn { white-space: nowrap; }
+#stage.port .man-box .man-in { font-size: 24px; max-width: 860px; }
+
+/* ---------- Award medals in the card style (gold rim, dark sign from game-icons) ---------- */
+.medal { position: relative; display: inline-grid; place-items: center; flex: none; width: var(--m, 64px); height: var(--m, 64px); border-radius: 50%;
+  background: radial-gradient(circle at 35% 28%, #5a5248, #2e2924 70%); box-shadow: 0 0 0 3px #0f1418, 0 0 0 4.5px #6b6048, inset 0 2px 6px rgba(0, 0, 0, .6); }
+.medal i { width: 58%; height: 58%; background: #8a8070; -webkit-mask-size: contain; mask-size: contain; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center; }
+.medal.on { background: radial-gradient(circle at 34% 28%, #fff1c0, #e0b552 42%, #9a6a1c 80%, #6e4a10); box-shadow: 0 0 0 3px #0f1418, 0 0 0 4.5px #d9c48a, 0 6px 14px rgba(0, 0, 0, .55), inset 0 -3px 6px rgba(90, 55, 10, .5); }
+.medal.on i { background: #3a2404; }
+.medal.on::after { content: ''; position: absolute; inset: 6%; border-radius: 50%; box-shadow: inset 0 0 0 1.5px rgba(255, 240, 200, .55); }
+/* End screen: a neat row of new medals */
+.over3 .ov-medals { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; margin: 0 auto 10px; }
+.over3 .ov-medals-lbl { font: 800 15px 'Fira Sans Extra Condensed', sans-serif; letter-spacing: .08em; text-transform: uppercase; color: #f6d77a; margin-right: 4px; }
+.over3 .ov-medal { cursor: help; opacity: 0; animation: medalin .55s cubic-bezier(.2, .9, .3, 1.3) forwards; }
+.over3 .ov-medal:hover .medal { transform: scale(1.12); }
+.over3 .ov-medal .medal { transition: transform .2s; }
+@keyframes medalin { from { opacity: 0; transform: translateY(14px) scale(.4) rotate(-20deg); } to { opacity: 1; transform: none; } }
+/* Trophy room */
+.ach-room { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+.ach-cell { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 10px 12px; border-radius: 12px; text-align: center; background: rgba(255, 255, 255, .03); box-shadow: inset 0 0 0 1px rgba(217, 196, 138, .18); }
+.ach-cell b { font: 800 16px 'Fira Sans Extra Condensed', sans-serif; color: #9d917a; }
+.ach-cell small { font: 500 13px/1.25 'Fira Sans Extra Condensed', sans-serif; color: #8a7c62; }
+.ach-cell em { font: 500 12px 'Fira Sans Extra Condensed', sans-serif; color: #b9a77a; font-style: normal; }
+.ach-cell.on { background: rgba(246, 215, 122, .07); box-shadow: inset 0 0 0 1.5px rgba(217, 196, 138, .55); }
+.ach-cell.on b { color: #f6e2a8; }
+.ach-cell.on small { color: #d0c3a2; }

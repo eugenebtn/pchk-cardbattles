@@ -3,6 +3,7 @@ import { CARDS } from '../data/cards.js';
 import * as FX from './fx.js';
 import { sfx, playMusic } from './sound.js';
 import { resultPicture, sharePicture, toggleRecording } from './share.js';
+import { medalHtml } from './achievements.js';
 import { pickLayout } from './layouts.js';
 import { linkTerms } from './glossary.js';
 import { ICON, KW_SVG, TOK_SVG } from './icons.js';
@@ -180,6 +181,7 @@ export class BoardUI {
     this.hintEl = u.querySelector('#hint');
     this.stackEl = u.querySelector('#stack');
     this.promptEl = u.querySelector('#prompt');
+    this._promptLeft = this.promptEl.style.left; this._promptTop = this.promptEl.style.top;
     u.querySelector('#btn-menu').addEventListener('click', () => this.onMenu && this.onMenu());
     u.querySelector('#btn-help').addEventListener('click', () => this.showHelp());
     u.querySelector('#btn-report').addEventListener('click', () => this.onFeedback?.());
@@ -530,6 +532,15 @@ export class BoardUI {
       this.logEl._hover = true;
       this.logEl.addEventListener('mouseover', (e) => { const d = e.target.closest('[data-r]'); if (d) this.showLogRef(this.view?.logRefs?.[Number(d.dataset.r)], d); });
       this.logEl.addEventListener('mouseleave', () => this.hideLogRef());
+      // A click opens the history taller (upwards, over the hint), another click closes it.
+      this.logEl.addEventListener('click', (e) => {
+        if (e.target.closest('[data-r]') && this.logEl.classList.contains('open')) return;
+        const L = this.L.log; if (!L) return;
+        const open = this.logEl.classList.toggle('open');
+        this.logEl.style.top = (open ? L.y - 320 : L.y) + 'px';
+        this.logEl.style.height = (open ? L.h + 320 : L.h) + 'px';
+        if (open) this.logEl.scrollTop = this.logEl.scrollHeight;
+      });
     }
     if (atBottom) this.logEl.scrollTop = this.logEl.scrollHeight;
     // Stack.
@@ -594,6 +605,7 @@ export class BoardUI {
     this.endBtn.className = 'end-turn wait';
     this.endBtn.textContent = this.spectator ? 'Режим зрителя' : this.view?.phase === 'battle' ? 'Сражение' : 'Ход соперника';
     if (!mine) return;
+    if (this.isManeuver(q)) { this.endBtn.className = 'end-turn'; this.endBtn.textContent = 'Не перемещать'; }
     if (q.type === 'main' || q.type === 'priority') {
       for (const o of q.options) {
         if (o.kind === 'play') this.els.get(o.uid)?.classList.add(q.type === 'main' ? 'playable' : 'fastable');
@@ -643,11 +655,22 @@ export class BoardUI {
     if (q && q.player === this.me && q.focus != null) this.els.get(q.focus)?.classList.add('focus');
     el.className = this.L.name === 'land' ? 'prompt side' : 'prompt';
     el.innerHTML = '';
+    el.style.left = this._promptLeft ?? ''; el.style.top = this._promptTop ?? ''; // back from the «Манёвр» spot
     if (!q) return;
     if (q.player !== this.me) {
       if (this.view?.phase === 'battle') { el.innerHTML = ''; return; }
       el.className = this.L.name === 'land' ? 'prompt side wait' : 'prompt wait';
       el.innerHTML = `<div class="ptext">${q.type === 'priority' ? 'Соперник может ответить…' : 'Соперник думает…'}</div>`;
+      return;
+    }
+    if (this.isManeuver(q)) {
+      const fx = this.L.field;
+      el.className = 'prompt man-box';
+      el.style.left = (fx[0] + fx[2] / 2) + 'px'; el.style.top = (fx[1] + 6) + 'px';
+      const step2 = q.type === 'region';
+      const who = q.focus != null ? CARDS[this.cardIdOf(q.focus)]?.name.split(',')[0] : '';
+      el.innerHTML = `<div class="man-in"><b>🏃 Манёвр</b><span>${step2 ? `Куда переместить «${esc(who)}»? Нажмите на подсвеченный регион.` : 'Можно переместить союзника в соседний свободный регион. Нажмите на подсвеченного союзника.'}</span><button class="btn" data-stay>${step2 ? 'Не перемещать' : 'Оставить всех на местах'}</button></div>`;
+      el.querySelector('[data-stay]').onclick = () => { sfx.click(); this.answer(null); };
       return;
     }
     const btns = [];
@@ -696,11 +719,14 @@ export class BoardUI {
     this.updateHint();
     this.onAnswer(q, a);
   }
+  /** The two questions of «Манёвр»: which ally to move, then where. */
+  isManeuver(q) { return !!q && (q.maneuver || (q.type === 'region' && /^Манёвр/.test(q.prompt || ''))); }
   clickEnd() {
     const q = this.q;
     if (!q || q.player !== this.me) return;
     if (q.type === 'main') { sfx.click(); this.answer('end'); }
     else if (q.type === 'priority') { sfx.click(); this.answer('pass'); }
+    else if (this.isManeuver(q) && q.cancel !== false) { sfx.click(); this.answer(null); }
   }
   clickSlot(s) {
     const q = this.q;
@@ -1037,7 +1063,7 @@ export class BoardUI {
         default: title = q.prompt || '';
       }
     }
-    el.innerHTML = (this.coachText && q && q.player === me ? `<div class="coach-line"><b>Совет:</b> ${esc(this.coachText)}</div>` : '')
+    el.innerHTML = (this.coachText && q && q.player === me ? `<div class="coach-line" title="${esc(this.coachText)}"><b>Совет:</b> ${esc(this.coachText)}</div>` : '')
       + (title ? `<span class="hint-ico"><i style="-webkit-mask-image:url(assets/icons/${ico}.svg);mask-image:url(assets/icons/${ico}.svg)"></i></span><span class="hint-txt"><b>${esc(title)}</b>${sub ? `<em>${esc(sub)}</em>` : ''}</span>` : '');
     el.classList.toggle('empty', !title);
   }
@@ -1375,6 +1401,10 @@ ${optHtml}</div></div>
     if (c.maxHp != null && d.hp != null && c.maxHp !== d.hp) now.push(`❤️ здоровье до ${c.maxHp} (на карте ${d.hp})`);
     if (c.hp != null && c.maxHp != null && c.hp < c.maxHp) now.push(`🩸 ранена: ${c.maxHp - c.hp}`);
     if (c.stunned) now.push('💫 оглушена — не атакует');
+    if (c.tmpHp > 0 || c.tmpAtk > 0) {
+      const dies = c.tmpHp > 0 && c.hp != null && c.hp - c.tmpHp <= 0;
+      now.push(`⏳ временно ${c.tmpAtk ? `+${c.tmpAtk} атаки ` : ''}${c.tmpHp ? `+${c.tmpHp} здоровья` : ''}${dies ? ' — когда усиление кончится, раны останутся и карта погибнет' : ''}`);
+    }
     const extra = (c.kws || []).filter((k) => KW_NAME[k] && !(d.kw || []).includes(k));
     if (extra.length) now.push(`✨ получила: ${extra.map((k) => KW_NAME[k]).join(', ')}`);
     const hist = (this.cardFx?.get(c.uid) || []).slice().reverse();
@@ -1861,7 +1891,8 @@ ${optHtml}</div></div>
       document.querySelector('#game > .over-screen')?.remove();
       const o = document.createElement('div');
       o.className = 'over-screen over2 over3' + (win || (this.spectator && !draw) ? ' win' : draw ? ' draw' : ' lose');
-      const ach = (this.newAch || []).map((x) => `<div class="ov-ach"><span>${x.icon}</span><div><b>Новая награда: ${esc(x.title)}</b><small>${esc(x.text)}</small></div></div>`).join('');
+      // New awards: a row of medals that appear one by one; hover shows what each is for.
+      const ach = (this.newAch || []).length ? `<div class="ov-medals"><span class="ov-medals-lbl">${this.newAch.length === 1 ? 'Новая награда' : 'Новые награды'}</span>${this.newAch.map((x, k) => `<span class="ov-medal" style="animation-delay:${0.9 + k * 0.25}s" data-tip="${esc(x.title)}|${esc(x.text)}">${x.id ? medalHtml(x.id, { size: 56, tip: false }) : `<span class="medal on" style="--m:56px"><i style="-webkit-mask-image:url(assets/icons/scroll-unfurled.svg);mask-image:url(assets/icons/scroll-unfurled.svg)"></i></span>`}</span>`).join('')}</div>` : '';
       o.innerHTML = `
         <div class="ov-vs">
           ${fighter(me)}

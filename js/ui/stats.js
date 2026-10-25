@@ -6,7 +6,7 @@ import { BALANCE } from '../data/balance.js';
 import { esc } from './board.js';
 import { achievementsHtml } from './achievements.js';
 import { loadReplays } from './replay.js';
-import { unlocked, ACH } from './achievements.js';
+import { unlocked, ACH, medalHtml } from './achievements.js';
 import { dailyState } from './daily.js';
 
 const KEY = 'pchk_stats';
@@ -79,7 +79,7 @@ function profileHtml(games, tot, name) {
       <div class="pf-rank">Загружаем место в рейтинге…</div></div></div>
     <div class="st-kpis"><div class="kpi"><b>${tot.n}</b><span>партий</span></div><div class="kpi win"><b>${tot.w}</b><span>побед</span></div><div class="kpi"><b>${pct(tot.w, tot.n)}%</b><span>процент побед</span></div><div class="kpi"><b>${best}</b><span>лучшая серия</span></div><div class="kpi"><b>${got.length}/${Object.keys(ACH).length}</b><span>наград</span></div><div class="kpi"><b>${d.total}</b><span>заданий дня</span></div></div>
     <div class="pf-daily ${d.done ? 'done' : ''}">📜 <b>Задание дня:</b> ${esc(d.task.text)} ${d.done ? '— <b>выполнено ✓</b>' : ''}${d.streak > 1 ? ` · дней подряд: ${d.streak}` : ''}</div>
-    ${got.length ? `<h3>Последние награды</h3><div class="pf-ach">${got.slice(0, 6).map((k) => `<span data-tip="${esc(ACH[k].title)}|${esc(ACH[k].text)}">${ACH[k].icon} ${esc(ACH[k].title)}</span>`).join('')}</div>` : ''}
+    ${got.length ? `<h3>Последние награды</h3><div class="pf-ach">${got.slice(0, 8).map((k) => medalHtml(k, { size: 58 })).join('')}</div>` : ''}
   </div>`;
 }
 

@@ -305,8 +305,12 @@ export class Game {
   }
   expire(pred) {
     for (const c of Object.values(this.s.cards)) {
+      const ends = c.mods.filter((m) => m.until && pred(m.until));
+      // A temporary health bonus ends but the wounds stay (rules: a buff raises the health limit, wounds are tokens).
+      const alive = ends.some((m) => m.hp > 0) && this.onField(c) && ['ally', 'companion'].includes(this.cardType(c)) && this.hp(c) > 0;
       c.mods = c.mods.filter((m) => !(m.until && pred(m.until)));
       c.kws = c.kws.filter((k) => !(k.until && pred(k.until)));
+      if (alive && this.hp(c) <= 0) this.emit('log', { uid: c.uid, log: `«${this.name(c)}»: временное усиление закончилось, а раны остались — карта погибает.` });
     }
   }
 
@@ -1523,6 +1527,7 @@ export class Game {
           kws: Object.keys(KW_RU).filter((k) => this.has(c, k)), equip: c.equip, region: c.region,
           abilities: d.type === 'leader' ? (this.script(c).abilities || []).map((ab) => ({ name: ab.name, cost: this.abilityCost(c, ab), fast: !!ab.fast })) : undefined,
           extraTypes: c.extraTypes,
+          tmpHp: c.mods.filter((m) => m.until).reduce((n, m) => n + (m.hp || 0), 0), tmpAtk: c.mods.filter((m) => m.until).reduce((n, m) => n + (m.atk || 0), 0),
         });
       } else if (c.zone === 'hand') {
         o.cost = this.costOf(c.ctrl, c);
