@@ -239,3 +239,7 @@ body.studio #splash .fan-sub, body.studio #splash .splash-legal { z-index: 2; an
 /* Leader paintings in the menu: shifted right, the left side under the buttons stays dark */
 .mv-art.leader-art { background-color: #120a05 !important; background-size: auto 100% !important; background-position: 30vw center !important; animation: none !important; }
 .mv-art.leader-art::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #120a05 0%, #120a05 30vw, rgba(18, 10, 5, .85) 34vw, rgba(18, 10, 5, 0) 46vw); }
+/* bottom: one tidy line (text, link, «Купить» button) with room under it; the ranking panel sits above it */
+#menu.mv .credits { bottom: calc(10px + env(safe-area-inset-bottom)) !important; display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: nowrap; white-space: nowrap; }
+#menu.mv .credits .buy-real { margin-left: 0 !important; padding: 4px 12px; line-height: 1.2; }
+.mv-bottom { bottom: calc(52px + env(safe-area-inset-bottom)) !important; }
