@@ -1,7 +1,8 @@
 // Deck builder: "My decks" gallery and the editor (leader + at least 40 cards, max 3 copies), saved in this browser.
 import { CARDS } from '../data/cards.js';
 import { DECKS } from '../data/decks.js';
-import { esc } from './board.js';
+import { esc, cardZoom } from './board.js';
+cardZoom(); // pointing at a card shows it big
 import { linkTerms } from './glossary.js';
 import { sfx } from './sound.js';
 import { loadCardStats, loadDecks, loadCommunityDecks, publishDeck } from '../net/ranking.js';

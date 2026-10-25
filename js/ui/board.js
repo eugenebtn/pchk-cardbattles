@@ -72,6 +72,9 @@ export function artCover(img, w, h, fy = 0.2) {
   return `background-image:url('${img}');background-size:${s}px auto;background-position:${x}px ${y}px;background-repeat:no-repeat`;
 }
 
+/** The big card picture on hover, for screens without a board (the deck builder). */
+export function cardZoom() { BoardUI.prototype.bindZoom.call(null); }
+
 export class BoardUI {
   constructor(stage, { me, onAnswer, onMenu, hotseat = false, theme = 'tavern' }) {
     this.theme = theme;
@@ -653,13 +656,14 @@ export class BoardUI {
   bindZoom() {
     if (document._cardZoom) return;
     document._cardZoom = true;
-    const SEL = '.pri-vs-card, .pri-img, .pick-card, .ch-img, .mcard, .lrb-card';
+    const SEL = '.pri-vs-card, .pri-img, .pick-card, .ch-img, .mcard, .lrb-card, .bcard2, .bld-row'; // windows, and the deck builder
     let z = null;
     const hide = () => { z?.remove(); z = null; };
     document.addEventListener('mouseover', (e) => {
       const el = e.target.closest?.(SEL);
       if (!el) { if (z && !e.target.closest?.('.zoom-card')) hide(); return; }
-      const m = (el.style.backgroundImage || getComputedStyle(el).backgroundImage).match(/url\(["']?(.*?)["']?\)/);
+      const src = el.querySelector(':scope > img')?.src || el.style.getPropertyValue('--art') || el.style.backgroundImage || getComputedStyle(el).backgroundImage;
+      const m = String(src).match(/url\(["']?(.*?)["']?\)/) || (/^(https?:|assets\/)/.test(src) ? [0, src] : null);
       if (!m) return;
       hide();
       z = document.createElement('div');
