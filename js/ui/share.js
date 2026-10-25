@@ -40,7 +40,7 @@ export async function resultPicture(p) {
   x.fillStyle = '#b9a77a'; x.font = '500 20px "Fira Sans Extra Condensed", sans-serif';
   for (const [k, part] of (p.line || '').split(' · ').entries()) x.fillText(part, W / 2, y + 36 + k * 26);
   x.fillStyle = '#8a7c62'; x.font = '500 20px "Fira Sans Extra Condensed", sans-serif';
-  x.fillText('Карточные битвы ПЧК · фанатская онлайн-версия · eugenebtn.github.io/pchk-cardbattles', W / 2, H - 22);
+  x.fillText('Карточные битвы ПЧК · фанатская онлайн-версия · pchk-battles.ru', W / 2, H - 22);
   return new Promise((res) => c.toBlob(res, 'image/png'));
 }
 export async function sharePicture(blob, toast) {
