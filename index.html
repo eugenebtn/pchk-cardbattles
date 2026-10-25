@@ -22,6 +22,7 @@
 <link rel="stylesheet" href="css/premium.css?v=0535dfa9">
 <link rel="stylesheet" href="css/fan.css?v=eabdc201">
 <link rel="stylesheet" href="css/cardskin.css?v=faa72fa9">
+<link rel="stylesheet" href="css/ui3.css?v=5f47af75">
 </head>
 <body>
 <div id="app">
@@ -42,31 +43,45 @@
     <div class="splash-legal">Неофициальный некоммерческий фан-проект для игры с друзьями</div>
   </section>
 
-  <!-- Menu -->
-  <section id="menu" class="screen">
-    <div class="fan-sub">Подземелья Чикен Карри</div>
-    <nav class="top-nav">
-      <button data-act="tutorial">Обучение</button>
-      <button data-act="hotseat">Вдвоём</button>
-      <button data-act="watchbots">Смотреть</button>
-      <button data-act="tour" class="hidden">Турнир</button>
-      <button data-act="ranking">Рейтинг</button>
-      <button data-act="stats">Статистика</button>
-      <button data-act="rules">Правила</button>
-      <button data-act="settings">Настройки</button>
-      <button data-act="feedback">Отзыв</button>
-    </nav>
-    <div id="join-banner" class="join-banner hidden"></div>
-    <div class="fan-wrap"><div class="fan" data-fan></div></div>
-    <h1 class="fan-logo">Карточные битвы</h1>
-    <div class="menu-main">
-      <button class="pill quiet" data-act="host">С другом</button>
-      <button class="pill gold" data-act="bot">Играть</button>
-      <button class="pill quiet" data-act="decks">Колоды</button>
+  <!-- Menu: big Leader art on the right, gold plaques on the left, profile bar on top -->
+  <section id="menu" class="screen mv">
+    <div class="mv-art"></div>
+    <header class="mv-top">
+      <button class="mv-me" data-act="stats" data-tip="Профиль|Ваше имя, награды и статистика">
+        <i class="mv-ava"></i><span><b class="mv-name">Игрок</b><small class="mv-sub">Профиль</small></span>
+      </button>
+      <div class="mv-chip" data-tip="Победы|Сколько партий вы выиграли"><img src="assets/icons/laurel-crown.svg" alt=""><b id="mv-wins">0</b></div>
+      <div class="mv-chip" data-tip="Награды|Сколько наград открыто"><img src="assets/icons/trophy.svg" alt=""><b id="mv-ach">0</b></div>
+      <nav class="mv-icons">
+        <button data-act="rules" data-tip="Правила|Как играть"><img src="assets/icons/open-book.svg" alt="Правила"></button>
+        <button data-act="feedback" data-tip="Отзыв|Ошибка, идея или вопрос"><img src="assets/icons/chat-bubble.svg" alt="Отзыв"></button>
+        <button data-act="settings" data-tip="Настройки|Звук, имя, поле, таймер"><img src="assets/icons/cog.svg" alt="Настройки"></button>
+      </nav>
+    </header>
+    <div class="mv-left">
+      <img class="mv-logo" src="assets/ui/logo.webp" alt="Карточные битвы">
+      <div class="mv-sub2">Подземелья Чикен Карри</div>
+      <div id="join-banner" class="join-banner hidden"></div>
+      <div class="mv-btns">
+        <button class="plq gold" data-act="bot"><span>Играть</span><i class="gem"></i></button>
+        <button class="plq" data-act="host"><span>С другом</span><i class="gem"></i></button>
+        <button class="plq" data-act="decks"><span>Колоды</span><i class="gem"></i></button>
+        <button class="plq" data-act="ranking"><span>Рейтинг</span><i class="gem"></i></button>
+      </div>
+      <nav class="mv-more top-nav">
+        <button data-act="tutorial">Обучение</button>
+        <button data-act="hotseat">Вдвоём</button>
+        <button data-act="watchbots">Смотреть</button>
+        <button data-act="tour" class="hidden">Турнир</button>
+        <button data-act="stats">Статистика</button>
+      </nav>
     </div>
-    <div id="menu-daily" class="menu-daily"></div>
-    <a class="buy-real" href="https://cardbattles.cc" target="_blank" rel="noopener">Купить настоящую игру ↗</a>
+    <div class="mv-bottom">
+      <div id="menu-daily" class="menu-daily"></div>
+      <div class="mv-side" id="mv-side"></div>
+    </div>
     <div class="menu-opts hidden" id="menu-opts">
+      <div class="mo-head"><b>Настройки</b><button class="mo-close" data-close-opts aria-label="Закрыть">✕</button></div>
       <label><input type="checkbox" id="opt-sound" checked> Звук</label>
       <label><input type="checkbox" id="opt-music" checked> Музыка</label>
       <div class="vol-row"><span>Громкость:</span><label>Музыка <input type="range" min="0" max="100" data-vol="music"></label><label>Звуки игры <input type="range" min="0" max="100" data-vol="sfx"></label><label>Кнопки <input type="range" min="0" max="100" data-vol="ui"></label></div>
@@ -77,7 +92,7 @@
       <label class="name-row">Ваше имя: <input type="text" id="opt-name" maxlength="20" placeholder="Игрок"></label>
       <label class="name-row">Поле: <select id="opt-board"><option value="random">Случайное место</option><option value="160">Таверна «Кайф»</option><option value="8">Замок Вёрджинвальд</option><option value="33">Пороховой склад</option><option value="5">Кёнигпон</option><option value="125">Подземный тайник</option><option value="130">Рыночная площадь</option><option value="116">Замок Нассератт</option></select></label>
     </div>
-    <p class="credits"><span>Неофициальный фан-проект, не связан с «Чикен Карри»</span><button data-act="legal">Правовая информация и авторы</button></p>
+    <p class="credits"><span>Неофициальный фан-проект, не связан с «Чикен Карри»</span><button data-act="legal">Правовая информация и авторы</button><a class="buy-real" href="https://cardbattles.cc" target="_blank" rel="noopener">Купить настоящую игру ↗</a></p>
   </section>
 
   <!-- Hero select -->
@@ -119,8 +134,8 @@
     <div id="preview" class="preview hidden"></div>
       </section>
 </div>
-<script type="importmap">{"imports":{"three":"./vendor/three.module.js","three/addons/":"./vendor/addons/","./js/cards/index.js":"./js/cards/index.js?v=44c8b885","./js/cards/larisa.js":"./js/cards/larisa.js?v=d4236f70","./js/cards/levenheart.js":"./js/cards/levenheart.js?v=87b81825","./js/cards/set1.js":"./js/cards/set1.js?v=b5e25c87","./js/cards/sofia_erik.js":"./js/cards/sofia_erik.js?v=271b60a1","./js/cards/tokens.js":"./js/cards/tokens.js?v=6d3eafb8","./js/cards/vampires.js":"./js/cards/vampires.js?v=03a16faa","./js/data/balance.js":"./js/data/balance.js?v=9ba21d7b","./js/data/cards.js":"./js/data/cards.js?v=0a1fcb04","./js/data/decks.js":"./js/data/decks.js?v=3e55ea4f","./js/engine/bot.js":"./js/engine/bot.js?v=0639751c","./js/engine/botlevels.js":"./js/engine/botlevels.js?v=d7438c9c","./js/engine/game.js":"./js/engine/game.js?v=621860a3","./js/features.js":"./js/features.js?v=41357be9","./js/main.js":"./js/main.js?v=645bab37","./js/net/account.js":"./js/net/account.js?v=dd500c80","./js/net/online.js":"./js/net/online.js?v=821d4a4a","./js/net/ranking.js":"./js/net/ranking.js?v=0666154b","./js/net/server.js":"./js/net/server.js?v=004d3389","./js/ui/achievements.js":"./js/ui/achievements.js?v=67c02e87","./js/ui/board.js":"./js/ui/board.js?v=cae320ff","./js/ui/builder.js":"./js/ui/builder.js?v=7fac33d3","./js/ui/coach.js":"./js/ui/coach.js?v=52e82c29","./js/ui/daily.js":"./js/ui/daily.js?v=eee05dd5","./js/ui/feedback.js":"./js/ui/feedback.js?v=95af69c1","./js/ui/fx.js":"./js/ui/fx.js?v=70aa4023","./js/ui/glossary.js":"./js/ui/glossary.js?v=9e41b283","./js/ui/icons.js":"./js/ui/icons.js?v=8d887629","./js/ui/layouts.js":"./js/ui/layouts.js?v=2fc39c55","./js/ui/legal.js":"./js/ui/legal.js?v=bc5999c5","./js/ui/replay.js":"./js/ui/replay.js?v=fc0437a9","./js/ui/rules.js":"./js/ui/rules.js?v=d4e9b879","./js/ui/scene3d.js":"./js/ui/scene3d.js?v=fece3382","./js/ui/share.js":"./js/ui/share.js?v=7707a31c","./js/ui/sound.js":"./js/ui/sound.js?v=728d18ab","./js/ui/stats.js":"./js/ui/stats.js?v=60a230b0","./js/ui/tutorial.js":"./js/ui/tutorial.js?v=e4cd827b","./js/ui/watch.js":"./js/ui/watch.js?v=eced7019"}}</script>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.js","three/addons/":"./vendor/addons/","./js/cards/index.js":"./js/cards/index.js?v=44c8b885","./js/cards/larisa.js":"./js/cards/larisa.js?v=d4236f70","./js/cards/levenheart.js":"./js/cards/levenheart.js?v=87b81825","./js/cards/set1.js":"./js/cards/set1.js?v=b5e25c87","./js/cards/sofia_erik.js":"./js/cards/sofia_erik.js?v=271b60a1","./js/cards/tokens.js":"./js/cards/tokens.js?v=6d3eafb8","./js/cards/vampires.js":"./js/cards/vampires.js?v=03a16faa","./js/data/balance.js":"./js/data/balance.js?v=9ba21d7b","./js/data/cards.js":"./js/data/cards.js?v=0a1fcb04","./js/data/decks.js":"./js/data/decks.js?v=3e55ea4f","./js/engine/bot.js":"./js/engine/bot.js?v=0639751c","./js/engine/botlevels.js":"./js/engine/botlevels.js?v=d7438c9c","./js/engine/game.js":"./js/engine/game.js?v=621860a3","./js/features.js":"./js/features.js?v=41357be9","./js/main.js":"./js/main.js?v=508c60be","./js/net/account.js":"./js/net/account.js?v=dd500c80","./js/net/online.js":"./js/net/online.js?v=821d4a4a","./js/net/ranking.js":"./js/net/ranking.js?v=0666154b","./js/net/server.js":"./js/net/server.js?v=004d3389","./js/ui/achievements.js":"./js/ui/achievements.js?v=67c02e87","./js/ui/board.js":"./js/ui/board.js?v=cae320ff","./js/ui/builder.js":"./js/ui/builder.js?v=7fac33d3","./js/ui/coach.js":"./js/ui/coach.js?v=52e82c29","./js/ui/daily.js":"./js/ui/daily.js?v=eee05dd5","./js/ui/feedback.js":"./js/ui/feedback.js?v=95af69c1","./js/ui/fx.js":"./js/ui/fx.js?v=70aa4023","./js/ui/glossary.js":"./js/ui/glossary.js?v=9e41b283","./js/ui/icons.js":"./js/ui/icons.js?v=8d887629","./js/ui/layouts.js":"./js/ui/layouts.js?v=2fc39c55","./js/ui/legal.js":"./js/ui/legal.js?v=bc5999c5","./js/ui/replay.js":"./js/ui/replay.js?v=fc0437a9","./js/ui/rules.js":"./js/ui/rules.js?v=d4e9b879","./js/ui/scene3d.js":"./js/ui/scene3d.js?v=fece3382","./js/ui/share.js":"./js/ui/share.js?v=7707a31c","./js/ui/sound.js":"./js/ui/sound.js?v=728d18ab","./js/ui/stats.js":"./js/ui/stats.js?v=60a230b0","./js/ui/tutorial.js":"./js/ui/tutorial.js?v=e4cd827b","./js/ui/watch.js":"./js/ui/watch.js?v=eced7019"}}</script>
 <script src="vendor/peerjs.min.js"></script>
-<script type="module" src="js/main.js?v=645bab37"></script>
+<script type="module" src="js/main.js?v=508c60be"></script>
 </body>
 </html>

@@ -19,7 +19,9 @@ import { FEATURES } from './features.js';
 import { renderRules } from './ui/rules.js';
 import { renderBuilder, loadCustomDecks } from './ui/builder.js';
 import { installTooltips, linkTerms } from './ui/glossary.js';
-import { renderStats, recordGame } from './ui/stats.js';
+import { renderStats, recordGame, loadGames, loginDialog } from './ui/stats.js';
+import { unlocked, ACH } from './ui/achievements.js';
+import { currentUser } from './net/account.js';
 import { submitResult, loadPlayers, playerId } from './net/ranking.js';
 import { openFeedback } from './ui/feedback.js';
 import { renderLegal } from './ui/legal.js';
@@ -42,6 +44,7 @@ function show(id) {
   FX.ambient(id === 'game');
   $('#scene').classList.toggle('off', id === 'game');
   if (audioStarted) playMusic(id === 'game' ? 'musicGame' : 'musicMenu'); // a game starts calm; board.js raises it to tavern and battle
+  if (id === 'menu') try { drawMenuTop(); } catch (e) { console.warn(e); }
 }
 function toast(text, ms = 3000) {
   const t = document.createElement('div');
@@ -459,6 +462,7 @@ function startBoard(session) {
       ui.newAch = checkAchievements(ctx);
       if (checkDaily(ctx)) { const d = dailyState(); ui.newAch = [{ icon: '📜', title: 'Задание дня выполнено', text: `${d.task.text}. Дней подряд: ${d.streak}` }, ...(ui.newAch || [])]; }
       drawDaily();
+
     } catch (e) { console.warn(e); }
     // World ranking (draws are not sent): place and wins before and after this game, shown on the end screen.
     if (winner === 'draw') { ui.setRankInfo('<span class="ov-wait">Ничьи в мировой рейтинг не идут.</span>'); return; }
@@ -806,6 +810,28 @@ function drawDaily() {
   box.innerHTML = `<span class="dl-ico">${d.done ? '✓' : '📜'}</span><span><b>Задание дня</b>${esc(d.task.text)}${d.streak > 1 ? ` · дней подряд: ${d.streak}` : ''}</span>`;
 }
 drawDaily();
+
+// ---------- menu: profile bar on top and the ranking panel at the bottom right ----------
+function drawMenuTop() {
+  const games = loadGames(), wins = games.filter((g) => g.result === 'win').length;
+  const cnt = new Map(); for (const g of games) cnt.set(g.myLeader, (cnt.get(g.myLeader) || 0) + 1);
+  const fav = [...cnt.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+  const ava = $('#menu .mv-ava');
+  if (ava) ava.style.backgroundImage = `url('assets/leaders/${[20, 41, 62, 63, 117, 118].includes(fav) ? fav : 20}.webp')`;
+  const nm = $('#menu .mv-name'); if (nm) nm.textContent = opt.name || 'Игрок';
+  const u = currentUser(), sub = $('#menu .mv-sub'); if (sub) sub.textContent = u ? 'Профиль сохранён' : 'Профиль';
+  $('#mv-wins') && ($('#mv-wins').textContent = wins);
+  $('#mv-ach') && ($('#mv-ach').textContent = `${Object.keys(unlocked()).filter((k) => ACH[k]).length}/${Object.keys(ACH).length}`);
+  const side = $('#mv-side'); if (!side) return;
+  side.innerHTML = `<b>Мировой рейтинг</b><span class="mv-place">Загружаем…</span>${u ? '' : '<button class="btn small" data-login>Войти, чтобы сохранить профиль</button>'}`;
+  side.onclick = (e) => { if (e.target.closest('[data-login]')) { e.stopPropagation(); loginDialog(); } else document.querySelector('#menu [data-act="ranking"]')?.click(); };
+  loadPlayers('all').then((list) => {
+    const k = list.findIndex((x) => x.player_id === playerId()), el = side.querySelector('.mv-place');
+    if (el) el.innerHTML = k < 0 ? `Сыграйте партию — и вы в рейтинге из ${list.length} игроков` : `Вы на <em>${k + 1}</em> месте из ${list.length}`;
+  }).catch(() => { const el = side.querySelector('.mv-place'); if (el) el.textContent = 'Рейтинг сейчас недоступен'; });
+}
+drawMenuTop();
+document.querySelector('#menu [data-close-opts]')?.addEventListener('click', () => $('#menu-opts').classList.add('hidden'));
 
 // ---------- online through the game server ----------
 /** Both players are clients of the server: it runs the game, we show it and send answers. */
