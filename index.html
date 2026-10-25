@@ -25,8 +25,11 @@
 <link rel="stylesheet" href="css/ui3.css?v=d751810b">
 <link rel="stylesheet" href="css/board3.css?v=6d3e9213">
 <link rel="stylesheet" href="css/screens3.css?v=acdca88f">
+<link rel="preload" as="image" href="assets/ui/intro/studio_hall.webp" media="(min-width: 761px)">
+<link rel="preload" as="image" href="assets/ui/intro/studio_hall_m.webp" media="(max-width: 760px)">
 </head>
 <body>
+<script>/* the studio title screen from the very first frame (otherwise the old one flashes while the scripts load) */ if (!/[?&]intro=off/.test(location.search)) document.body.classList.add('studio');</script>
 <div id="app">
   <!-- Animated background shared by the splash, menu and hero select -->
   <div id="scene" class="scene">
