@@ -82,8 +82,7 @@ function profileHtml(games, tot, name) {
       <div><div class="pf-name"><input type="text" maxlength="20" value="${esc(name)}" placeholder="Ваше имя"><button class="btn small">Сохранить</button></div>
       <div class="pf-sub">${fav ? `Любимый Лидер: <b>${esc(leaderName(fav))}</b> · ${byL[0][1].n} партий` : 'Сыграйте первую партию!'}</div>
       <div class="pf-rank">Загружаем место в рейтинге…</div></div></div>
-    <div class="st-kpis"><div class="kpi"><b>${tot.n}</b><span>партий</span></div><div class="kpi win"><b>${tot.w}</b><span>побед</span></div><div class="kpi"><b>${pct(tot.w, tot.n)}%</b><span>процент побед</span></div><div class="kpi"><b>${best}</b><span>лучшая серия</span></div><div class="kpi"><b>${got.length}/${Object.keys(ACH).length}</b><span>наград</span></div><div class="kpi"><b>${d.total}</b><span>заданий дня</span></div></div>
-    <div class="pf-daily ${d.done ? 'done' : ''}">📜 <b>Задание дня:</b> ${esc(d.task.text)} ${d.done ? '— <b>выполнено ✓</b>' : ''}${d.streak > 1 ? ` · дней подряд: ${d.streak}` : ''}</div>
+    <div class="st-kpis"><div class="kpi"><b>${tot.n}</b><span>партий</span></div><div class="kpi win"><b>${tot.w}</b><span>побед</span></div><div class="kpi"><b>${pct(tot.w, tot.n)}%</b><span>процент побед</span></div><div class="kpi"><b>${best}</b><span>лучшая серия</span></div><div class="kpi"><b>${got.length}/${Object.keys(ACH).length}</b><span>наград</span></div></div>
     ${looksHtml()}
     ${got.length ? `<h3>Последние награды</h3><div class="pf-ach">${got.slice(0, 8).map((k) => medalHtml(k, { size: 58 })).join('')}</div>` : ''}
   </div>`;

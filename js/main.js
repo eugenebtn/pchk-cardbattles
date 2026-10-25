@@ -579,7 +579,7 @@ function startBoard(session) {
         myHp: P[me].leader.hp, round: view.round, best: st.best && st.best.side === me ? st.best.amount : 0, oppKills: st.kills ? st.kills[1 - me] : 0,
         dmg: st.dmg ? st.dmg[me] : 0, face: st.face ? st.face[me] : 0, kills: st.kills ? st.kills[me] : 0, played: played || [] };
       ui.newAch = checkAchievements(ctx);
-      if (checkDaily(ctx)) { const d = dailyState(); ui.newAch = [{ icon: '📜', title: 'Задание дня выполнено', text: `${d.task.text}. Дней подряд: ${d.streak}` }, ...(ui.newAch || [])]; }
+      checkDaily(ctx); // the daily task is no longer shown (Eugene: it changes nothing); kept counting for the awards
       drawDaily();
 
     } catch (e) { console.warn(e); }
@@ -940,6 +940,8 @@ function pickMenuArt() {
   const pics = ['assets/ui/menu_art.webp', ...[20, 41, 62, 63, 117, 118].map((id) => `assets/leaders/${id}.webp`)];
   const k = (store.get('menuArt', -1) + 1) % pics.length; store.set('menuArt', k);
   art.style.backgroundImage = `url('${pics[k]}')`;
+  // A Leader's painting has the hero in the middle: move the picture right, so the hero stands beside the buttons, not behind them.
+  art.classList.toggle('leader-art', k > 0);
 }
 pickMenuArt();
 
@@ -1183,7 +1185,7 @@ function openPlay() {
       <div class="pl-tile ${online ? '' : 'off'}" data-go="random" style="--art:url('${new URL('assets/leaders/63.webp', location.href).href}');--pos:24% 35%"><div class="pl-head"><b>Случайный соперник</b><span>${online ? 'Подберём живого игрока с таким же выбором' : 'Сейчас недоступно: нет связи с сервером'}</span></div>
         <div class="pl-foot"><small class="pl-cap">Партия</small><div class="pl-seg">${online ? `<button class="pl-rr ${rrated ? '' : 'on'}" data-rr="0">Обычная</button><button class="pl-rr ${rrated ? 'on' : ''}" data-rr="1">Рейтинговая</button>` : ''}</div><small class="pl-note" data-rr-note></small><button class="pl-go" ${online ? '' : 'disabled'}><span>Найти соперника</span></button></div></div>
     </div>
-    <div class="pl-more"><button class="plq" data-go="hotseat"><span>Вдвоём за одним устройством</span></button><button class="plq" data-go="learn"><span>Учебная партия с подсказками</span></button><button class="plq pl-cancel" data-close><span>Отмена</span></button></div></div>`;
+    <div class="pl-more"><button class="plq" data-go="hotseat"><span>Вдвоём за одним устройством</span></button><button class="plq" data-go="learn"><span>Обучение и учебная партия</span></button><button class="plq pl-cancel" data-close><span>Отмена</span></button></div></div>`;
   document.body.appendChild(b);
   const note = () => {
     b.querySelector('[data-fm-note]').textContent = fm === 'link' ? 'Создадим комнату — отправьте ссылку в мессенджер' : `В списке друзей: ${loadFriends().length}. Нажмите «Позвать» у того, кто в сети`;
@@ -1199,7 +1201,7 @@ function openPlay() {
     else if (kind === 'friend') { if (fm === 'list') openFriends(); else if (online) startServerHost(false); else startHost(true); }
     else if (kind === 'random') startMatchmaking(rrated);
     else if (kind === 'hotseat') startHotseat();
-    else if (kind === 'learn') startLearning();
+    else if (kind === 'learn') openTutorial(); // the short lesson, then the learning game
   };
   b.querySelectorAll('.pl-tile:not(.off)').forEach((t) => t.addEventListener('click', () => { sfx.click(); go(t.dataset.go); }));
   b.querySelectorAll('.pl-more [data-go]').forEach((x) => x.addEventListener('click', () => { sfx.click(); go(x.dataset.go); }));

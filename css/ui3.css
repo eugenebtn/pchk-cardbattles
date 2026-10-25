@@ -236,3 +236,6 @@ body.studio #splash .fan-sub, body.studio #splash .splash-legal { z-index: 2; an
 .friends-box .fr-add { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; flex-wrap: wrap; } .friends-box .fr-add span { flex: 1; color: #d7c7a4; } .friends-box .fr-add b { color: #f6e2a8; letter-spacing: .06em; } .friends-box .fr-add input { width: 130px; padding: 7px 10px; border-radius: 8px; }
 .friends-box.watch-only .fr-intro, .friends-box.watch-only .link, .friends-box.watch-only .fr-add { display: none; }
 @media (min-width: 761px) { #menu.mv .credits { left: calc(4vw + min(390px, 32vw) + 28px); right: 2.4vw; text-align: left; } } /* the bottom line starts after the left column, so it never runs over the daily task */
+/* Leader paintings in the menu: shifted right, the left side under the buttons stays dark */
+.mv-art.leader-art { background-color: #120a05 !important; background-size: auto 100% !important; background-position: 30vw center !important; animation: none !important; }
+.mv-art.leader-art::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #120a05 0%, #120a05 30vw, rgba(18, 10, 5, .85) 34vw, rgba(18, 10, 5, 0) 46vw); }
