@@ -21,9 +21,13 @@ export function playIntro(name = 'studio') {
     const end = () => {
       if (over) return; over = true;
       box.classList.add('out'); // the clip fades into the menu that is already behind it
+      document.removeEventListener('visibilitychange', back);
       setTimeout(() => { box.remove(); resolve(); }, 900);
     };
     v.addEventListener('ended', end);
+    // A hidden tab pauses the video: carry on when the player comes back.
+    const back = () => { if (!document.hidden && !over && v.paused) v.play().catch(() => {}); };
+    document.addEventListener('visibilitychange', back);
     v.addEventListener('error', end);
     box.addEventListener('click', end);
     setTimeout(end, 12000); // never keep the player waiting if the clip stalls
