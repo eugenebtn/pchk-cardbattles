@@ -1295,7 +1295,7 @@ document.querySelectorAll('#menu [data-act]').forEach((b) => b.addEventListener(
   if (a === 'play') openPlay();
   else if (a === 'bot') startBot();
   else if (a === 'hotseat') startHotseat();
-  else if (a === 'friends') openFriends();
+  else if (a === 'friends') openFriends().catch((e) => { console.error(e); toast('Не удалось открыть друзей: ' + e.message, 4000); });
   else if (a === 'watchbots') startWatchBots();
   else if (a === 'tour') startTour();
   else if (a === 'host') chooseOnline();
@@ -1322,10 +1322,16 @@ async function openFriends() {
   b.innerHTML = `<div class="modal friends-box" style="max-width:560px;width:94vw"><h3>Друзья</h3>
     <p style="margin:0 0 8px">Отправьте другу ссылку — когда он её откроет, вы появитесь друг у друга в списке. Тогда видно, кто сейчас в игре, и его партию можно смотреть.</p>
     <div class="link"><input readonly value="${esc(link)}"><button class="btn small" data-copy>Копировать</button></div>
+    <div class="fr-add"><span>Ваш код: <b>${code}</b></span><input type="text" maxlength="10" placeholder="Код друга" data-code><button class="btn small primary" data-add>Добавить</button></div>
     <div class="fr-list" data-list><p class="ov-wait">Загружаем…</p></div>
     <div class="row-btns"><button class="btn" data-close>Закрыть</button></div></div>`;
   document.body.appendChild(b);
   b.querySelector('[data-copy]').onclick = () => copyText(link, 'Ссылка для друга скопирована');
+  b.querySelector('[data-add]').onclick = async () => {
+    const v = b.querySelector('[data-code]').value.trim().toLowerCase();
+    if (!/^[0-9a-f]{10}$/.test(v)) { toast('Код — это 10 символов, его видно у друга в окне «Друзья»', 3500); return; }
+    if (await addFriend(v, 'Друг', myName())) { toast('Друг добавлен', 2000); b.querySelector('[data-code]').value = ''; draw(); } else toast('Это ваш собственный код', 2500);
+  };
   b.querySelector('[data-close]').onclick = () => { clearInterval(t); b.remove(); };
   const draw = async () => {
     const list = loadFriends(), box = b.querySelector('[data-list]');

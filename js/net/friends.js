@@ -6,15 +6,14 @@ const SERVER = 'https://pchk-cardbattles.eugenebtn.workers.dev';
 const KEY = 'pchk_friends';
 const base = () => { try { return localStorage.getItem('pchk_server') || SERVER; } catch { return SERVER; } };
 
-let codeP = null;
-/** My public friend code (10 hex characters). */
-export function myFriendCode() {
-  codeP ||= (async () => {
-    const data = new TextEncoder().encode('pchk-friend:' + playerId());
-    const h = new Uint8Array(await crypto.subtle.digest('SHA-256', data));
-    return [...h.slice(0, 5)].map((b) => b.toString(16).padStart(2, '0')).join('');
-  })();
-  return codeP;
+/** My public friend code (10 hex characters): a hash of the browser id. Plain JavaScript — crypto.subtle is missing on http pages. */
+export async function myFriendCode() {
+  const str = 'pchk-friend:' + playerId();
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i++) { const c = str.charCodeAt(i); h1 = Math.imul(h1 ^ c, 2654435761); h2 = Math.imul(h2 ^ c, 1597334677); }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return ((h2 >>> 0).toString(16).padStart(8, '0') + (h1 >>> 0).toString(16).padStart(8, '0')).slice(0, 10);
 }
 export function loadFriends() { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { return []; } }
 function saveFriends(list) { try { localStorage.setItem(KEY, JSON.stringify(list.slice(0, 100))); } catch { /* private mode */ } }
