@@ -19,7 +19,7 @@ export const LAND = {
   end: { x: 1300, y: 296 },
   powers: { x: 20, y: 756, w: 270, emote: { x: 238, y: 528 } },
   hint: { x: 1296, y: 466, w: 284, h: 0 },
-  log: { x: 1288, y: 548, w: 300, h: 134 },
+  log: { x: 1288, y: 468, w: 300, h: 212 }, // the battle log takes the place of the old hint panel
   hand: { y: 712, cardW: 160, cardH: 223, width: 780, cx: 780, step: 120 },
   oppHand: { y: -92, cx: 1130, step: 26, width: 160 },
   stageCard: { x: 630, y: 160 }, // the played card is shown in the middle of the field, clear of the right column

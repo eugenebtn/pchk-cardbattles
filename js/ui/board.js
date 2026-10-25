@@ -51,6 +51,7 @@ const REACTIONS = {
     378: [{ by: 20, say: 'Не сдадутся? Значит, и я не сдамся!', voice: 'React0' }],
   },
 };
+const mullKey = (q) => (q?.options || []).map((o) => o.id).join(',') + '|' + q?.keep;
 const BOARD_ART = new Set([160, 8, 33, 5, 125, 130, 116]); // Places with a painted board background
 const MULL_SEC = 45; // seconds to choose the starting hand
 const INTRO_LINE = { 20: 'Кёнигпон смотрит на нас. Строиться, бойцы!', 41: 'Хвост трубой, усы торчком — начинаем!', 62: 'Клан Баланов помнит каждую каплю крови. Начнём.',
@@ -726,6 +727,10 @@ export class BoardUI {
     if (q && drop != null && q.type === 'region' && q.player === this.me && q.options.some((o) => o.id === drop.region) && (q.row || 'ally') === drop.row) {
       this.q = q; setTimeout(() => { if (this.q === q) this.answer(drop.region); }, 0); return;
     }
+    // The starting-hand window stays open (with my picks) while the opponent's moves come in: the same question again,
+    // or a pause between messages, must not reset it.
+    const mullOpen = this._mullQ && this.modalEl?.querySelector('.mull-modal') && !this._mullDone;
+    if (mullOpen && (!q || (q.type === 'mulligan' && q.player === this.me && mullKey(q) === mullKey(this._mullQ)))) { if (q) this.q = q; return; }
     this.q = q;
     this.chosen.clear();
     this.closeModal();
@@ -1583,6 +1588,7 @@ ${optHtml}</div></div>
     });
   }
   openMulligan(q) {
+    this._mullQ = q; this._mullDone = false;
     const sel = new Set();
     const ids = q.options.map((o) => ({ uid: o.id, id: this.cardIdOf(o.id) }));
     const html = `<h3>Стартовая рука: оставьте ${q.keep} карт</h3>

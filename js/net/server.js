@@ -25,35 +25,41 @@ export async function newRoomCode() {
  */
 export function connectRoom(code, hello, { onMessage, onState } = {}) {
   const key = 'pchk_tok_' + code;
-  let ws = null, closed = false, tries = 0;
+  let ws = null, closed = false, tries = 0, retry = 0;
   const open = () => {
-    ws = new WebSocket(wsUrl('/ws/room/' + code));
-    ws.onopen = () => {
+    clearTimeout(retry);
+    const me = new WebSocket(wsUrl('/ws/room/' + code));
+    ws = me;
+    me.onopen = () => {
       tries = 0;
       // This tab's seat key first; a key from another tab of this browser only counts if that tab is gone.
       let token = null, maybe = false;
       try { token = sessionStorage.getItem(key); if (!token) { token = localStorage.getItem(key); maybe = !!token; } } catch { /* private mode */ }
-      ws.send(JSON.stringify({ t: 'hello', ...hello, token, maybe }));
+      me.send(JSON.stringify({ t: 'hello', ...hello, token, maybe }));
       onState && onState(null);
     };
-    ws.onmessage = (e) => {
+    me.onmessage = (e) => {
+      if (ws !== me) return; // an older connection of this tab
       let m; try { m = JSON.parse(e.data); } catch { return; }
       if (m.t === 'seat') { try { sessionStorage.setItem(key, m.token); localStorage.setItem(key, m.token); } catch { /* private mode */ } }
       if (m.t === 'busy' || m.t === 'error') closed = true; // no point in retrying
       onMessage && onMessage(m);
     };
-    ws.onclose = () => {
-      if (closed) return;
+    me.onclose = () => {
+      if (closed || ws !== me) return; // only the current connection reconnects
       tries++;
       onState && onState(tries > 6 ? 'Нет связи с сервером. Проверьте интернет.' : 'Связь потеряна — переподключаемся…');
-      setTimeout(open, Math.min(8000, 600 * tries));
+      retry = setTimeout(open, Math.min(8000, 600 * tries));
     };
   };
   open();
+  // Back to the tab (a phone that was in another app): reconnect at once instead of waiting for the next retry.
+  const back = () => { if (typeof document !== 'undefined' && !document.hidden && !closed && ws && ws.readyState > 1) { tries = 0; open(); } };
+  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', back);
   return {
     code,
     send(m) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(m)); },
-    close() { closed = true; try { ws.close(); } catch { /* ignore */ } },
+    close() { closed = true; if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', back); try { ws.close(); } catch { /* ignore */ } },
   };
 }
 
