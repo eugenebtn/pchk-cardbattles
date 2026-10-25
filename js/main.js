@@ -151,8 +151,9 @@ const LEADER_IDS = [62, 117, 41, 20, 118, 63];
   requestAnimationFrame(frame);
 })();
 // Splash: the first click also turns the sound on.
-// Opening clip (for now only with ?intro=studio in the address, until it is approved): plays over the menu while Lionheart greets.
-const INTRO = new URLSearchParams(location.search).get('intro');
+// Studio opening for everyone (approved 2026-10-25): the title screen on the painted hall, then a clip to the table while
+// Lionheart greets. ?intro=off brings back the old title screen.
+const INTRO = ((q) => (q === 'off' ? null : q || 'studio'))(new URLSearchParams(location.search).get('intro'));
 if (INTRO === 'studio') { document.body.classList.add('studio'); preloadIntro('studio'); }
 $('#splash').addEventListener('click', () => {
   sfx.confirm(); show('menu');
