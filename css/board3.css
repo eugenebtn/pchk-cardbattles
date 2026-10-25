@@ -172,8 +172,49 @@
   background: linear-gradient(rgba(44, 27, 14, .95), rgba(20, 12, 6, .96)); box-shadow: var(--k-rim), 0 12px 26px rgba(0, 0, 0, .65);
   animation: vs-sub-in .3s cubic-bezier(.2, .8, .3, 1) both; }
 @keyframes vs-sub-in { from { opacity: 0; transform: translateX(-50%) translateY(10px) scale(.95); } }
+.vs-sub.side-l, .vs-sub.side-r { transform: none; text-align: left; animation-name: vs-bub-in; }
+@keyframes vs-bub-in { from { opacity: 0; transform: scale(.85); } }
+.vs-sub.side-l { transform-origin: 100% 30%; } .vs-sub.side-r { transform-origin: 0 30%; }
+.vs-sub.side-l::after, .vs-sub.side-r::after { content: ''; position: absolute; top: 18px; border: 12px solid transparent; }
+.vs-sub.side-l::after { right: -22px; border-left-color: #2a190c; }
+.vs-sub.side-r::after { left: -22px; border-right-color: #2a190c; }
+.vs-sub.under::after { content: ''; position: absolute; left: 50%; top: -22px; margin-left: -12px; border: 12px solid transparent; border-bottom-color: #2c1b0e; }
 .vs-coin { position: absolute; left: 0; top: 0; width: 96px; height: 96px; z-index: 7; pointer-events: none; filter: drop-shadow(0 10px 14px rgba(0, 0, 0, .7)) drop-shadow(0 0 18px rgba(255, 210, 110, .55)); }
 @media (max-width: 760px) { .vs-sub { max-width: 80vw; font-size: 16px; } }
 .vs-turn { position: absolute; left: 50%; top: 50%; z-index: 8; width: min(620px, 86vw); aspect-ratio: 4.2; display: grid; place-items: center; pointer-events: none;
   background: url('../assets/ui/fx_banner.webp') center / 100% 100% no-repeat; filter: drop-shadow(0 12px 24px rgba(0, 0, 0, .8)); }
 .vs-turn span { margin-top: -2%; font: 800 clamp(22px, 3vw, 38px)/1 var(--k-font); letter-spacing: .06em; text-transform: uppercase; color: #fff3cf; text-shadow: 0 3px 0 rgba(60, 10, 4, .95), 0 0 18px rgba(255, 190, 90, .5); }
+
+/* Starting hand: the clock in the title and the «opponent is still choosing» window. */
+#game .mull-clock { display: inline-block; margin-left: 14px; padding: 2px 12px; border-radius: 999px; font-size: .7em; vertical-align: middle;
+  background: rgba(0, 0, 0, .45); box-shadow: inset 0 0 0 1px rgba(217, 196, 138, .6); color: #f3e7c8; }
+#game .mull-clock.low { color: #ffb4a0; box-shadow: inset 0 0 0 1px #e0603c; animation: mullPulse .8s infinite alternate; }
+@keyframes mullPulse { to { transform: scale(1.08); } }
+#game .wait-modal { min-width: min(520px, 90vw); text-align: center; }
+#game .wait-hand p { color: rgba(244, 226, 190, .8); font-size: 17px; margin: 0; }
+#game .wh-cards { position: relative; height: 120px; margin: 4px auto 14px; width: 160px; }
+#game .wh-cards i { position: absolute; left: 50%; top: 6px; width: 74px; height: 104px; margin-left: -37px; border-radius: 8px;
+  background: url('../assets/ui/cardback.webp') center/cover, #3a2614; box-shadow: 0 6px 16px rgba(0, 0, 0, .6), inset 0 0 0 2px #d9c48a;
+  transform-origin: 50% 120%; animation: whFan 1.6s ease-in-out infinite alternate; }
+#game .wh-cards i:nth-child(1) { --r: -18deg; } #game .wh-cards i:nth-child(2) { --r: 0deg; animation-delay: .2s; } #game .wh-cards i:nth-child(3) { --r: 18deg; animation-delay: .4s; }
+@keyframes whFan { from { transform: rotate(0); } to { transform: rotate(var(--r)) translateY(-4px); } }
+#game .mcard { position: relative; }
+#game .mcard .ord-n:not(:empty) { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center;
+  font: 800 30px/1 var(--k-font); color: #2a1608; background: radial-gradient(#ffe7a0, #d9a33a); box-shadow: 0 0 0 3px #160c06, 0 6px 16px rgba(0, 0, 0, .7); }
+#game .mull-modal .cards { padding: 14px 6px 8px; align-content: flex-start; } /* the top row is never cut (selected cards rise) */
+/* Two-sided cards: the back is shown in the preview and in the «перевернуть?» window */
+.preview .pv-back { margin-top: 8px; display: flex; align-items: center; gap: 8px; background: rgba(12, 7, 3, .95); border-radius: 10px; padding: 6px 8px; box-shadow: inset 0 0 0 1px rgba(217, 196, 138, .5); }
+.preview .pv-back img { width: 46%; border-radius: 8px; }
+.preview .pv-back span { flex: 1; color: #f2cd6b; font: 700 15px/1.2 var(--k-font); }
+#game .pick-win.with-back { align-items: center; }
+#game .pick-arrow { font-size: 44px; color: #f2cd6b; align-self: center; text-shadow: 0 0 14px rgba(255, 200, 90, .7); }
+#game .pick-card.back { position: relative; filter: saturate(1.05); box-shadow: 0 0 0 3px #f2cd6b, 0 0 26px rgba(255, 200, 90, .55); }
+#game .pick-card.back small { position: absolute; left: 50%; top: -14px; transform: translateX(-50%); padding: 2px 10px; border-radius: 999px; background: #2a1608; color: #f2cd6b; font: 700 14px var(--k-font); box-shadow: inset 0 0 0 1px #d9c48a; }
+/* «Отмена» while choosing a target: a big red plaque that cannot be missed */
+#game .prompt .btn.small.cancel { font-size: 20px !important; padding: 12px 26px !important; color: #fff3e6 !important; text-shadow: 0 2px 0 rgba(0, 0, 0, .6);
+  background: linear-gradient(#c2402c, #7d1d12) !important; box-shadow: 0 0 0 2px #160c06, 0 0 0 4px #e89a6a, 0 0 22px rgba(255, 110, 70, .55), 0 8px 18px rgba(0, 0, 0, .6) !important;
+  animation: cancelPulse 1.6s ease-in-out infinite alternate; }
+@keyframes cancelPulse { to { box-shadow: 0 0 0 2px #160c06, 0 0 0 4px #ffc09a, 0 0 32px rgba(255, 130, 80, .8), 0 8px 18px rgba(0, 0, 0, .6); } }
+/* A changed price on a hand card: the printed price crossed out next to the coin (green coin = cheaper, red = dearer) */
+.hand-card .cost-now .cost-was { position: absolute; left: calc(100% + 2px); top: 50%; transform: translateY(-50%); padding: 0 6px; border-radius: 8px; text-decoration: line-through;
+  font: 700 .62em/1.5 'Fira Sans Extra Condensed', sans-serif; color: #f3e7c8; background: rgba(15, 10, 6, .9); box-shadow: inset 0 0 0 1px rgba(217, 196, 138, .6); }

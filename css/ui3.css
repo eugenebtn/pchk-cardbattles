@@ -63,7 +63,9 @@
 @keyframes mv-in { from { transform: translateX(-40px); opacity: 0; } }
 .mv .mv-more { position: static; margin-top: 2vh; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 16px; }
 .mv .mv-more button { font-size: 17px; }
-.mv .join-banner { margin: 0 0 1.6vh; max-width: none; }
+.mv .join-banner { position: fixed; z-index: 30; top: calc(64px + 1.4vh); left: 50%; transform: translateX(-50%); margin: 0; width: max-content; max-width: 92vw; box-shadow: 0 12px 30px rgba(0, 0, 0, .6); } /* above everything, so it never pushes the buttons onto the daily task */
+.mv .menu-daily .dl-st { display: inline-block; margin-top: 4px; padding: 1px 10px; border-radius: 999px; font-size: 13px; font-weight: 700; background: rgba(0, 0, 0, .35); color: #e7d6ae; }
+.mv .menu-daily.done .dl-st { background: #2f7a45; color: #fff; }
 
 .mv-bottom { position: absolute; z-index: 2; left: 4vw; right: 2.4vw; bottom: calc(4.2vh + env(safe-area-inset-bottom)); display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; pointer-events: none; }
 .mv-bottom > * { pointer-events: auto; }
@@ -173,3 +175,9 @@ body.studio #splash .press { position: relative; z-index: 2; animation: st-fade 
 body.studio #splash .fan-sub, body.studio #splash .splash-legal { z-index: 2; animation: st-fade 1s 3.4s ease both; }
 @keyframes st-fade { from { opacity: 0 } }
 @media (max-width: 760px) { body.studio #splash .st-hall { background-image: url('../assets/ui/intro/studio_hall_m.webp'); background-position: 50% 40%; } body.studio #splash .fan-logo-img { margin-top: 36vh; } }
+.mv-art-next { animation: mv-art-fade 2.2s ease-in-out both !important; } @keyframes mv-art-fade { from { opacity: 0; } to { opacity: 1; } }
+.friends-box .link { display: flex; gap: 8px; margin: 6px 0 14px; } .friends-box .link input { flex: 1; min-width: 0; padding: 8px 10px; border-radius: 8px; }
+.friends-box .fr-list { display: flex; flex-direction: column; gap: 8px; max-height: 50vh; overflow: auto; text-align: left; }
+.friends-box .fr-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 10px; background: rgba(0, 0, 0, .3); box-shadow: inset 0 0 0 1px rgba(217, 196, 138, .3); }
+.friends-box .fr-row b { flex: 1; font-size: 18px; }
+.friends-box .fr-st { font-size: 14px; color: #9a8670; } .friends-box .fr-st.on { color: #8fe0a0; } .friends-box .fr-st.play { color: #f2cd6b; }

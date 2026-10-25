@@ -84,3 +84,9 @@ export function connectTour(code, hello, onMessage) {
   open();
   return { code, send(m) { if (ws?.readyState === 1) ws.send(JSON.stringify(m)); }, close() { closed = true; try { ws.close(); } catch { /* ignore */ } } };
 }
+/** Whether an invitation is still good: 'free' | 'waiting' | 'playing' | 'over' (null if the server cannot be reached). */
+export async function roomStatus(code) {
+  try { const r = await fetch(`${base()}/api/room/${code}`); return r.ok ? (await r.json()).state : null; } catch { return null; }
+}
+/** This browser already has a seat in that room (it can come back to a game in progress). */
+export function hasSeat(code) { try { return !!localStorage.getItem('pchk_tok_' + code); } catch { return false; } }

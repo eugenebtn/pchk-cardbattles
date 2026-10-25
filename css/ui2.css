@@ -153,7 +153,7 @@
 .help h3 { text-align: center; }
 .help-icons { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; margin: 10px 0; font-size: 16px; }
 @media (max-width: 760px) { .help-icons { grid-template-columns: 1fr; } }
-.log-full { max-height: 60vh; overflow-y: auto; text-align: left; font-size: 16px; line-height: 1.4; min-width: min(560px, 86vw); }
+.log-full { max-height: 66vh; overflow-y: auto; text-align: left; font-size: 19px; line-height: 1.45; min-width: min(560px, 86vw); }
 
 /* ---------- stack panel position ---------- */
 .stack-panel { left: auto; right: 14px; top: 470px; width: 200px; }
@@ -183,7 +183,8 @@
   .mcard { width: 120px; height: 167px; }
   .modal h3 { font-size: 21px; }
 }
-#game > .tip-card, #game > .priority-panel { z-index: 280; }
+#game > .priority-panel { z-index: 280; }
+#game > .tip-card { z-index: 320; } /* above windows (the starting hand), so a tip is read before the choice, not after */
 
 /* ---------- statistics ---------- */
 #stats { background: radial-gradient(ellipse at 50% 20%, #2d1c10, #0e0906 75%); overflow-y: auto; }

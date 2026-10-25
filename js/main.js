@@ -15,7 +15,7 @@ import { BoardUI, esc } from './ui/board.js';
 import { sfx, setSound, setMusic, playMusic, unlockAudio, setVolumes, playAmbient, voiceSoon } from './ui/sound.js';
 import * as FX from './ui/fx.js';
 import { hostRoom, joinRoom } from './net/online.js';
-import { serverOn, newRoomCode, connectRoom, findMatch, connectTour } from './net/server.js';
+import { serverOn, newRoomCode, connectRoom, findMatch, connectTour, roomStatus, hasSeat } from './net/server.js';
 import { FEATURES } from './features.js';
 import { renderRules } from './ui/rules.js';
 import { renderBuilder, loadCustomDecks } from './ui/builder.js';
@@ -23,6 +23,7 @@ import { installTooltips, linkTerms } from './ui/glossary.js';
 import { renderStats, recordGame, loadGames, loginDialog } from './ui/stats.js';
 import { unlocked, ACH } from './ui/achievements.js';
 import { currentUser } from './net/account.js';
+import { myFriendCode, loadFriends, addFriend, removeFriend, startPresence, setPresenceRoom, friendsStatus } from './net/friends.js';
 import { submitResult, loadPlayers, playerId } from './net/ranking.js';
 import { openFeedback } from './ui/feedback.js';
 import { renderLegal } from './ui/legal.js';
@@ -119,6 +120,26 @@ $('#opt-bonus').addEventListener('change', (e) => { opt.bonus = e.target.checked
 $('#opt-autopass').addEventListener('change', (e) => { opt.autopass = e.target.value === 'never' ? true : e.target.value; store.set('autopass', opt.autopass); });
 $('#opt-name').addEventListener('input', (e) => { opt.name = e.target.value.trim(); store.set('name', opt.name); });
 const myName = () => opt.name || 'Игрок';
+/** A newcomer is asked for a name (and offered a profile) once, before the first game or invitation. */
+function askName() {
+  if (opt.name || currentUser() || store.get('nameAsked', false)) return Promise.resolve();
+  store.set('nameAsked', true);
+  return new Promise((done) => {
+    const b = document.createElement('div');
+    b.className = 'modal-back'; b.style.cssText = 'position:fixed;inset:0;z-index:420';
+    b.innerHTML = `<div class="modal" style="max-width:520px"><h3>Как вас называть за столом?</h3>
+      <p style="font-size:17px;line-height:1.45;margin:0 0 12px">Имя увидит соперник и мировой рейтинг.</p>
+      <input type="text" maxlength="20" placeholder="Ваше имя" data-name style="width:100%;font-size:20px;padding:10px 12px;border-radius:10px">
+      <div class="row-btns" style="margin-top:14px"><button class="btn primary" data-ok>Дальше</button><button class="btn" data-login>🔑 Войти или создать профиль</button></div>
+      <p style="color:var(--ink-dim);font-size:14px;margin:10px 0 0">Профиль хранит партии, колоды и награды на любом устройстве. Можно позже — в «Профиль».</p></div>`;
+    document.body.appendChild(b);
+    const inp = b.querySelector('[data-name]'); setTimeout(() => inp.focus(), 50);
+    const ok = () => { const v = inp.value.trim().slice(0, 20); if (v) { opt.name = v; store.set('name', v); $('#opt-name').value = v; drawMenuTop(); } b.remove(); done(); };
+    b.querySelector('[data-ok]').onclick = ok;
+    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') ok(); });
+    b.querySelector('[data-login]').onclick = () => { ok(); loginDialog(); };
+  });
+}
 
 // Preload only what is needed: the Leaders now, the two decks of a game when it starts (saves ~10 MB on phones).
 const preloaded = new Set();
@@ -334,7 +355,8 @@ class Session {
     const q = this.game.pending;
     const batch = this.remoteQueue.splice(0);
     batch.push({ ev: { type: 'sync' }, view: this.game.view(1) });
-    this.remote.send({ t: 'events', batch, pending: q && q.player === 1 ? q : null, waiting: q && q.player !== 1 ? (q.type === 'priority' ? 'priority' : true) : false });
+    const mine = q && q.player === 1 ? q : this.game.preQuestion(1);
+    this.remote.send({ t: 'events', batch, pending: mine, waiting: q && !mine ? (q.type === 'priority' ? 'priority' : true) : false });
     // Watchers get the same moves with both hands hidden.
     const wb = this.watchQueue.splice(0);
     if (wb.length && this.remote.watcherCount) this.remote.sendWatchers({ t: 'events', batch: wb });
@@ -360,7 +382,8 @@ class Session {
           this.botRespond(g, q);
           continue;
         }
-        if (who === 'remote') { this.ui.setPending(q); break; }
+        // While the friend chooses a starting hand, I choose mine at the same time.
+        if (who === 'remote') { this.ui.setPending(g.preQuestion(this.me) || q); break; }
         // Human.
         if (this.hotseat && q.player !== this.me) { await this.switchSeat(q.player); continue; }
         this.ui.render(this.viewFor(this.me));
@@ -409,15 +432,16 @@ class Session {
   answer(q, a) {
     // Remember where each of my free moves started, so it can be taken back (games against the computer).
     if (q.type === 'main' && this.canUndo) { const n = this.game.history.length; if (this.undoMarks.at(-1) !== n) this.undoMarks.push(n); }
+    if (q.pre) { if (!this.game.preRespond(q.player, a)) { sfx.error(); toast('Так нельзя'); } this.pump(); return; }
     if (!this.game.respond(q.player, a)) { sfx.error(); toast('Так нельзя'); this.ui.setPending(this.game.pending); return; }
     this.pump();
   }
   get canUndo() { return !this.remote && !this.hotseat && this.controllers.includes('bot') && this.controllers[this.me] === 'human'; }
   /** Take back my last move: rebuild the game from its answers up to the start of that move. */
   undo() {
-    if (!this.canUndo || this.busy || this.game.s.over) return false;
-    const q = this.game.pending;
-    if (!q || q.player !== this.me) return false;
+    if (!this.canUndo || this.game.s.over) return false;
+    // Also a way out when the game got stuck: it works whoever the game is waiting for.
+    this.busy = false;
     const marks = this.undoMarks.filter((n) => n < this.game.history.length);
     const to = marks.at(-1);
     if (to == null) { toast('Отменять пока нечего'); return false; }
@@ -432,9 +456,13 @@ class Session {
     toast('Ход отменён', 1500);
     return true;
   }
+  /** «Сдаться»: the game ends at once as a loss for me. */
+  concede() { if (this.game && !this.game.s.over && this.game.respond(this.me, { concede: this.me })) { this.busy = false; this.pump(); } }
   remoteAnswer(a) {
     const q = this.game.pending;
-    if (!q || q.player !== 1 || this.controllers[1] !== 'remote') return;
+    if (this.controllers[1] !== 'remote') return;
+    if (a && typeof a === 'object' && a.concede != null) { if (this.game.respond(1, { concede: 1 })) this.pump(); return; }
+    if (q?.player !== 1) { if (this.game.preRespond(1, a)) this.pump(); else this.flushRemote(); return; }
     if (!this.game.respond(1, a)) { this.flushRemote(); return; }
     this.pump();
   }
@@ -458,11 +486,17 @@ function startBoard(session) {
     me: session.me, theme,
     onAnswer: (q, a) => session.answer(q, a),
     onMenu: (force) => {
-      if (force || session.watch || confirm('Выйти в меню? Партия будет потеряна.')) { session.close(); ui.chat?.destroy(); ui.coach?.destroy(); ui.destroy(); current = null; show('menu'); }
+      const live = !session.watch && !ui.view?.over && ui.view?.players;
+      const online = !!(session.remote || session.conn);
+      if (!(force || session.watch || confirm(online && live ? 'Выйти из партии? Это засчитается как поражение.' : 'Выйти в меню? Партия будет потеряна.'))) return;
+      const leave = () => { session.close(); ui.chat?.destroy(); ui.coach?.destroy(); ui.destroy(); current = null; show('menu'); };
+      // Online: the opponent is told at once (a win for them) instead of waiting for a game that will not go on.
+      if (online && live && !force) { session.concede?.(); setTimeout(leave, 400); } else leave();
     },
   });
   session.attach(ui);
   ui.noTips = !!session.watch || (session.controllers ? session.controllers[session.me] !== 'human' : false);
+  ui.noTimer = session.coachMode === 'tutorial' || !!session.hotseat || !!session.watch;
   ui.spectator = !!session.watch || (!!session.controllers && !session.controllers.includes('human') && !session.controllers.includes('remote'));
   ui.onFeedback = () => openFeedback({ ui, name: opt.name });
   ui.toast = toast;
@@ -471,6 +505,7 @@ function startBoard(session) {
     if (session.conn) session.conn.send({ t: 'emote', text });
   };
   if (session.canUndo) ui.onUndo = () => session.undo();
+  if (session.concede && !session.watch && !session.replay) ui.onConcede = () => session.concede();
   if (session.tour) ui.onAgain = () => { session.close(); ui.chat?.destroy(); ui.destroy(); current = null; drawTour(); };
   if (session.game && !session.replay && !session.watch) ui.onReplay = () => { const r = loadReplays().at(-1); session.close?.(); ui.chat?.destroy(); ui.coach?.destroy(); ui.destroy(); startReplay(r); };
   // Move coach: the learning game points at the best move; other local games show a «Совет» line (can be turned off).
@@ -510,10 +545,28 @@ function startBoard(session) {
       ui.newAch = checkAchievements(ctx);
       if (checkDaily(ctx)) { const d = dailyState(); ui.newAch = [{ icon: '📜', title: 'Задание дня выполнено', text: `${d.task.text}. Дней подряд: ${d.streak}` }, ...(ui.newAch || [])]; }
       drawDaily();
+// The menu picture changes every so often: the title art, then each Leader's painting, with a slow cross-fade.
+(() => {
+  const art = document.querySelector('#menu .mv-art'); if (!art || !matchMedia('(min-width: 761px)').matches) return;
+  const pics = ['assets/ui/menu_art.webp', ...[20, 41, 62, 63, 117, 118].map((id) => `assets/leaders/${id}.webp`)];
+  let k = 0;
+  setInterval(() => {
+    if (document.hidden || !document.querySelector('#menu.active')) return;
+    k = (k + 1) % pics.length;
+    const img = new Image();
+    img.onload = () => {
+      const next = document.createElement('div'); next.className = 'mv-art mv-art-next'; next.style.backgroundImage = `url('${pics[k]}')`;
+      art.parentNode.insertBefore(next, art.nextSibling);
+      next.addEventListener('animationend', () => { art.style.backgroundImage = `url('${pics[k]}')`; next.remove(); }, { once: true });
+    };
+    img.src = pics[k];
+  }, 14000);
+})();
 
     } catch (e) { console.warn(e); }
     // World ranking (draws are not sent): place and wins before and after this game, shown on the end screen.
     if (winner === 'draw') { ui.setRankInfo('<span class="ov-wait">Ничьи в мировой рейтинг не идут.</span>'); return; }
+    if (session.server && session.rated === false) { ui.setRankInfo('<span class="ov-wait">Обычная партия — в мировой рейтинг не идёт.</span>'); return; }
     const titleOf = (i) => session.cfgPlayers?.[i]?.title || Object.values(DECKS).find((d) => d.leader === P[i].leader.id)?.title || CARDS[P[i].leader.id]?.name;
     const mode = session.remote || session.conn ? 'online' : 'bot';
     const mine = (list) => { const k = (list || []).findIndex((x) => x.player_id === playerId()); return k < 0 ? null : { place: k + 1, wins: list[k].wins, games: list[k].games, winrate: list[k].winrate, total: list.length }; };
@@ -611,7 +664,7 @@ async function startHost(direct = false) {
     onGuest(conn, hello) {
       if (session) { // reconnect
         session.remoteQueue = [];
-        room.send({ t: 'sync', view: session.game.view(1), pending: session.game.pending?.player === 1 ? session.game.pending : null, me: 1 });
+        room.send({ t: 'sync', view: session.game.view(1), pending: session.game.pending?.player === 1 ? session.game.pending : session.game.preQuestion(1), me: 1 });
         toast('Друг переподключился');
         return;
       }
@@ -666,6 +719,7 @@ class GuestSession {
   attach(ui) { this.ui = ui; ui.onAgain = () => toast('Новую партию запускает создатель комнаты'); }
   pump() {}
   answer(q, a) { this.conn.send({ t: 'answer', a }); }
+  concede() { this.conn.send({ t: 'answer', a: { concede: true } }); }
   onMessage(msg) {
     if (msg.t === 'events') {
       this.chain = this.chain.then(async () => {
@@ -856,7 +910,7 @@ function drawDaily() {
   const box = $('#menu-daily'); if (!box) return;
   const d = dailyState();
   box.classList.toggle('done', d.done);
-  box.innerHTML = `<span class="dl-ico">${d.done ? '✓' : '📜'}</span><span><b>Задание дня</b>${esc(d.task.text)}${d.streak > 1 ? ` · дней подряд: ${d.streak}` : ''}</span>`;
+  box.innerHTML = `<span class="dl-ico">${d.done ? '✓' : '📜'}</span><span><b>Задание дня</b>${esc(d.task.text)}<br><span class="dl-st">${d.done ? '✓ Выполнено сегодня' : 'Ещё не выполнено'}</span>${d.streak > 1 ? ` · дней подряд: ${d.streak}` : ''}</span>`;
 }
 drawDaily();
 
@@ -889,6 +943,7 @@ class ServerSession {
   attach(ui) { this.ui = ui; ui.onAgain = () => { this.conn.send({ t: 'rematch' }); toast('Реванш: ждём, когда новая партия начнётся'); }; }
   pump() {}
   answer(q, a) { this.conn.send({ t: 'answer', a }); }
+  concede() { this.conn.send({ t: 'answer', a: { concede: true } }); }
   onMessage(msg) {
     if (msg.t === 'events') {
       this.chain = this.chain.then(async () => {
@@ -906,10 +961,10 @@ class ServerSession {
     else if (msg.t === 'watchers') this.ui?.chat?.setCount(msg.n | 0);
     else if (msg.t === 'toast') toast(msg.text, 3500);
   }
-  close() { this.conn.close(); }
+  close() { setPresenceRoom(null); this.conn.close(); }
 }
 /** Join or create a room on the server with my deck; the board opens when the game starts. */
-function serverPlay(code, deck, { creating = false, matched = false, tour: inTour = false } = {}) {
+function serverPlay(code, deck, { creating = false, matched = false, tour: inTour = false, rated = false } = {}) {
   show('picker');
   $('#picker-list').innerHTML = '';
   const ob = $('#picker-online'); ob.classList.remove('hidden');
@@ -923,9 +978,9 @@ function serverPlay(code, deck, { creating = false, matched = false, tour: inTou
     $('#share-link') && ($('#share-link').onclick = () => navigator.share({ title: 'Карточные битвы ПЧК', text: 'Сыграем в Карточные битвы?', url }));
   } else ob.textContent = 'Соединяемся с сервером…';
   let ss = null;
-  const conn = connectRoom(code, { name: myName(), playerId: playerId(), autopass: AP_ENGINE(opt.autopass), timer: creating ? opt.timer : matched ? 90 : 0, deck: { leader: deck.leader, cards: deck.cards, title: deck.title } }, {
+  const conn = connectRoom(code, { name: myName(), playerId: playerId(), autopass: AP_ENGINE(opt.autopass), timer: creating ? opt.timer : matched ? 90 : 0, rated: creating ? rated : matched ? true : undefined, deck: { leader: deck.leader, cards: deck.cards, title: deck.title } }, {
     onMessage(msg) {
-      if ((msg.t === 'start' || msg.t === 'sync') && !ss) { ss = new ServerSession(conn, msg.me ?? 0); ss.tour = inTour; startBoard(ss); if (msg.t === 'sync') ss.onMessage(msg); return; }
+      if ((msg.t === 'start' || msg.t === 'sync') && !ss) { ss = new ServerSession(conn, msg.me ?? 0); ss.tour = inTour; ss.rated = msg.rated !== false; setPresenceRoom(code); startBoard(ss); if (msg.t === 'start') toast(ss.rated ? '🏆 Рейтинговая партия — результат пойдёт в рейтинг' : 'Обычная партия — в рейтинг не идёт', 3200); if (msg.t === 'sync') ss.onMessage(msg); return; }
       if (msg.t === 'start' && ss) { ss.me = msg.me; document.querySelector('#game > .over-screen')?.remove(); toast('Новая партия!', 1800); return; } // rematch, or a draw replayed in a tournament
       if (msg.t === 'waitOpponent' && !creating) ob.textContent = 'Подключено! Ждём второго игрока…';
       else if (msg.t === 'busy') ob.textContent = 'В этой комнате уже идёт игра. Можно посмотреть её как зритель.';
@@ -937,13 +992,14 @@ function serverPlay(code, deck, { creating = false, matched = false, tour: inTou
   $('#picker').querySelector('[data-act=back]').onclick = () => { conn.close(); show('menu'); };
   return conn;
 }
-async function startServerHost() {
+async function startServerHost(rated = false) {
   const r = await pickDecks([{ title: 'Ваша колода — затем отправьте ссылку другу', goLabel: 'Создать комнату' }]);
   if (!r) return;
   let code; try { code = await newRoomCode(); } catch { toast('Сервер недоступен — играем напрямую'); return startHost(true); }
-  serverPlay(code, r[0], { creating: true });
+  serverPlay(code, r[0], { creating: true, rated });
 }
 async function startServerJoin(code) {
+  await askName();
   // Coming back to my game: the server remembers my deck, no need to choose it again.
   let mine = null; try { mine = sessionStorage.getItem('pchk_tok_' + code) || localStorage.getItem('pchk_tok_' + code); } catch { /* private mode */ }
   if (mine) { const d = Object.values(DECKS)[0]; serverPlay(code, { leader: d.leader, cards: d.main, title: d.title }); return; }
@@ -974,11 +1030,14 @@ function chooseOnline() {
   b.className = 'modal-back'; b.style.cssText = 'position:fixed;inset:0;z-index:400';
   b.innerHTML = `<div class="modal" style="max-width:520px"><h3>Игра онлайн</h3>
     <div class="row-btns" style="flex-direction:column;align-items:stretch;gap:12px">
-      <button class="btn primary" data-invite>🔗 Позвать друга по ссылке</button>
-      <button class="btn" data-find>🎲 Найти случайного соперника</button>
+      <button class="btn primary" data-invite>🔗 Позвать друга — обычная партия</button>
+      <button class="btn" data-rated>🏆 Позвать друга — рейтинговая партия</button>
+      <button class="btn" data-find>🎲 Найти случайного соперника (рейтинговая)</button>
+      <p style="margin:0;color:var(--ink-dim);font-size:15px">Обычная партия не идёт в мировой рейтинг — играйте спокойно. Рейтинговая — засчитывается.</p>
       <button class="btn small" data-close>Отмена</button></div></div>`;
   document.body.appendChild(b);
-  b.querySelector('[data-invite]').onclick = () => { b.remove(); startServerHost(); };
+  b.querySelector('[data-invite]').onclick = () => { b.remove(); startServerHost(false); };
+  b.querySelector('[data-rated]').onclick = () => { b.remove(); startServerHost(true); };
   b.querySelector('[data-find]').onclick = () => { b.remove(); startMatchmaking(); };
   b.querySelector('[data-close]').onclick = () => b.remove();
 }
@@ -1070,9 +1129,10 @@ function openTutorial() {
 }
 // First visit: offer the tutorial once (after the splash).
 $('#splash').addEventListener('click', () => {
-  if (store.get('tutOffered', false) || new URLSearchParams(location.search).get('join')) return;
+  const invited = ['join', 'room'].some((k) => new URLSearchParams(location.search).get(k));
+  if (store.get('tutOffered', false) || invited) { if (invited) introDone().then(askName); return; }
   store.set('tutOffered', true);
-  introDone().then(() => setTimeout(() => {
+  introDone().then(askName).then(() => setTimeout(() => {
     const b = document.createElement('div');
     b.className = 'modal-back'; b.style.cssText = 'position:fixed;inset:0;z-index:400';
     b.innerHTML = `<div class="modal" style="max-width:520px"><h3>Впервые в «Карточных битвах»?</h3><p style="font-size:18px;line-height:1.45">Короткое обучение за 2 минуты покажет, как ходить, сражаться и отвечать «Опережением». Потом можно сыграть учебную партию с подсказками.</p><div class="row-btns"><button class="btn primary" data-y>🎓 Пройти обучение</button><button class="btn" data-n>Я уже умею</button></div></div>`;
@@ -1118,7 +1178,11 @@ if ((roomCode || watchRoom) && /^[a-z0-9]{4,10}$/.test(roomCode || watchRoom)) {
   const jb = $('#join-banner');
   jb.classList.remove('hidden');
   jb.innerHTML = roomCode ? `Вас пригласили в игру! <button class="btn primary" style="margin-left:8px">Присоединиться</button>` : `Вас позвали посмотреть партию! <button class="btn primary" style="margin-left:8px">👁 Смотреть</button>`;
-  jb.querySelector('button').addEventListener('click', () => { sfx.click(); jb.classList.add('hidden'); if (roomCode) startServerJoin(roomCode); else startServerWatch(watchRoom); });
+  jb.querySelector('button').addEventListener('click', () => { sfx.click(); jb.classList.add('hidden'); history.replaceState(null, '', location.pathname); if (roomCode) startServerJoin(roomCode); else startServerWatch(watchRoom); });
+  // An old invitation (the game is over, or both players left) is not offered again.
+  roomStatus(roomCode || watchRoom).then((st) => {
+    if (st === 'over' || (roomCode && st === 'playing' && !hasSeat(roomCode))) { jb.innerHTML = 'Эта партия уже закончилась. Позовите друга заново или сыграйте с компьютером.'; setTimeout(() => jb.classList.add('hidden'), 6000); history.replaceState(null, '', location.pathname); }
+  });
 }
 const watchCode = new URLSearchParams(location.search).get('watch');
 if (watchCode && /^[a-z0-9]{4,10}$/.test(watchCode)) {
@@ -1126,6 +1190,20 @@ if (watchCode && /^[a-z0-9]{4,10}$/.test(watchCode)) {
   jb.classList.remove('hidden');
   jb.innerHTML = `Вас позвали посмотреть партию! <button class="btn primary" style="margin-left:8px">👁 Смотреть</button>`;
   jb.querySelector('button').addEventListener('click', () => { sfx.click(); jb.classList.add('hidden'); startWatch(watchCode); });
+}
+// A friend's link: ?friend=<code>&fn=<name>
+const friendParam = new URLSearchParams(location.search).get('friend');
+if (friendParam && /^[0-9a-f]{10}$/.test(friendParam)) {
+  const fname = (new URLSearchParams(location.search).get('fn') || 'Друг').slice(0, 24);
+  const jb = $('#join-banner');
+  jb.classList.remove('hidden');
+  jb.innerHTML = `${esc(fname)} зовёт вас в друзья! <button class="btn primary" style="margin-left:8px">🤝 Добавить</button>`;
+  jb.querySelector('button').addEventListener('click', async () => {
+    sfx.click(); await askName();
+    const ok = await addFriend(friendParam, fname, myName());
+    jb.innerHTML = ok ? `${esc(fname)} теперь у вас в друзьях — смотрите в «Друзья».` : 'Это ваша собственная ссылка.';
+    history.replaceState(null, '', location.pathname); setTimeout(() => jb.classList.add('hidden'), 4000);
+  });
 }
 const joinCode = new URLSearchParams(location.search).get('join');
 if (joinCode) {
@@ -1139,6 +1217,7 @@ document.querySelectorAll('#menu [data-act]').forEach((b) => b.addEventListener(
   const a = b.dataset.act;
   if (a === 'bot') startBot();
   else if (a === 'hotseat') startHotseat();
+  else if (a === 'friends') openFriends();
   else if (a === 'watchbots') startWatchBots();
   else if (a === 'tour') startTour();
   else if (a === 'host') chooseOnline();
@@ -1153,3 +1232,33 @@ document.querySelectorAll('#menu [data-act]').forEach((b) => b.addEventListener(
   else if (a === 'decks') openBuilder();
 }));
 window.addEventListener('beforeunload', (e) => { if (current && !current.game?.s.over) { e.preventDefault(); e.returnValue = ''; } });
+
+// ---------- friends ----------
+startPresence(() => myName());
+async function openFriends() {
+  const code = await myFriendCode();
+  const link = `${location.origin}${location.pathname}?friend=${code}&fn=${encodeURIComponent(myName())}`;
+  const b = document.createElement('div');
+  b.className = 'modal-back'; b.style.cssText = 'position:fixed;inset:0;z-index:400';
+  b.innerHTML = `<div class="modal friends-box" style="max-width:560px;width:94vw"><h3>Друзья</h3>
+    <p style="margin:0 0 8px">Отправьте другу ссылку — когда он её откроет, вы появитесь друг у друга в списке. Тогда видно, кто сейчас в игре, и его партию можно смотреть.</p>
+    <div class="link"><input readonly value="${esc(link)}"><button class="btn small" data-copy>Копировать</button></div>
+    <div class="fr-list" data-list><p class="ov-wait">Загружаем…</p></div>
+    <div class="row-btns"><button class="btn" data-close>Закрыть</button></div></div>`;
+  document.body.appendChild(b);
+  b.querySelector('[data-copy]').onclick = () => copyText(link, 'Ссылка для друга скопирована');
+  b.querySelector('[data-close]').onclick = () => { clearInterval(t); b.remove(); };
+  const draw = async () => {
+    const list = loadFriends(), box = b.querySelector('[data-list]');
+    if (!list.length) { box.innerHTML = '<p class="ov-wait">Пока никого. Отправьте ссылку выше.</p>'; return; }
+    const st = await friendsStatus();
+    box.innerHTML = list.map((f) => {
+      const s = st[f.code] || {};
+      const state = s.room ? '<span class="fr-st play">⚔️ в партии</span>' : s.online ? '<span class="fr-st on">● в игре на сайте</span>' : '<span class="fr-st">не в сети</span>';
+      return `<div class="fr-row"><b>${esc(s.name || f.name)}</b>${state}${s.room ? `<button class="btn small primary" data-watch="${s.room}">👁 Смотреть</button>` : ''}<button class="btn small" data-del="${f.code}" title="Убрать из друзей">✕</button></div>`;
+    }).join('');
+    box.querySelectorAll('[data-watch]').forEach((x) => { x.onclick = () => { clearInterval(t); b.remove(); startServerWatch(x.dataset.watch); }; });
+    box.querySelectorAll('[data-del]').forEach((x) => { x.onclick = () => { removeFriend(x.dataset.del); draw(); }; });
+  };
+  draw(); const t = setInterval(draw, 15000);
+}

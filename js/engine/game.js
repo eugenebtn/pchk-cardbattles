@@ -108,12 +108,39 @@ export class Game {
 
   /** Answer the pending request. Returns false if the answer is not valid. */
   respond(player, answer) {
+    // «Сдаться» is accepted at any moment from either player, and kept in the history like any answer (replays repeat it).
+    if (answer && typeof answer === 'object' && !Array.isArray(answer) && answer.concede != null) return this.concede(answer.concede);
     const q = this.pending;
     if (!q || q.player !== player) return false;
     if (!this.validAnswer(q, answer)) return false;
     this.history.push(answer);
     this.step(answer);
+    this.applyPre();
     return true;
+  }
+  // ---------- starting hands chosen at the same time ----------
+  // Both hands are dealt at once; the engine still asks one player after the other, but the other player may answer
+  // early (preRespond). The early answer waits here and is applied when the engine asks — so the history keeps its order.
+  /** The starting-hand question a player can already answer while the other one is choosing (null if none). */
+  preQuestion(player) {
+    const p = this.s.players[player], q = this.pending;
+    if (this.s.phase !== 'setup' || !p?.mull || this.pre?.[player] != null || (q && q.player === player)) return null;
+    const keep = Math.min(5, p.mull.length), canMull = (p.mullN ?? 0) - 2 > 0;
+    return { type: 'mulligan', player, pre: true, prompt: `Оставьте ${keep} карт${canMull ? ' или смените руку (муллиган)' : ''}`, options: p.mull.map((c) => ({ id: c.uid })), keep, canMull };
+  }
+  preRespond(player, answer) {
+    const pq = this.preQuestion(player);
+    if (!pq || !this.validAnswer(pq, answer)) return false;
+    (this.pre ||= {})[player] = answer;
+    this.applyPre();
+    return true;
+  }
+  applyPre() {
+    for (let q = this.pending; q && q.type === 'mulligan' && this.pre?.[q.player] != null; q = this.pending) {
+      const a = this.pre[q.player]; delete this.pre[q.player];
+      if (!this.validAnswer(q, a)) break;
+      this.history.push(a); this.step(a);
+    }
   }
   validAnswer(q, a) {
     if (q.type === 'mulligan') {
@@ -306,11 +333,12 @@ export class Game {
   expire(pred) {
     for (const c of Object.values(this.s.cards)) {
       const ends = c.mods.filter((m) => m.until && pred(m.until));
-      // A temporary health bonus ends but the wounds stay (rules: a buff raises the health limit, wounds are tokens).
-      const alive = ends.some((m) => m.hp > 0) && this.onField(c) && ['ally', 'companion'].includes(this.cardType(c)) && this.hp(c) > 0;
+      // Temporary health is spent first (house rule, 2026-10-25): when a temporary bonus ends, the wounds it absorbed go with it,
+      // so a card never dies only because its bonus ran out.
+      const tmp = ends.reduce((n, m) => n + Math.max(0, m.hp || 0), 0);
+      if (tmp > 0 && c.dmg > 0 && ['ally', 'companion'].includes(this.cardType(c))) c.dmg = Math.max(0, c.dmg - tmp);
       c.mods = c.mods.filter((m) => !(m.until && pred(m.until)));
       c.kws = c.kws.filter((k) => !(k.until && pred(k.until)));
-      if (alive && this.hp(c) <= 0) this.emit('log', { uid: c.uid, log: `«${this.name(c)}»: временное усиление закончилось, а раны остались — карта погибает.` });
     }
   }
 
@@ -355,13 +383,14 @@ export class Game {
     }
     const roll = [1 + Math.floor(this.rand() * 20), 1 + Math.floor(this.rand() * 20)];
     this.emit('setup', { first: s.first, log: `Бросок d20. Первым ходит ${this.P(s.first).name}.` });
+    // Both starting hands are dealt at once, so both players can choose at the same time (see preQuestion).
+    const deal = (p, n) => { const drawn = p.deck.splice(0, Math.min(n, p.deck.length)); drawn.forEach((c) => { c.zone = 'mull'; }); p.mull = drawn; p.mullN = n; };
+    for (const i of [s.first, 1 - s.first]) deal(this.P(i), i === s.first ? 12 : 10);
     for (const i of [s.first, 1 - s.first]) {
       const p = this.P(i);
-      let n = i === s.first ? 12 : 10;
+      let n = p.mullN;
       for (;;) {
-        const drawn = p.deck.splice(0, Math.min(n, p.deck.length));
-        drawn.forEach((c) => { c.zone = 'mull'; });
-        p.mull = drawn;
+        const drawn = p.mull;
         const keep = Math.min(5, drawn.length);
         const canMull = n - 2 > 0;
         const ans = yield* this.ask(i, {
@@ -372,6 +401,7 @@ export class Game {
           p.deck.push(...drawn); drawn.forEach((c) => { c.zone = 'deck'; });
           p.mull = null; this.shuffle(p.deck); n -= 2;
           this.log(`${p.name} меняет стартовую руку.`);
+          deal(p, n);
           continue;
         }
         const kept = new Set(ans);
@@ -1071,6 +1101,14 @@ export class Game {
       for (const c of dying) if (this.onField(c)) yield* this.dies(c, c.x.killer ? this.card(c.x.killer) : null);
     }
   }
+  concede(player) {
+    if (this.s.over || ![0, 1].includes(player)) return false;
+    this.history.push({ concede: player });
+    this.s.over = true; this.s.winner = 1 - player; this.s.phase = 'over'; this.pending = null;
+    this.emit('gameOver', { winner: this.s.winner, conceded: player, log: `${this.P(player).name} сдаётся. Победа: ${this.P(1 - player).name}!` });
+    this.notify();
+    return true;
+  }
   gameOver() {
     const a = this.s.players[0].leader.hpNow <= 0, b = this.s.players[1].leader.hpNow <= 0;
     this.s.over = true;
@@ -1205,7 +1243,7 @@ export class Game {
     // Димитар: ваш Вампир получает на 1 кровь больше.
     if (type === 'blood' && this.isType(c, 'ВАМПИР') && this.field(c.ctrl).some((x) => x.id === 101)) n += 1;
     c.tok[type] = (c.tok[type] || 0) + n;
-    this.emit('tokens', { uid: c.uid, type, n, log: `«${this.name(c)}»: +${n} ${type === 'blood' ? '🩸' : type === 'goods' ? '📦' : type === 'star' ? '✨' : type === 'coins' ? '💰' : type}.` });
+    this.emit('tokens', { uid: c.uid, tok: type, n, log: `«${this.name(c)}»: +${n} ${type === 'blood' ? '🩸' : type === 'goods' ? '📦' : type === 'star' ? '✨' : type === 'coins' ? '💰' : type}.` });
     yield* this.trigger('tokensGained', { inst: c, type, n });
   }
   *supply(i, times = 1) {

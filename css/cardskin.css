@@ -29,8 +29,8 @@
   box-shadow: inset 0 2px 0 rgba(255, 255, 255, .18), inset 0 -2px 0 rgba(0, 0, 0, .35), 0 0 0 2px var(--cs-frame); }
 .rib.ally { --c: var(--rib-purple); } .rib.place { --c: var(--rib-blue); } .rib.leader { --c: var(--rib-red); }
 .rib.companion { --c: #1d7a72; } .rib.item { --c: var(--rib-steel); } .rib.action { --c: var(--rib-red); }
-.field-ribbon { position: absolute; width: 420px; height: 42px; font-size: 24px; border-radius: 4px; z-index: 1; cursor: help; }
-#stage.port .field-ribbon { width: 380px; height: 40px; font-size: 22px; }
+.field-ribbon { position: absolute; width: 300px; height: 30px; font-size: 16px; letter-spacing: .04em; border-radius: 4px; z-index: 1; cursor: help; }
+#stage.port .field-ribbon { width: 300px; height: 32px; font-size: 18px; }
 
 /* ---------- board cards = small copies of the card ---------- */
 .card .frame { position: absolute; inset: 0; border-radius: 12px; background: var(--cs-frame) !important; box-shadow: 0 10px 22px rgba(0, 0, 0, .65); }
@@ -150,7 +150,7 @@
 #stage.land .prompt.wait { display: none; }
 .hint-bar .hint-ico { font-size: 20px; }
 #stage.port .hint-bar { font-size: 24px; }
-.log-panel { background: rgba(10, 8, 6, .72) !important; border: none !important; border-radius: 8px; box-shadow: inset 0 0 0 1.5px rgba(217, 196, 138, .4) !important; font-family: var(--cond); font-size: 17px; color: #cbbd9c; }
+.log-panel { background: rgba(10, 8, 6, .72) !important; border: none !important; border-radius: 8px; box-shadow: inset 0 0 0 1.5px rgba(217, 196, 138, .4) !important; font-family: var(--cond); font-size: 20px; line-height: 1.28; color: #e0d2b0; }
 .power { border-radius: 8px; padding: 6px 12px 6px 6px; font-family: var(--cond); font-weight: 700; font-size: 18px; filter: saturate(.5) brightness(.8); }
 .power .pw-ico { background: radial-gradient(circle at 34% 28%, #fff1c0, #d6a948 45%, #7a5212) !important; border: none !important; box-shadow: 0 0 0 2px #5a3e10; }
 .power .pw-ico .ico { filter: brightness(0) opacity(.7); }
@@ -593,7 +593,7 @@
 
 /* Picture log */
 .log-panel .lg-pics { display: inline-flex; align-items: center; gap: 2px; margin-right: 6px; vertical-align: middle; }
-.log-panel .lg-pic { display: inline-block; width: 20px; height: 28px; border-radius: 3px; background-size: cover; background-position: center; box-shadow: 0 0 0 1.5px #8fb8e8; }
+.log-panel .lg-pic { display: inline-block; width: 24px; height: 33px; border-radius: 3px; background-size: cover; background-position: center; box-shadow: 0 0 0 1.5px #8fb8e8; }
 .log-panel .lg-pic.theirs { box-shadow: 0 0 0 1.5px #e8907a; }
 .log-panel .lg-pics b { color: #f6d77a; font-weight: 800; }
 /* Hero select: key cards */
@@ -639,8 +639,14 @@
   font: 700 15px 'Fira Sans Extra Condensed', sans-serif; color: #fff; background: #b8281c; box-shadow: 0 0 0 2px #0f1418, 0 6px 14px rgba(0, 0, 0, .6); animation: recblink 1.4s ease-in-out infinite; }
 @keyframes recblink { 50% { opacity: .65; } }
 
-.turn-clock { position: absolute; z-index: 60; padding: 3px 12px; border-radius: 12px; font: 800 18px 'Fira Sans Extra Condensed', sans-serif; color: #f6e2a8; background: rgba(15, 10, 6, .85); box-shadow: inset 0 0 0 1px #d9c48a; }
-.turn-clock.low { color: #fff; background: #b8281c; animation: recblink 1s ease-in-out infinite; }
+.turn-clock { position: absolute; z-index: 61; pointer-events: none; }
+.turn-clock svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+.turn-clock circle { fill: none; stroke: rgba(10, 6, 3, .55); stroke-width: 5; }
+.turn-clock .tc-run { stroke: #f2cd6b; stroke-linecap: round; filter: drop-shadow(0 0 5px rgba(255, 210, 110, .8)); transition: stroke-dasharray .2s linear; }
+.turn-clock span { position: absolute; left: 50%; top: 100%; transform: translate(-50%, 4px); padding: 2px 12px; border-radius: 999px; white-space: nowrap;
+  font: 800 17px/1.2 'Fira Sans Extra Condensed', sans-serif; color: #f6e2a8; background: rgba(15, 10, 6, .9); box-shadow: inset 0 0 0 1px #d9c48a, 0 4px 10px rgba(0, 0, 0, .6); }
+.turn-clock.low .tc-run { stroke: #ff6a4a; filter: drop-shadow(0 0 6px rgba(255, 90, 60, .9)); }
+.turn-clock.low span { color: #fff; background: #b8281c; animation: recblink 1s ease-in-out infinite; }
 
 /* «Совет» stays one line (full text on hover), so it never covers the history; the history opens taller on click. */
 .hint-bar .coach-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

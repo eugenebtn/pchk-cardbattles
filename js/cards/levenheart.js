@@ -11,7 +11,7 @@ export default {
     abilities: [{
       name: 'Муштра', fast: true, cost: { coins: 2 },
       targets: { kind: 'ally', side: 'own', hint: 'buff', prompt: 'Муштра: выберите вашего Союзника (+1/+1)' },
-      *effect(g, ctx) { const t = g.card(ctx.targets[0]); g.fx('drill', ctx.self, t); yield* g.buff(t, 1, 1, 'nextTurn', ctx.self); },
+      *effect(g, ctx) { const t = g.card(ctx.targets[0]); g.fx('drill', ctx.self, t); yield* g.buff(t, 1, 1, 'perm', ctx.self); }, // no duration on the card: a lasting bonus
     }],
   },
   // Священное пламя

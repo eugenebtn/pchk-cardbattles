@@ -18,6 +18,21 @@ const attacked = (g, c) => g.events.some((e) => e.type === 'attack' && e.src ===
 const pol = (hook) => (q) => { const r = hook(q); return r === undefined ? defaultAnswer(q) : r; };
 
 // ---------------- setup ----------------
+test('Подготовка: оба выбирают стартовую руку одновременно, история повторяется', () => {
+  const deck = Array(40).fill(9);
+  const cfg = { seed: 5, players: [{ leader: 117, deck }, { leader: 117, deck }], options: { first: 0 } };
+  const g = new Game(cfg);
+  eq(g.pending.player, 0);
+  const pq = g.preQuestion(1); ok(pq, 'второй игрок уже может выбирать'); eq(pq.options.length, 10);
+  ok(g.preRespond(1, pq.options.slice(5).map((o) => o.id)), 'ранний ответ принят');
+  eq(g.preQuestion(1), null); eq(g.pending.player, 0);
+  ans(g, g.pending.options.slice(0, 5).map((o) => o.id));
+  eq(g.s.phase === 'setup', false, 'после первого ответа партия идёт дальше сама');
+  eq(g.P(1).hand.length, 5);
+  const r = new Game(cfg);
+  for (const a of g.history) ok(r.respond(r.pending.player, a));
+  eq(r.P(1).hand.map((c) => c.uid).join(), g.P(1).hand.map((c) => c.uid).join());
+});
 test('Подготовка: первый берёт 12, второй 10, оставляют 5; у каждого 5 монет', () => {
   const deck = Array(40).fill(9);
   const g = new Game({ seed: 3, players: [{ leader: 117, deck }, { leader: 117, deck }], options: { first: 0 } }); // Эрик: нет дохода в начале хода

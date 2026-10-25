@@ -146,3 +146,4 @@
   background: radial-gradient(ellipse at 50% 50%, rgba(8, 4, 2, .85), rgba(8, 4, 2, .5) 45%, transparent 70%); }
 .press { color: #fff4d6; font-size: 28px; text-shadow: 0 2px 4px #000, 0 0 22px rgba(255, 190, 90, .9); }
 .menu-box::before { content: ''; position: absolute; inset: -20px -60px; z-index: -1; background: radial-gradient(ellipse at 50% 40%, rgba(8, 4, 2, .82), rgba(8, 4, 2, .4) 55%, transparent 75%); }
+.emote-wheel .em-mute { font-size: 15px; margin-top: 4px; background: linear-gradient(#2d2620, #15110d); border-color: #8a7a5a; color: #d8ccb0; }

@@ -30,6 +30,10 @@ const PLACE_THEME = { tavern: 160, castle: 8, dungeon: 33 };
 // Cards the game draws itself (tools/render-cards.mjs): on the field they use the art-only version in assets/cards/field.
 const DRAWN = /assets\/cards\/(levenheart|larisa)_/;
 // What each Leader says at the start (the voice lines elVo<id>Intro), shown as subtitles in the VS intro.
+/** The other side of a two-sided card (Женуария ⇄ паучиха), or null. */
+const otherSide = (id) => CARDS[id]?.back ?? Object.values(CARDS).find((c) => c.back === Number(id))?.id ?? null;
+const BOARD_ART = new Set([160, 8, 33, 5, 125, 130, 116]); // Places with a painted board background
+const MULL_SEC = 45; // seconds to choose the starting hand
 const INTRO_LINE = { 20: 'Кёнигпон смотрит на нас. Строиться, бойцы!', 41: 'Хвост трубой, усы торчком — начинаем!', 62: 'Клан Баланов помнит каждую каплю крови. Начнём.',
   63: 'Добро пожаловать в мой замок... ненадолго.', 117: 'Гениальный план! Никто его не поймёт — но проиграют все!', 118: 'Дети спят. У мамы есть время на войну.' };
 // Themed entrances for Places by what the picture shows (BoardUI.placeEntrance).
@@ -108,7 +112,7 @@ export class BoardUI {
     // The battlefield is one big Place card: black frame, the place's painting inside, a blue name ribbon.
     const [fx, fy, fw, fh] = L.field;
     b.insertAdjacentHTML('beforeend', `<div class="field" style="left:${fx}px;top:${fy}px;width:${fw}px;height:${fh}px"><div class="field-art"></div><div class="field-shade"></div></div>
-      <div class="field-ribbon rib place" style="left:${fx + fw / 2 - 210}px;top:${fy - 22}px"></div>`);
+      <div class="field-ribbon rib place" style="left:${fx + fw / 2 - 150}px;top:${fy - 16}px"></div>`);
     this.cols = [];
     this.slots = { ally: [[], []], place: [[], []] };
     const colTop = L.y.oppPlace - 6, colH = L.y.myPlace + L.place.h + 6 - colTop;
@@ -184,6 +188,8 @@ export class BoardUI {
         <button class="btn" id="btn-speed">⏩ Скорость</button>
         <button class="btn" id="btn-music">🎵 Музыка</button>
         <button class="btn" id="btn-sound">🔊 Звук</button>
+        <button class="btn hidden" id="btn-undo2">↶ Вернуть ход назад</button>
+        <button class="btn hidden" id="btn-concede">🏳 Сдаться</button>
         <button class="btn danger" id="btn-menu">🚪 Выйти в меню</button>
       </div>
       ${L.name === 'land'
@@ -216,6 +222,8 @@ export class BoardUI {
     }
     this.powersEl = u.querySelector('#powers');
     u.querySelector('#btn-emote').addEventListener('click', (e) => { e.stopPropagation(); this.openEmotes(); });
+    u.querySelector('#btn-undo2').addEventListener('click', () => { u.querySelector('#opts-pop').classList.add('hidden'); this.onUndo?.(); });
+    u.querySelector('#btn-concede').addEventListener('click', () => { u.querySelector('#opts-pop').classList.add('hidden'); if (this.onConcede && !this.view?.over && confirm('Сдаться? Партия закончится вашим поражением.')) this.onConcede(); });
     u.querySelector('#btn-log').addEventListener('click', () => { this.showLog(); u.querySelector('#opts-pop').classList.add('hidden'); });
     u.querySelector('#btn-bug').addEventListener('click', () => { u.querySelector('#opts-pop').classList.add('hidden'); this.onFeedback?.(); });
     u.querySelector('#btn-rec').addEventListener('click', () => { u.querySelector('#opts-pop').classList.add('hidden'); toggleRecording(this.toast); });
@@ -314,6 +322,8 @@ export class BoardUI {
     if (this.oppHandCount) this.oppHandCount.innerHTML = `🂠 ${P[op].handCount}`;
     this.renderSide(view);
     this.ui.querySelector('#btn-undo')?.classList.toggle('hidden', !this.onUndo);
+    this.ui.querySelector('#btn-undo2')?.classList.toggle('hidden', !this.onUndo);
+    this.ui.querySelector('#btn-concede')?.classList.toggle('hidden', !this.onConcede || !!this.spectator);
     this.renderForecast(view);
     // More than 10 cards in hand: at the end of the turn the extra ones go to the graveyard (the player picks which).
     const nHand = P[this.me]?.hand?.length || 0;
@@ -405,7 +415,7 @@ export class BoardUI {
       if (w.mode === 'hand' && (c.cost ?? base) != null) {
         const now = c.cost ?? base;
         const cls = now === 'X' || base == null ? '' : now < base ? 'cheaper' : now > base ? 'dearer' : '';
-        costHtml = `<div class="cost-now ${cls}" data-tip="Цена ${now}|${cls === 'cheaper' ? `Дешевле обычного (на карте ${base}).` : cls === 'dearer' ? `Дороже обычного (на карте ${base}).` : 'Столько монет нужно, чтобы разыграть карту.'}">${now}</div>`;
+        costHtml = `<div class="cost-now ${cls}" data-tip="Цена ${now}|${cls === 'cheaper' ? `Дешевле обычного (на карте ${base}).` : cls === 'dearer' ? `Дороже обычного (на карте ${base}).` : 'Столько монет нужно, чтобы разыграть карту.'}">${now}${cls ? `<s class="cost-was">${base}</s>` : ''}</div>`;
       }
       el.innerHTML = `<div class="face" style="${bg}">${gen}</div><div class="gloss"></div>${costHtml}${!img ? `<div class="nm" style="bottom:12px">${d.name}</div>` : ''}`;
       if (!el._spread) {
@@ -584,14 +594,24 @@ export class BoardUI {
     clearInterval(this._clock);
     let el = this.ui.querySelector('.turn-clock');
     if (!ms) { el?.remove(); return; }
-    if (!el) { el = document.createElement('div'); el.className = 'turn-clock'; el.style.left = (this.L.end.x) + 'px'; el.style.top = (this.L.end.y + (this.L.name === 'port' ? 80 : 74)) + 'px'; this.ui.appendChild(el); }
+    // A gold ring around the turn button that runs down, and the seconds in a small plate centred under it.
+    const b = this.endBtn, w = b.offsetWidth || 124, h = b.offsetHeight || 124, round = Math.abs(w - h) < 4;
+    if (!el) {
+      el = document.createElement('div'); el.className = 'turn-clock';
+      el.innerHTML = `${round ? `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="47"/><circle class="tc-run" cx="50" cy="50" r="47" pathLength="100"/></svg>` : ''}<span></span>`;
+      this.ui.appendChild(el);
+    }
+    const pad = 9;
+    Object.assign(el.style, { left: (b.offsetLeft - pad) + 'px', top: (b.offsetTop - pad) + 'px', width: (w + pad * 2) + 'px', height: (h + pad * 2) + 'px' });
+    const total = Math.max(1, (ms - Date.now()) / 1000), run = el.querySelector('.tc-run'), num = el.querySelector('span');
     const tick = () => {
-      const left = Math.max(0, Math.round((ms - Date.now()) / 1000));
-      el.textContent = `⏳ ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
-      el.classList.toggle('low', left <= 10);
+      const left = Math.max(0, (ms - Date.now()) / 1000), s = Math.ceil(left);
+      num.textContent = s >= 60 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : `${s} с`;
+      if (run) run.style.strokeDasharray = `${(left / total) * 100} 100`;
+      el.classList.toggle('low', s <= 10);
       if (left <= 0) clearInterval(this._clock);
     };
-    tick(); this._clock = setInterval(tick, 500);
+    tick(); this._clock = setInterval(tick, 200);
   }
   /** Card pictures inside windows (Опережение, choices, history): pointing at one shows it big next to it. */
   bindZoom() {
@@ -611,10 +631,11 @@ export class BoardUI {
       z.style.backgroundImage = `url('${m[1]}')`;
       document.body.appendChild(z);
       const r = el.getBoundingClientRect(), H = Math.min(innerHeight * 0.78, 640), W = H * 0.716;
-      const right = r.right + 16 + W < innerWidth;
+      // The same spot as on the board: the right edge, or the left edge if the card itself is there.
+      const right = r.right <= innerWidth - W - 24;
       z.style.width = W + 'px'; z.style.height = H + 'px';
-      z.style.left = (right ? r.right + 16 : Math.max(8, r.left - 16 - W)) + 'px';
-      z.style.top = Math.max(8, Math.min(innerHeight - H - 8, r.top + r.height / 2 - H / 2)) + 'px';
+      z.style.left = (right ? innerWidth - W - 12 : 12) + 'px';
+      z.style.top = Math.max(8, (innerHeight - H) / 2) + 'px';
     });
     document.addEventListener('mouseout', (e) => { if (e.target.closest?.(SEL) && !e.relatedTarget?.closest?.(SEL)) hide(); });
     document.addEventListener('click', hide, true);
@@ -643,6 +664,11 @@ export class BoardUI {
     this.renderPrompt();
     this.updateHint();
     this.maybeTip(q);
+    // My starting hand is chosen, the opponent is still choosing: say so instead of an empty board.
+    if (q && this.view?.phase === 'setup' && (q.player !== this.me || q.type === 'wait')) this.openWaitHand();
+  }
+  openWaitHand() {
+    this.modal(`<div class="wait-hand"><div class="wh-cards"><i></i><i></i><i></i></div><h3>Соперник выбирает стартовую руку…</h3><p>Ваши карты уже выбраны. Партия начнётся, как только соперник закончит.</p></div>`, (m) => m.querySelector('.modal').classList.add('wait-modal'));
   }
   myOptions() { return this.q && this.q.player === this.me ? this.q.options : []; }
   applyInteractivity() {
@@ -749,6 +775,7 @@ export class BoardUI {
       }
       case 'region': break;
       case 'multi': this.openCardModal(q); return;
+      case 'order': this.openOrder(q); return;
       case 'mulligan': this.openMulligan(q); return;
       default: break;
     }
@@ -971,7 +998,12 @@ export class BoardUI {
       const sub = document.createElement('div');
       sub.className = 'vs-sub';
       sub.textContent = `«${INTRO_LINE[id] || 'К бою!'}»`;
-      sub.style.cssText = `left:${p.x + hw / 2}px;top:${p.y + hh + 14}px`;
+      // A speech bubble beside the speaker, on the outer side (its tail points at them); under them if there is no room.
+      const room = el === A ? p.x : W - (p.x + hw);
+      if (!port && room >= 200) {
+        sub.classList.add(el === A ? 'side-l' : 'side-r');
+        sub.style.cssText = `top:${p.y + hh * 0.3}px;max-width:${Math.min(380, room - 30)}px;` + (el === A ? `right:${W - p.x + 22}px` : `left:${p.x + hw + 22}px`);
+      } else { sub.classList.add('under'); sub.style.cssText = `left:${p.x + hw / 2}px;top:${p.y + hh + 14}px`; }
       layer.appendChild(sub);
       el.classList.add('speaking');
       const len = voice(id, 'Intro');
@@ -1030,7 +1062,8 @@ export class BoardUI {
     const d = CARDS[id];
     const [, , fw, fh] = this.L.field;
     const art = this.board.querySelector('.field-art');
-    if (art && d) art.style.cssText = artCover(d.img, fw - 24, fh - 24, 0.5);
+    // A painting of the Place made for the board (assets/ui/boards/<id>.webp, no text on it); else the card's own art.
+    if (art && d) art.style.cssText = BOARD_ART.has(id) ? `background:url('assets/ui/boards/${id}.webp') center/cover no-repeat` : artCover(d.img, fw - 24, fh - 24, 0.5);
     const rib = this.board.querySelector('.field-ribbon');
     if (rib && d) { rib.textContent = d.name; rib.setAttribute('data-tip', `${d.name}|Здесь идёт бой. Место можно выбрать в настройках.`); }
   }
@@ -1093,22 +1126,27 @@ export class BoardUI {
     const p = L && this.pointOf(L.uid);
     if (!p) return;
     const mine = side === this.me;
+    if (!mine && this.muteOpp) return; // the opponent was muted: no bubbles, no voice
     const top = mine ? p.y - 110 : p.y + 70;
     this.bubbleAt(p.x + 40, top, text, 3200, !mine);
-    sfx.reveal();
+    // The Leader says it aloud (lines recorded per Leader: assets/audio/elVo<id>Emote<k>); otherwise a soft sound.
+    const k = this.emoteItems(L.id).indexOf(text);
+    if (!(k >= 0 && voice(L.id, 'Emote' + k))) sfx.reveal();
   }
+  emoteItems(id) { const quote = CARDS[id]?.flavor; return ['Привет!', 'Спасибо!', 'Отлично сыграно!', 'Упс…', 'Сейчас я тебя!', ...(quote ? [quote] : [])]; }
   openEmotes() {
     const L = this.view?.players[this.me]?.leader;
     const p = L && this.pointOf(L.uid);
     if (!p) return;
     this.closeEmotes();
-    const quote = CARDS[L.id]?.flavor;
-    const items = ['Привет!', 'Спасибо!', 'Отлично сыграно!', 'Упс…', 'Сейчас я тебя!', ...(quote ? [quote] : [])];
+    const items = this.emoteItems(L.id);
     const w = document.createElement('div');
     w.className = 'emote-wheel';
-    w.innerHTML = items.map((t, k) => `<button data-k="${k}">${esc(t.length > 42 ? t.slice(0, 40) + '…' : t)}</button>`).join('');
+    w.innerHTML = items.map((t, k) => `<button data-k="${k}">${esc(t.length > 42 ? t.slice(0, 40) + '…' : t)}</button>`).join('')
+      + (this.spectator ? '' : `<button class="em-mute" data-mute>${this.muteOpp ? '🔊 Снова слышать соперника' : '🔇 Заглушить соперника'}</button>`);
+    w.querySelector('[data-mute]')?.addEventListener('click', (e) => { e.stopPropagation(); this.muteOpp = !this.muteOpp; this.closeEmotes(); this.caption(this.muteOpp ? 'Реплики соперника заглушены' : 'Реплики соперника снова слышны', 1800); });
     w.style.left = (p.x + 90) + 'px';
-    w.style.top = (this.L.name === 'port' ? p.y - 330 : p.y - 290) + 'px';
+    w.style.top = (this.L.name === 'port' ? p.y - 380 : p.y - 340) + 'px';
     this.ui.appendChild(w);
     this.emoteEl = w;
     w.querySelectorAll('[data-k]').forEach((b) => b.addEventListener('click', (e) => {
@@ -1333,7 +1371,7 @@ ${optHtml}</div></div>
   }
   /** One-time tutorial tips (first game). */
   maybeTip(q) {
-    if (!q || q.player !== this.me || this.noTips) return;
+    if (!q || q.player !== this.me || this.noTips || !isNewcomer()) return;
     const key = q.type === 'target' ? (q.defense ? 'defense' : q.maneuver ? 'maneuver' : q.hint === 'face' ? 'face' : 'target') : q.type;
     const tip = TIPS[key];
     if (!tip || tipStore.seen(key)) return;
@@ -1391,6 +1429,25 @@ ${optHtml}</div></div>
     return back;
   }
   closeModal() { if (this.modalEl) { this.modalEl.remove(); this.modalEl = null; } }
+  /** «In what order?»: the cards are shown, the player clicks them one by one (1, 2, 3…), then «Готово». */
+  openOrder(q) {
+    const ids = q.options.map((o) => ({ uid: o.id, id: o.cardId ?? this.cardIdOf(o.id) }));
+    const seq = [];
+    const html = `<h3>${esc(q.prompt)}</h3>
+      <div class="cards">${ids.map((c) => `<div class="mcard" data-uid="${c.uid}" style="background-image:url('${CARDS[c.id]?.img || ''}')"><b class="ord-n"></b></div>`).join('')}</div>
+      <div class="row-btns"><button class="btn primary" data-ok>Готово</button><button class="btn" data-reset>Сначала</button></div>
+      <p style="color:var(--ink-dim);margin:8px 0 0">Нажимайте на карты по порядку: первая ляжет выше. Можно сразу «Готово» — тогда как показано.</p>`;
+    this.modal(html, (m) => {
+      const upd = () => m.querySelectorAll('.mcard').forEach((e) => { const k = seq.indexOf(Number(e.dataset.uid)); e.classList.toggle('on', k >= 0); e.querySelector('.ord-n').textContent = k >= 0 ? k + 1 : ''; });
+      m.querySelectorAll('.mcard').forEach((e) => {
+        e.addEventListener('click', () => { const u = Number(e.dataset.uid); if (!seq.includes(u)) seq.push(u); sfx.click(); upd(); });
+        e.addEventListener('mouseenter', () => this.showPreviewId(ids.find((x) => x.uid === Number(e.dataset.uid))?.id, e));
+        e.addEventListener('mouseleave', () => this.hidePreview());
+      });
+      m.querySelector('[data-reset]').addEventListener('click', () => { seq.length = 0; upd(); });
+      m.querySelector('[data-ok]').addEventListener('click', () => { sfx.click(); this.answer([...seq, ...ids.map((c) => c.uid).filter((u) => !seq.includes(u))]); });
+    });
+  }
   openCardModal(q, { single = false } = {}) {
     const ids = q.options.map((o) => ({ uid: o.id, id: o.cardId ?? this.cardIdOf(o.id) }));
     const min = single ? 1 : q.min, max = single ? 1 : q.max;
@@ -1422,8 +1479,10 @@ ${optHtml}</div></div>
     const id = q.srcId;
     const img = id != null && CARDS[id]?.img;
     const numeric = q.options.every((o) => /^\d+$/.test(String(o.label ?? o.id)));
-    const html = `<div class="pick-win ${img ? 'with-card' : ''}">
-      ${img ? `<div class="pick-card" style="background-image:url('${img}')"></div>` : ''}
+    // «Перевернуть?»: show what the card turns into, next to it.
+    const back = /перевернуть/i.test(q.prompt || '') && otherSide(id);
+    const html = `<div class="pick-win ${img ? 'with-card' : ''} ${back ? 'with-back' : ''}">
+      ${img ? `<div class="pick-card" style="background-image:url('${img}')"></div>` : ''}${back ? `<div class="pick-arrow">⟳</div><div class="pick-card back" data-id="${back}" style="background-image:url('${CARDS[back].img}')"><small>станет</small></div>` : ''}
       <div class="pick-body"><h3>${esc(q.prompt)}</h3>
         <div class="pick-opts ${numeric ? 'numeric' : ''}">${q.options.map((o, k) => `<button class="pick-opt" data-k="${k}">${linkTerms(esc(o.label ?? String(o.id)))}</button>`).join('')}</div>
         ${q.cancel ? '<button class="pick-opt cancel" data-cancel>Отмена — ничего не делать</button>' : ''}
@@ -1433,6 +1492,7 @@ ${optHtml}</div></div>
       m.querySelectorAll('.pick-opt[data-k]').forEach((b) => b.addEventListener('click', () => { sfx.click(); this.closeModal(); this.answer(q.options[Number(b.dataset.k)].id); }));
       m.querySelector('[data-cancel]')?.addEventListener('click', () => { sfx.click(); this.closeModal(); this.answer(null); });
       if (img) m.querySelector('.pick-card').addEventListener('mouseenter', (e) => this.showPreviewId(id, e.currentTarget));
+      m.querySelector('.pick-card.back')?.addEventListener('mouseenter', (e) => this.showPreviewId(back, e.currentTarget));
     });
   }
   openMulligan(q) {
@@ -1452,9 +1512,25 @@ ${optHtml}</div></div>
         e.addEventListener('mouseleave', () => this.hidePreview());
       });
       if (q.keep === ids.length) ids.forEach((c) => sel.add(c.uid));
-      ok.addEventListener('click', () => { sfx.click(); this.answer([...sel]); });
-      m.querySelector('[data-mull]')?.addEventListener('click', () => { sfx.click(); this.answer('mulligan'); });
+      ok.addEventListener('click', () => { sfx.click(); clearInterval(this._mullT); this.answer([...sel]); });
+      m.querySelector('[data-mull]')?.addEventListener('click', () => { sfx.click(); clearInterval(this._mullT); this.answer('mulligan'); });
       upd();
+      // 45 seconds to choose (not in the first, training game): then the chosen cards are kept, topped up from the left.
+      clearInterval(this._mullT);
+      if (!this.noTimer) {
+        const end = Date.now() + MULL_SEC * 1000, clock = document.createElement('div');
+        clock.className = 'mull-clock'; m.querySelector('h3').appendChild(clock);
+        const tick = () => {
+          if (!m.isConnected) { clearInterval(this._mullT); return; }
+          const left = Math.max(0, Math.ceil((end - Date.now()) / 1000));
+          clock.textContent = `⏳ ${left}`; clock.classList.toggle('low', left <= 10);
+          if (left > 0) return;
+          clearInterval(this._mullT);
+          for (const c of ids) if (sel.size < q.keep) sel.add(c.uid);
+          this.answer([...sel]);
+        };
+        tick(); this._mullT = setInterval(tick, 250);
+      }
     });
   }
   showGrave(side) {
@@ -1486,12 +1562,13 @@ ${optHtml}</div></div>
       <div class="pv-info"><b>${esc(d.name)}</b> — ${TYPE_RU[d.type] || ''}${d.subtypes?.length ? ' · ' + d.subtypes.join(', ').toLowerCase() : ''}${statLine}
       ${kws.map((k) => `<div><b>${KW_NAME[k]}</b>: ${KW_HELP[k]}</div>`).join('')}
       ${this.fxHtml(c, d)}
-      ${!d.img && d.text ? `<div>${esc(d.text)}</div>` : ''}</div>`;
+      ${!d.img && d.text ? `<div>${esc(d.text)}</div>` : ''}</div>
+      ${otherSide(id) && CARDS[otherSide(id)].img ? `<div class="pv-back"><span>⟳ Обратная сторона</span><img src="${CARDS[otherSide(id)].img}" alt=""></div>` : ''}`;
     pv.classList.remove('hidden');
     const r = el.getBoundingClientRect();
     const w = pv.offsetWidth || 300, h = pv.offsetHeight || 520;
-    // Fixed spot on the far side of the screen, like a card inspector.
-    const x = r.left + r.width / 2 > window.innerWidth / 2 ? 12 : window.innerWidth - w - 12;
+    // Always the same spot at the right edge, like a card inspector; on the left only when it would cover the card itself.
+    const x = r.right > window.innerWidth - w - 24 ? 12 : window.innerWidth - w - 12;
     const y = Math.max(8, (window.innerHeight - h) / 2);
     pv.style.left = x + 'px'; pv.style.top = y + 'px';
   }
@@ -1686,7 +1763,10 @@ ${optHtml}</div></div>
       }
       case 'turnStart': {
         if (this.spectator) await FX.banner(`Ход: ${this.sideName(ev.player)}`, '', 950);
-        else if (ev.player === this.me) { sfx.turn(); await FX.banner('Ваш ход', '', 1150); } else await FX.banner('Ход соперника', 'dim', 850);
+        else if (!this._firstTurn) { // the very first turn of the game says again who starts (the coin toss was before the hands)
+          this._firstTurn = true;
+          if (ev.player === this.me) { sfx.turn(); await FX.banner('Вы ходите первым', '', 1700); } else await FX.banner('Соперник ходит первым', 'dim', 1500);
+        } else if (ev.player === this.me) { sfx.turn(); await FX.banner('Ваш ход', '', 1150); } else await FX.banner('Ход соперника', 'dim', 850);
         break;
       }
       case 'round': this.musicStep(); await W(150); break;
@@ -1835,8 +1915,8 @@ ${optHtml}</div></div>
         if (!ev.n) break;
         const p = this.pointOf(ev.uid);
         if (p) {
-          FX.floatText(p.x + 30, p.y - 30, `+${ev.n}${TOK_ICON[ev.type] || ''}`, ev.type === 'blood' ? 'dmg' : 'coin');
-          if (ev.type === 'blood') { sfx.blood(p.x); FX.burst(p.x, p.y, { color: ['#b3001b', '#e0202a'], count: 10, speed: 3, size: 6, gravity: 0.25, add: false }); }
+          FX.floatText(p.x + 30, p.y - 30, `+${ev.n}${TOK_ICON[ev.tok] || ''}`, ev.tok === 'blood' ? 'dmg' : 'coin');
+          if (ev.tok === 'blood') { sfx.blood(p.x); FX.burst(p.x, p.y, { color: ['#b3001b', '#e0202a'], count: 10, speed: 3, size: 6, gravity: 0.25, add: false }); }
           else { sfx.book(p.x); }
         }
         await W(170); break;
@@ -1977,7 +2057,7 @@ ${optHtml}</div></div>
       case 'stun': add(ev.uid, '💫', 'оглушение', ev.src); break;
       case 'damage': if (ev.amount > 0) add(ev.tgt, '🩸', `${ev.amount} ${plural(ev.amount, 'рана', 'раны', 'ран')}${ev.combat ? ' в бою' : ''}`, ev.src); break;
       case 'heal': add(ev.uid, '💚', `лечение ${ev.amount}`, ev.src); break;
-      case 'tokens': add(ev.uid, TOK_ICON[ev.type] || '●', `${sign(ev.n)} ${TOK_ICON[ev.type] ? '' : ev.type}`.trim()); break;
+      case 'tokens': if (ev.n) add(ev.uid, TOK_ICON[ev.tok] || '●', `${sign(ev.n)} ${TOK_ICON[ev.tok] ? '' : ev.tok || ''}`.trim()); break;
       case 'control': add(ev.uid, '🔁', 'сменила хозяина'); break;
       case 'flip': add(ev.uid, '🔃', 'перевёрнута'); break;
       case 'move': add(ev.uid, '➡️', 'перемещена'); break;
@@ -2131,16 +2211,18 @@ function cardInfoHtml(d, c) {
     ${kws.length ? `<div class="ci-kws">${kws.map((k) => `<div><span>${KW_ICON[k] || '•'}</span> <b>${KW_NAME[k]}</b> — ${KW_HELP[k]}</div>`).join('')}</div>` : ''}`;
 }
 const TIPS = {
-  mulligan: { icon: '🃏', title: 'Стартовая рука', text: 'Выберите 5 карт, которые оставите. Не нравится расклад — «Муллиган»: карты замешаются, и вы возьмёте на 2 меньше. Хорошая рука — дешёвые союзники и Места, которые приносят монеты.' },
+  mulligan: { icon: '🃏', title: 'Стартовая рука', text: 'Выберите 5 карт, которые оставите. Не нравится расклад — «Муллиган»: карты замешаются, и вы возьмёте на 2 меньше. Хорошая рука — дешёвые союзники и Места, которые приносят монеты. На выбор — 45 секунд.' },
   draw: { icon: '🪙', title: 'Начало хода', text: 'Каждый ход вы берёте две вещи: карту из колоды или монету. Можно 2 карты, 2 монеты или по одной. Монеты нужны, чтобы разыгрывать карты.' },
-  main: { icon: '▶️', title: 'Ваш ход', text: 'Нажмите на карту с зелёной рамкой, чтобы разыграть её. Цена — в монетах. Союзники встают в ближний ряд и бьются в Сражении; Места дают монеты и свойства. Когда закончите — «Завершить ход».' },
-  region: { icon: '🗺️', title: 'Выбор региона', text: 'На поле 5 регионов. Союзник бьётся с тем, кто стоит прямо напротив. Если напротив пусто — он бьёт Лидера соперника.' },
-  target: { icon: '🎯', title: 'Выбор цели', text: 'Нажмите на подсвеченную карту. Красная подсветка — враг, зелёная — ваша карта. Карты с ✨ Оберегом выбрать нельзя.' },
+  main: { icon: '▶️', title: 'Ваш ход', text: 'Нажмите на карту с зелёной рамкой, чтобы разыграть её. Цена — монетка в углу карты: зелёная — дешевле обычного, красная — дороже. Союзники встают в ближний ряд и бьются в Сражении; Места дают монеты и свойства. Когда закончите — «Завершить ход».' },
+  region: { icon: '🗺️', title: 'Выбор региона', text: 'На поле 5 регионов. Союзник бьётся с тем, кто стоит прямо напротив. Если напротив пусто — он бьёт Лидера или Напарника соперника.' },
+  target: { icon: '🎯', title: 'Выбор цели', text: 'Нажмите на подсвеченную карту. Красная подсветка — по этой карте будет удар, зелёная — её можно выбрать. Карты с ✨ Оберегом выбрать нельзя.' },
   priority: { icon: '⚡', title: 'Опережение', text: 'У вас есть карта или свойство со значком ⚡. Их можно играть в ответ на действия соперника — ваш ответ сработает раньше. Если не нужно — «Пропустить». Кнопка ⚡ сверху выключает эти вопросы.' },
   defense: { icon: '🛡️', title: 'Оборона', text: 'Ваш союзник с Обороной может принять удар на себя вместо Лидера или Напарника. Выберите его — или «Отмена», чтобы удар прошёл как есть.' },
   maneuver: { icon: '🏃', title: 'Манёвр', text: 'Перед боем союзник с Манёвром может перебежать в свободный регион — например, чтобы ударить в Лидера или уйти от сильного врага.' },
   face: { icon: '⚔️', title: 'Удар по Лидеру', text: 'Напротив вашего союзника никого нет — он бьёт напрямую. Выберите: Лидера (цель игры) или Напарника соперника.' },
 };
+// Tips are for newcomers only: the first 3 games played in this browser.
+const isNewcomer = () => { try { return JSON.parse(localStorage.getItem('pchk_stats') || '[]').length < 3; } catch { return true; } };
 const tipStore = {
   get() { try { return JSON.parse(localStorage.getItem('pchk_tips') || '{}'); } catch { return {}; } },
   put(v) { try { localStorage.setItem('pchk_tips', JSON.stringify(v)); } catch { /* private mode */ } },
