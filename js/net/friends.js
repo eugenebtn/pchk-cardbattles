@@ -33,13 +33,14 @@ export function removeFriend(code) { saveFriends(loadFriends().filter((f) => f.c
 let room = null, timer = 0, nameFn = () => '', inviteFn = null;
 /** Call a friend into my new room: they see «… зовёт вас в партию» within a minute. */
 export async function sendInvite(to, roomCode, myName) {
-  try { await fetch(`${base()}/api/invite`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from: await myFriendCode(), to, room: roomCode, name: myName }) }); return true; } catch { return false; }
+  try { const r = await fetch(`${base()}/api/invite`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from: await myFriendCode(), to, room: roomCode, name: myName }) }); return r.ok; } catch { return false; }
 }
-/** Tell the server I am here (and in which online game, so friends can watch). Repeats every 45 s. */
+/** Tell the server I am here (and in which online game, so friends can watch). Repeats every 20 s and when the tab comes back. */
 export function startPresence(getName, onInvite) {
   nameFn = getName; inviteFn = onInvite;
   clearInterval(timer);
-  beat(); timer = setInterval(beat, 45000);
+  beat(); timer = setInterval(beat, 20000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) beat(); });
 }
 export function setPresenceRoom(code) { room = code || null; beat(); }
 async function beat() {
@@ -54,5 +55,13 @@ async function beat() {
 /** { code: { online, name, room } } for my friends. */
 export async function friendsStatus() {
   const list = loadFriends(); if (!list.length) return {};
-  try { const r = await fetch(`${base()}/api/presence?codes=${list.map((f) => f.code).join(',')}`); return r.ok ? await r.json() : {}; } catch { return {}; }
+  try {
+    const r = await fetch(`${base()}/api/presence?codes=${list.map((f) => f.code).join(',')}`);
+    const st = r.ok ? await r.json() : {};
+    // Keep the friend's real name (one added by a code starts as «Друг»).
+    let changed = false;
+    for (const f of list) { const n = st[f.code]?.name; if (n && n !== f.name) { f.name = n; changed = true; } }
+    if (changed) saveFriends(list);
+    return st;
+  } catch { return {}; }
 }

@@ -840,15 +840,6 @@ export class BoardUI {
       el.innerHTML = `<div class="ptext">${q.type === 'priority' ? 'Соперник может ответить…' : 'Соперник думает…'}</div>`;
       return;
     }
-    // Choosing on the board (a target, a region): the question sits in the middle of the field, between the rows, where the eyes are.
-    // Only for a card's own unusual ability (choose a target for it) — not for the usual moves: where to put a card, a blow, a move, a defender.
-    const special = q.type === 'target' && !q.defense && !q.maneuver && q.hint !== 'face' && (q.src != null || q.srcId != null) && !this.isManeuver(q);
-    if (this.L.name === 'land' && special) {
-      const fx = this.L.field;
-      el.className = 'prompt center-q';
-      // variant 3: a strip between the field and the hand
-      el.style.left = (fx[0] + fx[2] / 2) + 'px'; el.style.top = (fx[1] + fx[3] + 12) + 'px';
-    }
     if (this.isManeuver(q)) {
       const fx = this.L.field;
       el.className = 'prompt man-box';
@@ -889,6 +880,13 @@ export class BoardUI {
       case 'order': this.openOrder(q); return;
       case 'mulligan': this.openMulligan(q); return;
       default: break;
+    }
+    // Every question that is answered on the board (a target, a region, a short yes/no) sits in one place:
+    // variant 3, a strip between the field and the hand, where the eyes are — never in the right column.
+    if (this.L.name === 'land') {
+      const fx = this.L.field;
+      el.className = 'prompt center-q';
+      el.style.left = (fx[0] + fx[2] / 2) + 'px'; el.style.top = (fx[1] + fx[3] + 12) + 'px';
     }
     // Say plainly what «no» means here, and make it a big button.
     if (q.cancel) btns.push([q.maneuver ? 'Не перемещать' : /^Манёвр/.test(q.prompt || '') ? 'Оставить на месте' : 'Отмена', null]);

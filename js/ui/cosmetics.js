@@ -36,10 +36,10 @@ export const cleanLooks = (o) => ({ avatar: AVATARS.includes(o?.avatar) ? o.avat
 export function looksHtml() {
   const a = myAvatar(), b = myBack();
   return `<div class="pf-looks"><h3>Аватарка</h3><div class="lk-avas">${AVATARS.map((k) => `<button class="lk-ava ${k === a ? 'on' : ''}" data-ava="${k}" data-tip="${avatarName(k)}" style="background-image:url('${avatarFile(k)}')"></button>`).join('')}</div>
-    <h3>Рубашка карт</h3><div class="lk-backs">${BACKS.map((x) => `<button class="lk-back ${x.id === b ? 'on' : ''}" data-back="${x.id}"><i style="background-image:url('${x.file}')"></i><span>${x.name}</span></button>`).join('')}</div>
+    <h3>Рубашка карт</h3><div class="lk-backs">${BACKS.map((x) => `<button class="lk-back ${x.id === b ? 'on' : ''}" data-cback="${x.id}"><i style="background-image:url('${x.file}')"></i><span>${x.name}</span></button>`).join('')}</div>
     <p class="lk-note">Рубашку видно на вашей колоде, а в партии с живым соперником — и ему. Аватарка видна в меню и сопернику онлайн.</p></div>`;
 }
 export function bindLooks(root, onChange) {
   root.querySelectorAll('[data-ava]').forEach((x) => { x.onclick = () => { setAvatar(x.dataset.ava); root.querySelectorAll('[data-ava]').forEach((y) => y.classList.toggle('on', y === x)); onChange?.(); }; });
-  root.querySelectorAll('[data-back]').forEach((x) => { x.onclick = () => { setBack(x.dataset.back); root.querySelectorAll('[data-back]').forEach((y) => y.classList.toggle('on', y === x)); onChange?.(); }; });
+  root.querySelectorAll('[data-cback]').forEach((x) => { x.onclick = () => { setBack(x.dataset.cback); root.querySelectorAll('[data-cback]').forEach((y) => y.classList.toggle('on', y === x)); onChange?.(); }; });
 }

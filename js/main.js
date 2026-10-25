@@ -33,6 +33,7 @@ import { showTutorial } from './ui/tutorial.js';
 installTooltips();
 
 const $ = (s, r = document) => r.querySelector(s);
+const laterInvites = []; // friends' calls that came during my game (shown back in the menu)
 const store = {
   get(k, d) { try { const v = localStorage.getItem('pchk_' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem('pchk_' + k, JSON.stringify(v)); } catch { /* private mode */ } },
@@ -51,6 +52,7 @@ function show(id) {
   $('#scene').classList.toggle('off', id === 'game');
   if (audioStarted) playMusic(id === 'game' ? 'musicGame' : 'musicMenu'); // a game starts calm; board.js raises it to tavern and battle
   if (id === 'menu') try { drawMenuTop(); } catch (e) { console.warn(e); }
+  if (id === 'menu') while (laterInvites.length) { const x = laterInvites.shift(); friendInvite(x.room, x.name); }
 }
 function toast(text, ms = 3000) {
   const t = document.createElement('div');
@@ -1029,7 +1031,7 @@ async function startServerHost(rated = false, inviteTo = null) {
   const r = await pickDecks([{ title: 'Ваша колода — затем отправьте ссылку другу', goLabel: 'Создать комнату' }]);
   if (!r) return;
   let code; try { code = await newRoomCode(); } catch { toast('Сервер недоступен — играем напрямую'); return startHost(true); }
-  if (inviteTo) sendInvite(inviteTo, code, myName()).then((ok) => ok && toast('Приглашение отправлено — друг увидит его в меню', 3000));
+  if (inviteTo) sendInvite(inviteTo, code, myName()).then((ok) => ok ? toast('Приглашение отправлено — друг увидит его в течение 20 секунд', 3500) : toast('Не удалось отправить приглашение — отправьте другу ссылку на комнату', 4500));
   serverPlay(code, r[0], { creating: true, rated });
 }
 async function startServerJoin(code) {
@@ -1167,7 +1169,7 @@ function startLearning() {
 const PLAY_RU = { bot: 'с компьютером', friend: 'с другом', random: 'со случайным соперником', hotseat: 'вдвоём за одним устройством', learn: 'учебная партия' };
 function drawPlayLast() {
   const el = $('#play-last'), last = store.get('lastPlay', null);
-  if (el) el.textContent = last && PLAY_RU[last] ? `в прошлый раз: ${PLAY_RU[last]}` : '';
+  if (el) el.textContent = ''; // no «в прошлый раз» line under «Играть»
 }
 drawPlayLast();
 function openPlay() {
@@ -1317,7 +1319,21 @@ window.addEventListener('beforeunload', (e) => { if (current && !current.game?.s
 
 // ---------- friends ----------
 // A friend's call into a game shows the invitation card (only while I am in the menu and the game is not over).
-startPresence(() => myName(), (room, name) => { if (!isDone(room) && document.querySelector('#menu.active')) showInvite(room, name); });
+// It floats above any screen and window; during my own game it waits and shows when I am back in the menu.
+function friendInvite(room, name) {
+  if (isDone(room) || document.querySelector(`.invite-pop[data-room="${room}"]`)) return;
+  if (document.querySelector('#game.active')) { if (!laterInvites.some((x) => x.room === room)) laterInvites.push({ room, name }); return; }
+  const pop = document.createElement('div');
+  pop.className = 'invite-pop'; pop.dataset.room = room;
+  pop.innerHTML = `<b>${name ? `${esc(name)} зовёт вас в партию` : 'Вас позвали в партию'}</b><div class="ic-btns"><button class="btn primary" data-yes>⚔ Присоединиться</button><button class="btn" data-no>Отказаться</button></div>`;
+  document.body.appendChild(pop);
+  try { sfx.click(); } catch { /* no sound yet */ }
+  const close = () => { pop.remove(); clearTimeout(t); };
+  const t = setTimeout(close, 10 * 60e3);
+  pop.querySelector('[data-yes]').onclick = () => { sfx.click(); close(); document.querySelectorAll('.modal-back').forEach((m) => m.remove()); show('menu'); startServerJoin(room); };
+  pop.querySelector('[data-no]').onclick = () => { sfx.click(); close(); markDone(room); };
+}
+startPresence(() => myName(), friendInvite);
 async function openFriends({ watch = false } = {}) {
   const code = await myFriendCode();
   const link = `${location.origin}${location.pathname}?friend=${code}&fn=${encodeURIComponent(myName())}`;

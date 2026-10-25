@@ -245,3 +245,9 @@ body.studio #splash .fan-sub, body.studio #splash .splash-legal { z-index: 2; an
 .mv-bottom { bottom: calc(52px + env(safe-area-inset-bottom)) !important; }
 .mv-left .mv-side { margin-top: 1.6vh; max-width: none; width: 100%; box-sizing: border-box; } /* the world ranking under the buttons */
 .log-panel { font-size: 16px !important; line-height: 1.25 !important; } /* the battle log a bit smaller */
+/* a friend's call into a game: floats above every screen and window */
+.invite-pop { position: fixed; left: 50%; top: 84px; transform: translateX(-50%); z-index: 900; display: flex; align-items: center; gap: 16px; padding: 14px 18px; border-radius: 12px; font-size: 19px; color: #fff3cf;
+  background: linear-gradient(rgba(255, 220, 160, .08), rgba(0, 0, 0, .35)), url('../assets/tex/walnut.webp') center / 300px, #2a1a0d; box-shadow: inset 0 0 0 2px #d9c48a, inset 0 0 0 5px #160c06, 0 0 30px rgba(255, 200, 90, .45), 0 14px 30px rgba(0, 0, 0, .7); animation: invPop .35s ease-out; }
+.invite-pop .ic-btns { display: flex; gap: 8px; }
+@keyframes invPop { from { opacity: 0; transform: translate(-50%, -16px); } }
+@media (max-width: 760px) { .invite-pop { flex-direction: column; width: calc(100vw - 32px); box-sizing: border-box; text-align: center; } }

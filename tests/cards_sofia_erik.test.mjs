@@ -604,4 +604,45 @@ test('Диана: ранив Лидера, кладёт любую карту С
   eq(g.P(0).deck[0], want);
 });
 
+// Every card with Опережение (and Эрик's one card per phase) gets a chance in the opponent's turn and in the battle,
+// also with «спрашивать, только когда целятся»; a played card leaves the hand.
+const offTurnRun = (leader, ids, mode, playIn = null) => {
+  const g = makeGame({ p1: { leader } });
+  g.cfg.options.autoPass = [true, mode];
+  put(g, 0, 9, 0); put(g, 0, 9, 1); put(g, 1, 9, 2);
+  const hs = ids.map((id) => addHand(g, 1, id)); g.P(1).coins = 9;
+  toMain(g); ans(g, 'end');
+  const seen = [];
+  for (let k = 0; k < 600 && g.pending && !g.s.over; k++) {
+    const q = g.pending;
+    if (q.type === 'main' && g.s.round > 1) break;
+    if (q.player === 1 && q.type === 'main') { ans(g, 'end'); continue; }
+    const at = g.s.phase === 'turn' ? 'turn' : 'battle';
+    const opts = q.player === 1 && q.type === 'priority' ? q.options.filter((o) => o.kind === 'play') : [];
+    if (opts.length) seen.push({ at, kind: q.context?.kind, uids: opts.map((o) => o.uid) });
+    if (opts.length && playIn?.includes(at)) { playIn.splice(playIn.indexOf(at), 1); ans(g, opts[0].id); continue; }
+    ans(g, q.player === 1 && !['priority', 'draw', 'multi', 'main'].includes(q.type) && q.options?.length ? (q.options.find((o) => o.id !== 'pass' && o.id != null) || q.options[0]).id : defaultAnswer(q));
+  }
+  return { g, hs, seen };
+};
+const FAST_IDS = [7, 21, 23, 29, 105, 111, 121, 126, 127, 131, 136, 139, 155, 165, 168, 175];
+for (const mode of [false, 'smart']) {
+  test(`Опережение (${mode === 'smart' ? 'спрашивать, когда целятся' : 'спрашивать всегда'}): каждую карту предлагают в чужой ход и в бою, и она разыгрывается`, () => {
+    for (const id of FAST_IDS) {
+      const { seen } = offTurnRun(20, [id], mode);
+      ok(seen.some((x) => x.at === 'turn'), `card ${id} offered in the opponent's turn`);
+      ok(seen.some((x) => x.at === 'battle'), `card ${id} offered in the battle`);
+      for (const at of ['turn', 'battle']) { const r = offTurnRun(20, [id], mode, [at]); ok(r.hs[0].zone !== 'hand', `card ${id} played in the ${at}`); }
+    }
+  });
+}
+test('Эрик: одна карта за фазу — после розыгрыша в ход соперника вторую дают только в бою', () => {
+  const { hs, seen } = offTurnRun(ERIK, [9, 9], 'smart', ['turn', 'battle']);
+  ok(hs.every((h) => h.zone !== 'hand'), 'both cards were played, one per phase');
+  const { seen: s2 } = offTurnRun(ERIK, [9, 9], false, ['turn']);
+  const after = s2.findIndex((x) => x.at === 'turn');
+  ok(!s2.slice(after + 1).some((x) => x.at === 'turn'), 'no second card in the same phase');
+  ok(seen.length >= 2);
+});
+
 done();
