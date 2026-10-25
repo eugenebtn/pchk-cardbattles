@@ -739,7 +739,7 @@ export class BoardUI {
   }
   openWaitHand() {
     // My hand is still to choose (the opponent goes first on this server) — or it is chosen and the opponent is last.
-    const mineLeft = !!this.view?.players?.[this.me]?.mull;
+    const mineLeft = !!this.view?.players?.[this.me]?.mull && !this._mullDone;
     const text = mineLeft ? 'Сначала выбирает соперник, сразу после него — вы.' : 'Ваши карты уже выбраны. Партия начнётся, как только соперник закончит.';
     this.modal(`<div class="wait-hand"><div class="wh-cards"><i></i><i></i><i></i></div><h3>Соперник выбирает стартовую руку…</h3><p>${text}</p><div class="wh-clock" data-clock></div></div>`, (m) => { m.querySelector('.modal').classList.add('wait-modal'); this.modalClock(m.querySelector('[data-clock]')); });
   }
@@ -818,6 +818,12 @@ export class BoardUI {
       el.className = this.L.name === 'land' ? 'prompt side wait' : 'prompt wait';
       el.innerHTML = `<div class="ptext">${q.type === 'priority' ? 'Соперник может ответить…' : 'Соперник думает…'}</div>`;
       return;
+    }
+    // Choosing on the board (a target, a region): the question sits in the middle of the field, between the rows, where the eyes are.
+    if (this.L.name === 'land' && ['target', 'region'].includes(q.type) && !this.isManeuver(q)) {
+      const fx = this.L.field;
+      el.className = 'prompt center-q';
+      el.style.left = (fx[0] + fx[2] / 2) + 'px'; el.style.top = this.L.midY + 'px';
     }
     if (this.isManeuver(q)) {
       const fx = this.L.field;
@@ -1101,7 +1107,7 @@ export class BoardUI {
       const coin = document.createElement('img');
       coin.src = 'assets/ui/coin.webp'; coin.alt = ''; coin.className = 'vs-coin';
       layer.appendChild(coin);
-      const c0 = { x: W / 2, y: H / 2 }, tgt = view.first === me ? pos.a : pos.b, c1 = { x: tgt.x + hw / 2, y: tgt.y + hh * 0.12 };
+      const c0 = { x: W / 2, y: H / 2 }, tgt = view.first === me ? pos.a : pos.b, c1 = { x: tgt.x + hw * 0.84, y: tgt.y + hh * 0.86 }; // lands on the portrait's lower rim, like a badge — not on the face
       const frames = [];
       for (let k = 0; k <= 16; k++) {
         const t = k / 16, up = t < 0.55 ? Math.sin((t / 0.55) * Math.PI) * 190 : 0;
@@ -1593,7 +1599,7 @@ ${optHtml}</div></div>
         e.addEventListener('mouseleave', () => this.hidePreview());
       });
       if (q.keep === ids.length) ids.forEach((c) => sel.add(c.uid));
-      ok.addEventListener('click', () => { sfx.click(); clearInterval(this._mullT); this.answer([...sel]); });
+      ok.addEventListener('click', () => { sfx.click(); clearInterval(this._mullT); this._mullDone = true; this.answer([...sel]); });
       m.querySelector('[data-mull]')?.addEventListener('click', () => { sfx.click(); clearInterval(this._mullT); this.answer('mulligan'); });
       upd();
       // 45 seconds to choose (not in the first, training game): then the chosen cards are kept, topped up from the left.
@@ -1608,7 +1614,7 @@ ${optHtml}</div></div>
           if (left > 0) return;
           clearInterval(this._mullT);
           for (const c of ids) if (sel.size < q.keep) sel.add(c.uid);
-          this.answer([...sel]);
+          this._mullDone = true; this.answer([...sel]);
         };
         tick(); this._mullT = setInterval(tick, 250);
       }

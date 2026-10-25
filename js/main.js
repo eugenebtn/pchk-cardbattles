@@ -38,12 +38,14 @@ const store = {
 
 // ---------- screens ----------
 function show(id) {
+  const wasMenu = !!document.querySelector('#menu.active');
   document.querySelectorAll('.screen').forEach((s) => {
     const on = s.id === id;
     if (on && !s.classList.contains('active')) { s.classList.remove('screen-in'); void s.offsetWidth; s.classList.add('screen-in'); }
     s.classList.toggle('active', on);
   });
   FX.ambient(id === 'game');
+  if (id === 'menu') { setTimeout(() => checkLive(), 300); if (!wasMenu) pickMenuArt(); }
   $('#scene').classList.toggle('off', id === 'game');
   if (audioStarted) playMusic(id === 'game' ? 'musicGame' : 'musicMenu'); // a game starts calm; board.js raises it to tavern and battle
   if (id === 'menu') try { drawMenuTop(); } catch (e) { console.warn(e); }
@@ -126,6 +128,22 @@ function markDone(code) { try { if (code) localStorage.setItem(doneKey(code), '1
 function isDone(code) { try { return !!localStorage.getItem(doneKey(code)); } catch { return false; } }
 const endedIn = (batch) => (batch || []).some((b) => b?.ev?.type === 'gameOver');
 /** The invitation card above the menu buttons: who calls, «Присоединиться» or «Отказаться». */
+/** A game on the server that this browser left unfinished (closed tab, lost connection): «Вернуться в партию». */
+async function checkLive() {
+  const live = store.get('live', null), jb = $('#join-banner');
+  if (!live?.code || isDone(live.code) || Date.now() - live.at > 3 * 3600e3 || !hasSeat(live.code) || current) return;
+  const st = await roomStatus(live.code);
+  if (st !== 'playing' && st !== 'waiting') { if (st) store.set('live', null); return; }
+  if (!document.querySelector('#menu.active')) return;
+  jb.classList.remove('hidden'); jb.classList.add('invite-card');
+  jb.innerHTML = `<b>У вас не закончена партия</b><div class="ic-btns"><button class="btn primary" data-yes>⚔ Вернуться в партию</button><button class="btn" data-no>Сдаться</button></div>`;
+  jb.querySelector('[data-yes]').onclick = () => { sfx.click(); jb.classList.add('hidden'); startServerJoin(live.code); };
+  jb.querySelector('[data-no]').onclick = () => {
+    if (!confirm('Сдаться в этой партии? Соперник получит победу.')) return;
+    sfx.click(); jb.classList.add('hidden'); markDone(live.code); store.set('live', null);
+    const c = connectRoom(live.code, { name: myName() }, { onMessage: (m) => { if (m.t === 'seat' || m.t === 'sync') { c.send({ t: 'answer', a: { concede: true } }); setTimeout(() => c.close(), 800); } } });
+  };
+}
 function showInvite(code, from, watch = false) {
   const jb = $('#join-banner');
   jb.classList.remove('hidden'); jb.classList.add('invite-card');
@@ -561,23 +579,14 @@ function startBoard(session) {
       ui.newAch = checkAchievements(ctx);
       if (checkDaily(ctx)) { const d = dailyState(); ui.newAch = [{ icon: '📜', title: 'Задание дня выполнено', text: `${d.task.text}. Дней подряд: ${d.streak}` }, ...(ui.newAch || [])]; }
       drawDaily();
-// The menu picture changes every so often: the title art, then each Leader's painting, with a slow cross-fade.
-(() => {
+// The menu picture: another one each time the menu is entered (the title art, then each Leader's painting), then it stays.
+function pickMenuArt() {
   const art = document.querySelector('#menu .mv-art'); if (!art || !matchMedia('(min-width: 761px)').matches) return;
   const pics = ['assets/ui/menu_art.webp', ...[20, 41, 62, 63, 117, 118].map((id) => `assets/leaders/${id}.webp`)];
-  let k = 0;
-  setInterval(() => {
-    if (document.hidden || !document.querySelector('#menu.active')) return;
-    k = (k + 1) % pics.length;
-    const img = new Image();
-    img.onload = () => {
-      const next = document.createElement('div'); next.className = 'mv-art mv-art-next'; next.style.backgroundImage = `url('${pics[k]}')`;
-      art.parentNode.insertBefore(next, art.nextSibling);
-      next.addEventListener('animationend', () => { art.style.backgroundImage = `url('${pics[k]}')`; next.remove(); }, { once: true });
-    };
-    img.src = pics[k];
-  }, 14000);
-})();
+  const k = (store.get('menuArt', -1) + 1) % pics.length; store.set('menuArt', k);
+  art.style.backgroundImage = `url('${pics[k]}')`;
+}
+pickMenuArt();
 
     } catch (e) { console.warn(e); }
     // World ranking (draws are not sent): place and wins before and after this game, shown on the end screen.
@@ -997,7 +1006,8 @@ function serverPlay(code, deck, { creating = false, matched = false, tour: inTou
   let ss = null;
   const conn = connectRoom(code, { name: myName(), playerId: playerId(), autopass: AP_ENGINE(opt.autopass), timer: creating ? opt.timer : matched ? 90 : 0, rated: creating || matched ? rated : undefined, deck: { leader: deck.leader, cards: deck.cards, title: deck.title } }, {
     onMessage(msg) {
-      if (msg.t === 'events' && endedIn(msg.batch)) markDone(code);
+      if (msg.t === 'events' && endedIn(msg.batch)) { markDone(code); store.set('live', null); }
+      if ((msg.t === 'start' || msg.t === 'sync') && !ss) store.set('live', { code, at: Date.now() }); // a game in progress: offered again in the menu after a reload
       if ((msg.t === 'start' || msg.t === 'sync') && !ss) { ss = new ServerSession(conn, msg.me ?? 0); ss.tour = inTour; ss.rated = msg.rated !== false; setPresenceRoom(code); startBoard(ss); if (msg.t === 'start') toast(ss.rated ? '🏆 Рейтинговая партия — результат пойдёт в рейтинг' : 'Обычная партия — в рейтинг не идёт', 3200); if (msg.t === 'sync') ss.onMessage(msg); return; }
       if (msg.t === 'start' && ss) { ss.me = msg.me; document.querySelector('#game > .over-screen')?.remove(); toast('Новая партия!', 1800); return; } // rematch, or a draw replayed in a tournament
       if (msg.t === 'waitOpponent' && !creating) ob.textContent = 'Подключено! Ждём второго игрока…';
@@ -1149,7 +1159,7 @@ function startLearning() {
 }
 
 // ---------- «Играть»: how shall we play? ----------
-const PLAY_RU = { bot: 'с компьютером', friend: 'с другом по ссылке', random: 'со случайным соперником', hotseat: 'вдвоём за одним устройством', learn: 'учебная партия' };
+const PLAY_RU = { bot: 'с компьютером', friend: 'с другом', random: 'со случайным соперником', hotseat: 'вдвоём за одним устройством', learn: 'учебная партия' };
 function drawPlayLast() {
   const el = $('#play-last'), last = store.get('lastPlay', null);
   if (el) el.textContent = last && PLAY_RU[last] ? `в прошлый раз: ${PLAY_RU[last]}` : '';
@@ -1157,31 +1167,33 @@ function drawPlayLast() {
 drawPlayLast();
 function openPlay() {
   const online = serverOn();
-  let rated = store.get('friendRated', false), rrated = store.get('randomRated', true);
+  let rrated = store.get('randomRated', true), fm = store.get('friendMode', 'link');
   const b = document.createElement('div');
   b.className = 'modal-back play-back'; b.style.cssText = 'position:fixed;inset:0;z-index:400';
   const lv = (l) => `<button class="pl-lv ${opt.botLevel === l ? 'on' : ''}" data-lv="${l}">${LEVEL_RU[l]}</button>`;
   b.innerHTML = `<div class="modal play-win"><h3>Как сыграем?</h3>
     <div class="pl-tiles">
-      <div class="pl-tile" data-go="bot"><i class="pl-pic" style="background-image:url('assets/leaders/20.webp')"></i><b>🤖 С компьютером</b><span>Спокойная партия в любое время</span>
-        <div class="pl-opts">${['novice', 'normal', 'strong', 'auto'].map(lv).join('')}</div><button class="btn primary pl-go">Играть</button></div>
-      <div class="pl-tile" data-go="friend"><i class="pl-pic" style="background-image:url('assets/leaders/41.webp')"></i><b>🔗 С другом по ссылке</b><span>Создаём комнату — вы отправляете ссылку</span>
-        <div class="pl-opts"><button class="pl-rt ${rated ? '' : 'on'}" data-rt="0">Обычная</button><button class="pl-rt ${rated ? 'on' : ''}" data-rt="1">🏆 Рейтинговая</button></div>
-        <small class="pl-note" data-rt-note></small><button class="btn primary pl-go">Создать ссылку</button></div>
-      <div class="pl-tile ${online ? '' : 'off'}" data-go="random"><i class="pl-pic" style="background-image:url('assets/leaders/63.webp')"></i><b>🎲 Случайный соперник</b><span>${online ? 'Подберём живого игрока с таким же выбором' : 'Сейчас недоступно: нет связи с сервером'}</span>
-        <div class="pl-opts">${online ? `<button class="pl-rr ${rrated ? '' : 'on'}" data-rr="0">Обычная</button><button class="pl-rr ${rrated ? 'on' : ''}" data-rr="1">🏆 Рейтинговая</button>` : ''}</div><button class="btn primary pl-go" ${online ? '' : 'disabled'}>Найти соперника</button></div>
+      <div class="pl-tile" data-go="bot" style="--art:url('${new URL('assets/leaders/20.webp', location.href).href}');--pos:30% 30%"><div class="pl-head"><b>С компьютером</b><span>Спокойная партия в любое время</span></div>
+        <div class="pl-foot"><small class="pl-cap">Сложность</small><div class="pl-seg pl-seg4">${['novice', 'normal', 'strong', 'auto'].map(lv).join('')}</div><small class="pl-note">&nbsp;</small><button class="pl-go"><span>Играть</span></button></div></div>
+      <div class="pl-tile" data-go="friend" style="--art:url('${new URL('assets/leaders/41.webp', location.href).href}');--pos:40% 30%"><div class="pl-head"><b>С другом</b><span>Дружеская партия — в мировой рейтинг не идёт</span></div>
+        <div class="pl-foot"><small class="pl-cap">Как позвать</small><div class="pl-seg"><button class="pl-fm ${fm === 'link' ? 'on' : ''}" data-fm="link">По ссылке</button><button class="pl-fm ${fm === 'list' ? 'on' : ''}" data-fm="list">Из списка друзей</button></div><small class="pl-note" data-fm-note></small><button class="pl-go"><span data-fm-go></span></button></div></div>
+      <div class="pl-tile ${online ? '' : 'off'}" data-go="random" style="--art:url('${new URL('assets/leaders/63.webp', location.href).href}');--pos:24% 35%"><div class="pl-head"><b>Случайный соперник</b><span>${online ? 'Подберём живого игрока с таким же выбором' : 'Сейчас недоступно: нет связи с сервером'}</span></div>
+        <div class="pl-foot"><small class="pl-cap">Партия</small><div class="pl-seg">${online ? `<button class="pl-rr ${rrated ? '' : 'on'}" data-rr="0">Обычная</button><button class="pl-rr ${rrated ? 'on' : ''}" data-rr="1">Рейтинговая</button>` : ''}</div><small class="pl-note" data-rr-note></small><button class="pl-go" ${online ? '' : 'disabled'}><span>Найти соперника</span></button></div></div>
     </div>
-    <div class="pl-more"><button class="btn small" data-go="hotseat">👥 Вдвоём за одним устройством</button><button class="btn small" data-go="learn">🎓 Учебная партия с подсказками</button><button class="btn small" data-close>Отмена</button></div></div>`;
+    <div class="pl-more"><button class="plq" data-go="hotseat"><span>Вдвоём за одним устройством</span></button><button class="plq" data-go="learn"><span>Учебная партия с подсказками</span></button><button class="plq pl-cancel" data-close><span>Отмена</span></button></div></div>`;
   document.body.appendChild(b);
-  const note = () => { b.querySelector('[data-rt-note]').textContent = rated ? 'Результат пойдёт в мировой рейтинг' : 'В рейтинг не идёт — играйте спокойно'; };
+  const note = () => {
+    b.querySelector('[data-fm-note]').textContent = fm === 'link' ? 'Создадим комнату — отправьте ссылку в мессенджер' : `В списке друзей: ${loadFriends().length}. Нажмите «Позвать» у того, кто в сети`;
+    b.querySelector('[data-fm-go]').textContent = fm === 'link' ? 'Создать ссылку' : 'Выбрать друга';
+    const rn = b.querySelector('[data-rr-note]'); if (rn) rn.textContent = !online ? '' : rrated ? 'Результат пойдёт в мировой рейтинг' : 'В рейтинг не идёт'; };
   note();
   b.querySelectorAll('[data-lv]').forEach((x) => x.addEventListener('click', (e) => { e.stopPropagation(); sfx.select(); opt.botLevel = x.dataset.lv; store.set('botLevel', opt.botLevel); b.querySelectorAll('[data-lv]').forEach((y) => y.classList.toggle('on', y === x)); }));
-  b.querySelectorAll('[data-rt]').forEach((x) => x.addEventListener('click', (e) => { e.stopPropagation(); sfx.select(); rated = x.dataset.rt === '1'; store.set('friendRated', rated); b.querySelectorAll('[data-rt]').forEach((y) => y.classList.toggle('on', y === x)); note(); }));
-  b.querySelectorAll('[data-rr]').forEach((x) => x.addEventListener('click', (e) => { e.stopPropagation(); sfx.select(); rrated = x.dataset.rr === '1'; store.set('randomRated', rrated); b.querySelectorAll('[data-rr]').forEach((y) => y.classList.toggle('on', y === x)); }));
+  b.querySelectorAll('[data-fm]').forEach((x) => x.addEventListener('click', (e) => { e.stopPropagation(); sfx.select(); fm = x.dataset.fm; store.set('friendMode', fm); b.querySelectorAll('[data-fm]').forEach((y) => y.classList.toggle('on', y === x)); note(); }));
+  b.querySelectorAll('[data-rr]').forEach((x) => x.addEventListener('click', (e) => { e.stopPropagation(); sfx.select(); rrated = x.dataset.rr === '1'; store.set('randomRated', rrated); b.querySelectorAll('[data-rr]').forEach((y) => y.classList.toggle('on', y === x)); note(); }));
   const go = (kind) => {
     b.remove(); store.set('lastPlay', kind); drawPlayLast();
     if (kind === 'bot') startBot();
-    else if (kind === 'friend') { if (online) startServerHost(rated); else startHost(true); }
+    else if (kind === 'friend') { if (fm === 'list') openFriends(); else if (online) startServerHost(false); else startHost(true); }
     else if (kind === 'random') startMatchmaking(rrated);
     else if (kind === 'hotseat') startHotseat();
     else if (kind === 'learn') startLearning();
