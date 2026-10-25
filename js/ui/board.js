@@ -566,12 +566,12 @@ export class BoardUI {
     this.musicStep();
     if (low <= 5 && !this._danger) { this._danger = true; sfx.danger(); }
   }
-  /** Music rises with the game: calm lute → tavern (from round 3 or a Leader at 18 or less) → battle (a Leader at 10 or less). */
+  /** Music rises with the game: calm → livelier (from round 3 or a Leader at 18 or less) → tense (a Leader at 10 or less) → battle finale (5 or less). */
   musicStep() {
     const v = this.view; if (!v || v.over) return;
     const low = Math.min(...v.players.map((pl) => pl.leader?.hp ?? 99));
-    const step = low <= 10 ? 3 : (v.round >= 3 || low <= 18) ? 2 : 1;
-    if (step > (this._musicStep || 1)) { this._musicStep = step; playMusic(step === 3 ? 'musicBattle' : 'musicMid'); }
+    const step = low <= 5 ? 4 : low <= 10 ? 3 : (v.round >= 3 || low <= 18) ? 2 : 1;
+    if (step > (this._musicStep || 1)) { this._musicStep = step; playMusic(['', '', 'musicMid', 'musicTense', 'musicBattle'][step]); }
   }
   /** Move clock (online games with a timer): seconds left shown under the end-turn button. */
   setDeadline(ms) {

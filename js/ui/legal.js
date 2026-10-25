@@ -33,7 +33,7 @@ export function renderLegal(root, onBack, { onRights } = {}) {
       <li>Карты, персонажи, иллюстрации и правила — «Подземелья Чикен Карри», «Карточные битвы ПЧК» (cardbattles.cc). Все права у правообладателей.</li>
       <li>Иконки — <a href="https://game-icons.net" target="_blank" rel="noopener">game-icons.net</a> (Lorc, Delapouite и др.), лицензия CC BY 3.0.</li>
       <li>Звуки игры и голоса — созданы с помощью <a href="https://elevenlabs.io" target="_blank" rel="noopener">ElevenLabs</a> (elevenlabs.io). Оформление интерфейса (меню, стол, рамки, рубашки карт) — нарисовано с помощью нейросетей по мотивам карт игры. Эмбиент подземелья — JaggedStone (OpenGameArt), CC0.</li>
-      <li>Музыка — Kevin MacLeod, <a href="https://incompetech.com" target="_blank" rel="noopener">incompetech.com</a>, «Teller of the Tales», «Pippin the Hunchback», «Minstrel Guild», «Achilles», «Heroic Age», лицензия CC BY 4.0. RandomMind (OpenGameArt) — «The Old Tower Inn», «Medieval: Battle», CC0. JaggedStone (OpenGameArt) — фон подземелья, CC0.</li>
+      <li>Музыка — создана с помощью <a href="https://elevenlabs.io" target="_blank" rel="noopener">ElevenLabs Music</a>. JaggedStone (OpenGameArt) — фон подземелья, CC0.</li>
       <li>Текстуры — ambientCG, CC0. Частицы эффектов — Kenney Particle Pack, CC0.</li>
       <li>Шрифты — Google Fonts (Ruslan Display, Cormorant SC, Fira Sans Extra Condensed, PT Sans Narrow, PT Serif), лицензия SIL Open Font License.</li>
       <li>Сетевая игра — PeerJS (MIT).</li>

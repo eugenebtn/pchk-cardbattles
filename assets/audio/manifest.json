@@ -300,7 +300,7 @@
   "musicMenuEl.mp3"
  ],
  "musicGame": [
-  "musicGame_lute.mp3"
+  "musicGameEl.mp3"
  ],
  "musicGame2": [
   "musicGame2_lute.mp3"
@@ -402,16 +402,16 @@
   "rpgBottle_1.mp3"
  ],
  "musicTense": [
-  "musicTense_lute.mp3"
+  "musicTenseEl.mp3"
  ],
  "musicWin": [
-  "musicWin_lute.mp3"
+  "musicWinEl.mp3"
  ],
  "musicMid": [
-  "musicMid_lute.mp3"
+  "musicMidEl.mp3"
  ],
  "musicBattle": [
-  "musicBattle_lute.mp3"
+  "musicBattleEl.mp3"
  ],
  "ambDungeon": [
   "ambDungeon_lute.mp3"
