@@ -218,3 +218,17 @@
 /* A changed price on a hand card: the printed price crossed out next to the coin (green coin = cheaper, red = dearer) */
 .hand-card .cost-now .cost-was { position: absolute; left: calc(100% + 2px); top: 50%; transform: translateY(-50%); padding: 0 6px; border-radius: 8px; text-decoration: line-through;
   font: 700 .62em/1.5 'Fira Sans Extra Condensed', sans-serif; color: #f3e7c8; background: rgba(15, 10, 6, .9); box-shadow: inset 0 0 0 1px rgba(217, 196, 138, .6); }
+/* Places on the field: a thin one-line name strip at the very bottom, so the picture shows */
+#stage .card.place .nm.rib { left: 6px !important; right: 6px !important; bottom: 5px !important; height: 22px !important; line-height: 22px !important; padding: 0 6px !important;
+  font-size: 14px !important; border-radius: 4px !important; opacity: .92; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#stage .card.place .nm.rib.two span, #stage .card.place .nm.rib span { white-space: nowrap; display: block; overflow: hidden; text-overflow: ellipsis; }
+#stage.port .card.place .nm.rib { height: 24px !important; line-height: 24px !important; font-size: 15px !important; }
+#stage .card.place .face { background-position: 50% 30% !important; }
+/* The board's own Place: a small quiet label in the frame's top corner instead of a big banner */
+#stage .field-ribbon { width: auto !important; height: 22px !important; padding: 0 12px !important; font-size: 13px !important; line-height: 22px !important; opacity: .75;
+  background: rgba(15, 10, 6, .82) !important; color: #d9c48a !important; box-shadow: inset 0 0 0 1px rgba(217, 196, 138, .5) !important; letter-spacing: .06em; }
+/* The pile of extra companions and items */
+#stage .sup-more { position: absolute; z-index: 30; border: none; border-radius: 10px; cursor: pointer; display: grid; place-content: center; gap: 0;
+  background: rgba(15, 10, 6, .72); box-shadow: inset 0 0 0 2px #d9c48a, 0 6px 14px rgba(0, 0, 0, .6); color: #f6e2a8; font-family: 'Fira Sans Extra Condensed', sans-serif; }
+#stage .sup-more b { font-size: 34px; line-height: 1; } #stage .sup-more small { font-size: 15px; }
+#stage .sup-more:hover { background: rgba(40, 26, 12, .8); }

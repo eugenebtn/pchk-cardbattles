@@ -220,6 +220,7 @@ export default {
       if (!top.length) return;
       if (!(yield* g.yesNo(i, 'Ежегодная встреча торговцев: посмотреть 4 верхних карты Скрижали?', 'yes'))) return;
       const merchants = top.filter((c) => g.isType(c, 'ТОРГОВЕЦ'));
+      if (!merchants.length) g.log(`Среди ${top.length} верхних карт нет Торговцев.`);
       const shown = merchants.length ? yield* g.pickFrom(i, merchants, { min: 0, max: merchants.length, prompt: 'Покажите любое число Торговцев — они уйдут в руку' }) : [];
       for (const c of shown) { g.removeFromZone(c); c.zone = 'hand'; p.hand.push(c); g.emit('draw', { player: i, uid: c.uid, log: `${p.name} показывает «${g.name(c)}» и берёт в руку.` }); }
       const rest = top.filter((c) => !shown.includes(c));

@@ -112,7 +112,7 @@ export class BoardUI {
     // The battlefield is one big Place card: black frame, the place's painting inside, a blue name ribbon.
     const [fx, fy, fw, fh] = L.field;
     b.insertAdjacentHTML('beforeend', `<div class="field" style="left:${fx}px;top:${fy}px;width:${fw}px;height:${fh}px"><div class="field-art"></div><div class="field-shade"></div></div>
-      <div class="field-ribbon rib place" style="left:${fx + fw / 2 - 150}px;top:${fy - 16}px"></div>`);
+      <div class="field-ribbon rib place" style="left:${fx + 18}px;top:${fy + 6}px"></div>`);
     this.cols = [];
     this.slots = { ally: [[], []], place: [[], []] };
     const colTop = L.y.oppPlace - 6, colH = L.y.myPlace + L.place.h + 6 - colTop;
@@ -253,7 +253,7 @@ export class BoardUI {
     const me = this.me, op = 1 - me;
     const P = view.players;
     const want = new Map();
-    const place = (c, mode, x, y, z = 1) => { if (c) want.set(c.uid, { c, mode, x, y, z }); };
+    const place = (c, mode, x, y, z = 1, pile = false) => { if (c) want.set(c.uid, { c, mode, x, y, z, pile }); };
     for (const side of [me, op]) {
       const mine = side === me;
       const p = P[side];
@@ -264,10 +264,13 @@ export class BoardUI {
         place(reg.ally, 'ally', L.colX(k) + L.ally.dx, mine ? L.y.myAlly : L.y.oppAlly, 3);
         place(reg.place, 'place', L.colX(k) + L.place.dx, mine ? L.y.myPlace : L.y.oppPlace, 2);
       });
+      // Companions and items: side by side, companions first; more than 3 — the rest go into a neat pile with «+N», which opens the list.
       const sp = mine ? L.support.me : L.support.opp;
-      const n = p.support.length;
-      const step = n > 1 ? Math.min(L.small.w + 8, Math.floor((sp.max - L.small.w) / (n - 1))) : 0;
-      p.support.forEach((c, k) => place(c, 'small', sp.x + k * step, sp.y, 3 + k));
+      const sup = [...p.support].sort((a, b) => (CARDS[a.id]?.type === 'companion' ? 0 : 1) - (CARDS[b.id]?.type === 'companion' ? 0 : 1));
+      const n = sup.length, shown = n <= 3 ? n : 2;
+      const step = Math.min(L.small.w + 8, Math.floor((sp.max - L.small.w) / 2));
+      sup.forEach((c, k) => (k < shown ? place(c, 'small', sp.x + k * step, sp.y, 3 + k) : place(c, 'small', sp.x + 2 * step + (k - shown) * 3, sp.y - (k - shown) * 3, 3 + k, true)));
+      this.supportPile(side, n > 3 ? sup.slice(shown) : [], sp.x + 2 * step, sp.y);
       // Hands.
       const hand = p.hand;
       if (mine) {
@@ -299,6 +302,7 @@ export class BoardUI {
     for (const [uid, w] of want) {
       let el = this.els.get(uid);
       const fresh = !el;
+      if (el) el.dataset.pile = w.pile ? '1' : '';
       if (fresh) {
         el = document.createElement('div');
         el.dataset.uid = uid;
@@ -310,7 +314,7 @@ export class BoardUI {
         el.style.left = origin.x + 'px'; el.style.top = origin.y + 'px';
         el.style.transition = 'none';
         this.board.appendChild(el);
-        this.els.set(uid, el);
+        this.els.set(uid, el); el.dataset.pile = w.pile ? '1' : '';
       }
       this.fillCard(el, w);
       el.style.zIndex = w.z;
@@ -640,6 +644,27 @@ export class BoardUI {
     document.addEventListener('mouseout', (e) => { if (e.target.closest?.(SEL) && !e.relatedTarget?.closest?.(SEL)) hide(); });
     document.addEventListener('click', hide, true);
   }
+  /** «+N» on the pile of extra companions and items; a click shows them all. */
+  supportPile(side, cards, x, y) {
+    let el = this.board.querySelector(`.sup-more[data-side="${side}"]`);
+    if (!cards.length) { el?.remove(); return; }
+    if (!el) {
+      el = document.createElement('button'); el.className = 'sup-more'; el.dataset.side = side;
+      el.addEventListener('click', (e) => { e.stopPropagation(); this.showSupport(Number(el.dataset.side)); });
+      this.board.appendChild(el);
+    }
+    Object.assign(el.style, { left: x + 'px', top: y + 'px', width: this.L.small.w + 'px', height: this.L.small.h + 'px' });
+    el.innerHTML = `<b>+${cards.length}</b><small>ещё</small>`;
+    el.dataset.tip = `Ещё ${cards.length}|Нажмите, чтобы увидеть все напарники и предметы.`;
+  }
+  showSupport(side) {
+    const list = this.view?.players[side]?.support || [];
+    this.modal(`<h3>Напарники и предметы: ${esc(this.view.players[side].name)} (${list.length})</h3><div class="cards">${list.map((c) => `<div class="mcard ${this.els.get(c.uid)?.classList.contains('usable') ? 'on' : ''}" data-id="${c.id}" data-uid="${c.uid}" style="background-image:url('${CARDS[c.id]?.img || ''}')"></div>`).join('')}</div><p style="color:var(--ink-dim);margin:6px 0 0">Подсвеченные можно использовать — нажмите на карту.</p><div class="row-btns"><button class="btn" data-close>Закрыть</button></div>`, (m) => {
+      m.querySelector('[data-close]').addEventListener('click', () => this.closeModal());
+      m.querySelectorAll('.mcard.on').forEach((e) => e.addEventListener('click', () => { this.closeModal(); this.hidePreview(); this.clickCard(Number(e.dataset.uid)); }));
+      m.querySelectorAll('.mcard').forEach((e) => { e.addEventListener('mouseenter', () => this.showPreviewId(Number(e.dataset.id), e)); e.addEventListener('mouseleave', () => this.hidePreview()); });
+    });
+  }
   /** Short name of a side (its Leader), for the spectator view. */
   sideName(i) { const id = this.view?.players?.[i]?.leader?.id; return LEADER_SHORT[id] || CARDS[id]?.name.split(',')[0] || this.view?.players?.[i]?.name || ''; }
   setPending(q) {
@@ -769,7 +794,8 @@ export class BoardUI {
         for (const o of q.options) btns.push([o.label ?? String(o.id), o.id]);
         break;
       case 'target': {
-        const missing = q.options.filter((o) => !this.els.get(o.id));
+        // A target hidden in the pile of companions and items (or not on the board) is chosen in a window.
+        const missing = q.options.filter((o) => !this.els.get(o.id) || this.els.get(o.id).dataset.pile === '1');
         if (missing.length) { this.openCardModal(q, { single: true }); return; }
         break;
       }
@@ -1065,7 +1091,7 @@ export class BoardUI {
     // A painting of the Place made for the board (assets/ui/boards/<id>.webp, no text on it); else the card's own art.
     if (art && d) art.style.cssText = BOARD_ART.has(id) ? `background:url('assets/ui/boards/${id}.webp') center/cover no-repeat` : artCover(d.img, fw - 24, fh - 24, 0.5);
     const rib = this.board.querySelector('.field-ribbon');
-    if (rib && d) { rib.textContent = d.name; rib.setAttribute('data-tip', `${d.name}|Здесь идёт бой. Место можно выбрать в настройках.`); }
+    if (rib && d) { rib.textContent = 'Поле: ' + d.name; rib.setAttribute('data-tip', `${d.name}|Здесь идёт бой. Место можно выбрать в настройках.`); }
   }
   wander(el) {
     const spots = [[1290, 600], [1460, 620], [1500, 540], [1280, 520], [1420, 690]];
