@@ -1296,6 +1296,7 @@ document.querySelectorAll('#menu [data-act]').forEach((b) => b.addEventListener(
   if (a === 'play') openPlay();
   else if (a === 'bot') startBot();
   else if (a === 'hotseat') startHotseat();
+  else if (a === 'watchfriends') openFriends({ watch: true }).catch((e) => toast('Не удалось открыть друзей: ' + e.message, 4000));
   else if (a === 'friends') openFriends().catch((e) => { console.error(e); toast('Не удалось открыть друзей: ' + e.message, 4000); });
   else if (a === 'watchbots') startWatchBots();
   else if (a === 'tour') startTour();
@@ -1315,13 +1316,14 @@ window.addEventListener('beforeunload', (e) => { if (current && !current.game?.s
 // ---------- friends ----------
 // A friend's call into a game shows the invitation card (only while I am in the menu and the game is not over).
 startPresence(() => myName(), (room, name) => { if (!isDone(room) && document.querySelector('#menu.active')) showInvite(room, name); });
-async function openFriends() {
+async function openFriends({ watch = false } = {}) {
   const code = await myFriendCode();
   const link = `${location.origin}${location.pathname}?friend=${code}&fn=${encodeURIComponent(myName())}`;
   const b = document.createElement('div');
   b.className = 'modal-back'; b.style.cssText = 'position:fixed;inset:0;z-index:400';
-  b.innerHTML = `<div class="modal friends-box" style="max-width:560px;width:94vw"><h3>Друзья</h3>
-    <p style="margin:0 0 8px">Отправьте другу ссылку — когда он её откроет, вы появитесь друг у друга в списке. Тогда видно, кто сейчас в игре, и его партию можно смотреть.</p>
+  b.innerHTML = `<div class="modal friends-box ${watch ? 'watch-only' : ''}" style="max-width:560px;width:94vw"><h3>${watch ? 'Смотреть друзей' : 'Друзья'}</h3>
+    ${watch ? '<p style="margin:0 0 8px">Партии ваших друзей, которые идут прямо сейчас. Нажмите «Смотреть» — карты в руках скрыты, можно писать комментарии.</p>' : ''}
+    <p class="fr-intro" style="margin:0 0 8px">Отправьте другу ссылку — когда он её откроет, вы появитесь друг у друга в списке. Тогда видно, кто сейчас в игре, и его партию можно смотреть.</p>
     <div class="link"><input readonly value="${esc(link)}"><button class="btn small" data-copy>Копировать</button></div>
     <div class="fr-add"><span>Ваш код: <b>${code}</b></span><input type="text" maxlength="10" placeholder="Код друга" data-code><button class="btn small primary" data-add>Добавить</button></div>
     <div class="fr-list" data-list><p class="ov-wait">Загружаем…</p></div>
@@ -1338,7 +1340,9 @@ async function openFriends() {
     const list = loadFriends(), box = b.querySelector('[data-list]');
     if (!list.length) { box.innerHTML = '<p class="ov-wait">Пока никого. Отправьте ссылку выше.</p>'; return; }
     const st = await friendsStatus();
-    box.innerHTML = list.map((f) => {
+    const shown = watch ? list.filter((f) => st[f.code]?.room) : list;
+    if (watch && !shown.length) { box.innerHTML = '<p class="ov-wait">Сейчас никто из друзей не играет. Окно обновляется само — оставьте его открытым или загляните позже.</p>'; return; }
+    box.innerHTML = shown.map((f) => {
       const s = st[f.code] || {};
       const state = s.room ? '<span class="fr-st play">⚔️ в партии</span>' : s.online ? '<span class="fr-st on">● в игре на сайте</span>' : '<span class="fr-st">не в сети</span>';
       return `<div class="fr-row"><b>${esc(s.name || f.name)}</b>${state}${s.room ? `<button class="btn small primary" data-watch="${s.room}">👁 Смотреть</button>` : s.online ? `<button class="btn small primary" data-call="${f.code}">⚔ Позвать в партию</button>` : ''}<button class="btn small" data-del="${f.code}" title="Убрать из друзей">✕</button></div>`;
