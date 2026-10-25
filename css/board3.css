@@ -274,3 +274,7 @@
 /* Readable grey states: the waiting seal and any prompt text are bright, not faded */
 #stage .end-turn.wait { color: #fff6e0 !important; text-shadow: 0 1px 0 #000, 0 0 6px rgba(0, 0, 0, .8) !important; font-weight: 900 !important; }
 #stage .prompt .ptext { color: #fff3cf !important; opacity: 1 !important; }
+/* «Оберег»: a pale-blue frame around the card (plus the ✨ badge with its tip) instead of the oval bubble */
+#stage .card .ward-bubble { display: none !important; }
+#stage .card:has(.ward-bubble) .frame { box-shadow: 0 0 0 2px #0e1a26, 0 0 0 4.5px #8fd0ff, 0 0 14px rgba(143, 208, 255, .75) !important; }
+#stage .card.legend:has(.ward-bubble) .frame { box-shadow: 0 0 0 2px #160c06, 0 0 0 4.5px #f2cd6b, 0 0 0 6px #0e1a26, 0 0 0 8px #8fd0ff, 0 0 16px rgba(143, 208, 255, .7) !important; }
