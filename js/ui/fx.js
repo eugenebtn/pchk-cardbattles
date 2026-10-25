@@ -52,7 +52,7 @@ export function initFx(stage) {
 
 // Pre-rendered soft glow sprites (much smoother and faster than per-frame gradients).
 const sprites = new Map();
-function sprite(color, core) {
+function softDot(color, core) {
   const key = color + '|' + core;
   let cv = sprites.get(key);
   if (cv) return cv;
@@ -83,7 +83,7 @@ function drawMotes(t) {
     if (m.x < -10) m.x = W + 10; if (m.x > W + 10) m.x = -10;
     const cx = Math.abs(m.x - W / 2) / (W / 2), cy = Math.abs(m.y - H / 2) / (H / 2);
     c2d.globalAlpha = Math.max(0, 0.55 - (cx * cx + cy * cy) * 0.35) * (0.6 + 0.4 * Math.sin(t / 700 + m.ph));
-    c2d.drawImage(sprite('#ffd9a0', '#fff6e0'), m.x - m.s * 3, m.y - m.s * 3, m.s * 6, m.s * 6);
+    c2d.drawImage(softDot('#ffd9a0', '#fff6e0'), m.x - m.s * 3, m.y - m.s * 3, m.s * 6, m.s * 6);
   }
   c2d.restore();
 }
@@ -122,7 +122,7 @@ function loop(t = performance.now()) {
     } else if (p.shape === 'shard') {
       c2d.fillStyle = p.color; c2d.beginPath(); c2d.moveTo(-s, -s / 2); c2d.lineTo(s, -s / 3); c2d.lineTo(s / 2, s); c2d.closePath(); c2d.fill();
     } else {
-      c2d.drawImage(sprite(p.color, p.core || '#fff'), -s, -s, s * 2, s * 2);
+      c2d.drawImage(softDot(p.color, p.core || '#fff'), -s, -s, s * 2, s * 2);
     }
     c2d.restore();
   }
@@ -241,6 +241,58 @@ export function splat(x, y, text, heal = false) {
   layer.appendChild(el);
   el.animate([{ transform: 'translate(-50%,-50%) scale(0) rotate(-20deg)' }, { transform: 'translate(-50%,-50%) scale(1.15) rotate(0deg)', offset: 0.25 }, { transform: 'translate(-50%,-50%) scale(1)', opacity: 1, offset: 0.8 }, { transform: 'translate(-50%,-50%) scale(1)', opacity: 0 }], { duration: 1000 / speed }).onfinish = () => el.remove(); setTimeout(() => el.remove(), 2500);
 }
+/** A painted effect picture (assets/ui/fx_*.webp) that pops, turns a little and fades. */
+export function sprite(x, y, name, o = {}) {
+  const el = document.createElement('img');
+  el.src = `assets/ui/${name}.webp`; el.alt = ''; el.className = 'fx-sprite';
+  const size = o.size ?? 200, rot = o.rot ?? (Math.random() * 40 - 20);
+  el.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:${size}px;height:auto;pointer-events:none;z-index:${o.z ?? 86}`;
+  layer.appendChild(el);
+  el.animate([
+    { transform: `translate(-50%,-50%) scale(${o.from ?? 0.3}) rotate(${rot - 15}deg)`, opacity: 0 },
+    { transform: `translate(-50%,-50%) scale(${o.peak ?? 1.1}) rotate(${rot}deg)`, opacity: 1, offset: 0.18 },
+    { transform: `translate(-50%,-50%) scale(${o.to ?? 1.25}) rotate(${rot + 6}deg)`, opacity: 0 },
+  ], { duration: (o.dur ?? 420) / speed, easing: 'cubic-bezier(.2,.8,.3,1)' }).onfinish = () => el.remove();
+  setTimeout(() => el.remove(), 3000);
+}
+/** Gold coins fly along an arc from a to b, spinning (the game's own coin). Resolves when the last one lands. */
+export function coinFly(a, b, n = 1, onLand = null) {
+  const jobs = [];
+  for (let i = 0; i < n; i++) {
+    jobs.push(new Promise((res) => setTimeout(() => {
+      const el = document.createElement('img');
+      el.src = 'assets/ui/coin.webp'; el.alt = ''; el.className = 'fx-coin';
+      el.style.cssText = 'position:absolute;left:0;top:0;width:44px;height:44px;pointer-events:none;z-index:88;filter:drop-shadow(0 6px 6px rgba(0,0,0,.6))';
+      layer.appendChild(el);
+      const lift = 110 + i * 18 + Math.random() * 30, sx = (Math.random() - 0.5) * 40;
+      const frames = [];
+      for (let k = 0; k <= 10; k++) {
+        const t = k / 10, x = a.x + sx * (1 - t) + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t - Math.sin(t * Math.PI) * lift;
+        frames.push({ transform: `translate(${x - 22}px,${y - 22}px) scale(${1 + Math.sin(t * Math.PI) * 0.35}) scaleX(${Math.cos(t * Math.PI * 4).toFixed(2)})`, opacity: k === 10 ? 0.6 : 1 });
+      }
+      el.animate(frames, { duration: 620 / speed, easing: 'cubic-bezier(.5,0,.6,1)' }).onfinish = () => { el.remove(); onLand?.(); res(); };
+      setTimeout(() => { el.remove(); res(); }, 2500);
+    }, (i * 90) / speed)));
+  }
+  return Promise.all(jobs);
+}
+/** A big emblem in the middle of the field (the battle shield). */
+export async function emblem(name, dur = 1300, size = 420) {
+  const el = document.createElement('img');
+  el.src = `assets/ui/${name}.webp`; el.alt = ''; el.className = 'fx-emblem';
+  el.style.cssText = `position:absolute;left:50%;top:calc(var(--banner-y, 330px) - 40px);width:${size}px;height:auto;pointer-events:none;z-index:89;filter:drop-shadow(0 20px 40px rgba(0,0,0,.7)) drop-shadow(0 0 30px rgba(255,140,60,.45))`;
+  layer.appendChild(el);
+  el.animate([
+    { transform: 'translate(-50%,-50%) scale(2.4)', opacity: 0 },
+    { transform: 'translate(-50%,-50%) scale(.92)', opacity: 1, offset: 0.16 },
+    { transform: 'translate(-50%,-50%) scale(1)', opacity: 1, offset: 0.24 },
+    { transform: 'translate(-50%,-50%) scale(1.04)', opacity: 1, offset: 0.8 },
+    { transform: 'translate(-50%,-50%) scale(1.3)', opacity: 0 },
+  ], { duration: dur / speed, easing: 'cubic-bezier(.2,.8,.3,1)' });
+  await wait(dur * 0.16); shake(1.6); flare(W / 2, H * 0.4, '#ffb060', 260, 420);
+  await wait(dur * 0.84);
+  el.remove();
+}
 export function shake(power = 1) {
   power *= 0.6;
   const b = stageEl.querySelector('#board');
@@ -257,7 +309,7 @@ export function flash(color = 'rgba(255,255,255,.7)', dur = 300) {
 }
 export async function banner(text, cls = '', dur = 1100) {
   const el = document.createElement('div');
-  el.className = 'banner ' + cls; el.textContent = text;
+  el.className = 'banner ' + cls; el.innerHTML = `<span>${text}</span>`;
   layer.appendChild(el);
   el.animate([
     { transform: 'scaleY(0)', opacity: 0 }, { transform: 'scaleY(1.1)', opacity: 1, offset: 0.15 }, { transform: 'scaleY(1)', opacity: 1, offset: 0.25 },
@@ -281,6 +333,7 @@ export function streak(a, b, kind = 'gold') {
 /** Heavy impact: flash, shockwave, sparks, debris. */
 export function impact(x, y, kind = 'gold') {
   const col = PAL[kind] || PAL.gold;
+  sprite(x, y, 'fx_hit', { size: 230, dur: 380 });
   flare(x, y, col[1], 110, 260);
   slashFx(x, y, col[0], 110);
   sparks(x, y, { color: col.slice(0, 2), count: 16 });

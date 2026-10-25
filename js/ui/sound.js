@@ -16,7 +16,7 @@ export function volumes() { return { ...VOL }; }
 const buffers = new Map();
 let loading = null;
 const BASE = 'assets/audio/';
-const USED = new Set(['elAnimal', 'elAxe', 'elBattle', 'elBlood', 'elBook', 'elBuff', 'elChain', 'elClick', 'elCoin', 'elConfirm', 'elDanger', 'elDark', 'elDeath', 'elDebuff', 'elDraw', 'elExplosion', 'elFace', 'elFire', 'elFlip', 'elHeal', 'elHit', 'elHitBig', 'elLandBig', 'elLegend', 'elLose', 'elMagic', 'elMonster', 'elPlay', 'elShield', 'elShuffle', 'elStun', 'elSwing', 'elTurn', 'elWin', 'soft']);
+const USED = new Set(['elAnimal', 'elAxe', 'elBattle', 'elBlood', 'elBook', 'elBuff', 'elChain', 'elClick', 'elCoin', 'elConfirm', 'elDanger', 'elDark', 'elDeath', 'elDebuff', 'elDraw', 'elExplosion', 'elFace', 'elFire', 'elFlip', 'elHeal', 'elHit', 'elHitBig', 'elLandBig', 'elLegend', 'elLose', 'elMagic', 'elMonster', 'elPlay', 'elShield', 'elShuffle', 'elStun', 'elSwing', 'elTurn', 'elWin', 'soft', 'elRegion', 'elVs']);
 
 function ac() {
   if (!ctx) {
@@ -265,6 +265,8 @@ export const sfx = {
   slash(x) { play('elSwing', { vol: 0.55, rate: 1.15, x, verb: 0.12 }); },
   death(x) { play('elDeath', { vol: 0.65, x, verb: 0.25 }); },
   battle() { duckMusic(0.35, 2.5); play('elBattle', { vol: 0.7, verb: 0.2 }); },
+  region() { play('elRegion', { vol: 0.6, verb: 0.2 }); },
+  vs() { duckMusic(0.35, 2.6); play('elVs', { vol: 0.8, verb: 0.15 }); },
   // Magic.
   heal(x) { play('elHeal', { vol: 0.55, x, verb: 0.25 }); },
   buff(x) { play('elBuff', { vol: 0.5, x, verb: 0.2 }); },

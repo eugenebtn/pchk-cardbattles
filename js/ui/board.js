@@ -932,12 +932,13 @@ export class BoardUI {
     const me = this.me, P = view.players;
     const mine = CARDS[P[me].leader.id], theirs = CARDS[P[1 - me].leader.id];
     const port = this.L.name === 'port';
+    const art = (id) => (LEADER_ART.has(id) ? `assets/leaders/${id}.webp` : '');
     const layer = document.createElement('div');
     layer.className = 'vs-layer';
     layer.innerHTML = `<div class="vs-bg"></div>
-      <div class="vs-hero vme" style="background-image:url('${mine.img}')"><div class="vs-name">${esc(P[me].name)}</div></div>
-      <div class="vs-hero vopp" style="background-image:url('${theirs.img}')"><div class="vs-name">${esc(P[1 - me].name)}</div></div>
-      <div class="vs-text">VS</div>`;
+      <div class="vs-hero vme ${art(P[me].leader.id) ? 'art' : ''}" style="background-image:url('${art(P[me].leader.id) || mine.img}')"><div class="vs-name">${esc(P[me].name)}</div></div>
+      <div class="vs-hero vopp ${art(P[1 - me].leader.id) ? 'art' : ''}" style="background-image:url('${art(P[1 - me].leader.id) || theirs.img}')"><div class="vs-name">${esc(P[1 - me].name)}</div></div>
+      <div class="vs-text"><img src="assets/ui/fx_vs.webp" alt="VS"></div>`;
     this.overlay().appendChild(layer);
     const A = layer.querySelector('.vme'), B = layer.querySelector('.vopp'), V = layer.querySelector('.vs-text'), bg = layer.querySelector('.vs-bg');
     const W = window.innerWidth, H = window.innerHeight;
@@ -951,7 +952,7 @@ export class BoardUI {
     const d = (ms) => ms / FX.speed;
     A.animate([{ transform: tr(from.a, 0.9, -8) }, { transform: tr(pos.a, 1.04, 2), offset: 0.8 }, { transform: tr(pos.a) }], { duration: d(650), easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'forwards' });
     B.animate([{ transform: tr(from.b, 0.9, 8) }, { transform: tr(pos.b, 1.04, -2), offset: 0.8 }, { transform: tr(pos.b) }], { duration: d(650), easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'forwards' });
-    sfx.swing(); setTimeout(() => sfx.swing(), 120);
+    sfx.vs();
     await FX.wait(560);
     V.animate([{ transform: 'translate(-50%,-50%) scale(3)', opacity: 0 }, { transform: 'translate(-50%,-50%) scale(.9)', opacity: 1, offset: 0.7 }, { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 }], { duration: d(380), fill: 'forwards', easing: 'cubic-bezier(.5,0,.3,1.4)' });
     await FX.wait(300);
@@ -1547,7 +1548,8 @@ ${optHtml}</div></div>
           const nx = batch.slice(k + 1).find((b) => b.ev.type === 'damage' && b.ev.src === ev.src);
           const an = CARDS[this.cardIdOf(ev.src)]?.name.split(',')[0] || '';
           const tn = nx ? CARDS[this.cardIdOf(nx.ev.tgt)]?.name.split(',')[0] : null;
-          this.caption(`⚔️ Регион ${this.regionCol(ev.region) + 1}: <b>${esc(an)}</b> бьёт ${tn ? `<b>${esc(tn)}</b>` : ''}`, 1600);
+          this.caption(`<span class="cap-reg">Регион ${this.regionCol(ev.region) + 1}</span> <b>${esc(an)}</b> бьёт ${tn ? `<b>${esc(tn)}</b>` : ''}`, 1600);
+          if (this._fightRegion !== ev.region) { this._fightRegion = ev.region; sfx.region(); }
         }
         const dx = (tgtPt.x - ap.x) * 0.8, dy = (tgtPt.y - ap.y) * 0.8;
         a.style.zIndex = 40;
@@ -1564,6 +1566,7 @@ ${optHtml}</div></div>
         await W(0.3 * 760);
         sfx.swing(ap.x);
         FX.streak(ap, { x: ap.x + dx, y: ap.y + dy }, this.attackColor(a));
+        FX.sprite(ap.x + dx * 0.85, ap.y + dy * 0.85, 'fx_slash', { size: 260, dur: 360, rot: Math.atan2(dy, dx) * 180 / Math.PI, from: 0.6, peak: 1, to: 1.15 });
         await W(0.25 * 760);
         // Impact. If the opposing card strikes back right away, let it start while this one settles.
         FX.impact(ap.x + dx / 0.8 * 0.92, ap.y + dy / 0.8 * 0.92, this.attackColor(a));
@@ -1619,7 +1622,8 @@ ${optHtml}</div></div>
       case 'fizzle': sfx.error(); await FX.banner('Не сработало', 'red', 900); break;
       case 'battleStart': {
         sfx.battle();
-        await FX.banner('⚔ СРАЖЕНИЕ ⚔', 'red', 1500);
+        FX.emblem('fx_battle', 1500, 380);
+        await FX.banner('Сражение', 'red battle', 1500);
         break;
       }
       case 'battleSkipped': await FX.banner('Сражение пропущено', '', 1100); break;
@@ -1729,8 +1733,8 @@ ${optHtml}</div></div>
         const src = ev.src != null ? this.pointOf(ev.src) : null;
         if (src) {
           sfx.coin(src.x);
-          for (let i = 0; i < Math.min(ev.amount, 7); i++) setTimeout(() => FX.projectile(src, tgt, { emoji: '🪙', size: 13, trail: 2, trailColor: '#ffd84a', arc: 90 + i * 10, duration: 560 }).then(() => { FX.burst(tgt.x, tgt.y, { color: ['#ffe08a', '#fff'], count: 6, speed: 3, size: 5 }); }), i * 80 / FX.speed);
-          FX.floatText(src.x, src.y - 20, `+${ev.amount} 💰`, 'coin');
+          FX.coinFly(src, tgt, Math.min(ev.amount, 7), () => { FX.burst(tgt.x, tgt.y, { color: ['#ffe08a', '#fff'], count: 8, speed: 3, size: 6 }); this.coinsEl[side].animate([{ transform: 'scale(1)' }, { transform: 'scale(1.25)' }, { transform: 'scale(1)' }], { duration: 220 }); });
+          FX.floatText(src.x, src.y - 20, `+${ev.amount}`, 'coin');
           await W(420);
           sfx.coinStack(tgt.x);
         } else sfx.coin(tgt.x);
