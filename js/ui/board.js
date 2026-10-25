@@ -183,7 +183,7 @@ export class BoardUI {
     this.coinsEl.me.setAttribute('data-tip', 'Ваши монеты 💰|Ими платят за карты и свойства. Монеты не сгорают между ходами.');
     this.coinsEl.opp.setAttribute('data-tip', 'Монеты соперника 💰|Сколько он может потратить.');
     this.oppHandCount = L.name === 'port' ? mk('opp-hand-count', { x: 700, y: 24 }, '') : null;
-    this.roundBox = mk('round-box', L.round);
+    this.roundBox = mk(L.round.seal ? 'round-box round-seal' : 'round-box', L.round);
     this.roundBox.setAttribute('data-tip', 'Раунд|Ход первого игрока → ход второго → Сражение. Каждый раунд очерёдность меняется.');
     // UI layer: end turn, hint, log, stack, top buttons, prompt.
     const u = this.ui;
@@ -568,7 +568,12 @@ export class BoardUI {
     const f = view.first;
     const who = (i) => (this.spectator ? this.sideName(i) : i === me ? 'Вы' : 'Соперник');
     const steps = [[who(f), view.phase === 'turn' && view.turn === f], [who(1 - f), view.phase === 'turn' && view.turn === 1 - f], [view.skipBattles ? 'Бой ✖' : 'Бой', view.phase === 'battle']];
-    this.roundBox.innerHTML = `<b>Раунд ${view.round || 1}</b><div class="phases">${steps.map(([t, on], k) => `<span class="ph ${on ? 'on' : ''} ${k === 2 ? 'battle' : ''}">${k === 2 ? ICON.swords : ''}${t}</span>`).join('<i>›</i>')}</div>`;
+    if (this.L.round.seal) {
+      // Variant «Печать и ступени»: «РАУНД N» on a ribbon above the seal; under it the round's steps — who moves first, second, then the battle.
+      const face = (i) => { const id = view.players[i]?.leader?.id; return `<i class="rs-face ${i === me ? 'me' : 'op'}" style="background-image:url('${LEADER_ART.has(id) ? `assets/leaders/face/${id}.webp` : CARDS[id]?.img || ''}')"></i>`; };
+      this.roundBox.className = 'round-box round-seal';
+      this.roundBox.innerHTML = `<div class="rs-rib">Раунд ${view.round || 1}</div><div class="rs-steps">${[face(f), face(1 - f), `<span class="rs-battle">${ICON.swords}${view.skipBattles ? 'Нет боя' : 'Бой'}</span>`].map((h, k) => `<span class="rs-step ${steps[k][1] ? 'on' : ''}" data-tip="${k < 2 ? `${k === 0 ? 'Первым' : 'Вторым'} ходит: ${esc(steps[k][0])}` : 'Сражение'}|${k < 2 ? 'Очерёдность каждый раунд меняется.' : 'После обоих ходов союзники бьются в своих регионах.'}">${h}</span>`).join('<i class="rs-arr">›</i>')}</div>`;
+    } else this.roundBox.innerHTML = `<b>Раунд ${view.round || 1}</b><div class="phases">${steps.map(([t, on], k) => `<span class="ph ${on ? 'on' : ''} ${k === 2 ? 'battle' : ''}">${k === 2 ? ICON.swords : ''}${t}</span>`).join('<i>›</i>')}</div>`;
     for (let r = 0; r < 5; r++) this.cols[r].classList.toggle('fighting', view.battleRegion === r);
     // Log.
     const atBottom = this.logEl.scrollTop + this.logEl.clientHeight >= this.logEl.scrollHeight - 10;

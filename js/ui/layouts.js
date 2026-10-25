@@ -15,11 +15,11 @@ export const LAND = {
   piles: { myDeck: { x: 1300, y: 690 }, myGrave: { x: 1432, y: 690 }, oppDeck: { x: 1300, y: 104 }, oppGrave: { x: 1432, y: 104 } },
   names: { me: { x: 60, y: 494 }, opp: { x: 92, y: 234 } },
   coins: { me: { x: 232, y: 640 }, opp: { x: 232, y: 128 } },
-  round: { x: 1434, y: 300 },
-  end: { x: 1300, y: 296 },
+  round: { x: 1438, y: 262, seal: true }, // «Печать и ступени»: the round ribbon above the turn seal, the order of the round under it
+  end: { x: 1376, y: 300 },
   powers: { x: 20, y: 756, w: 270, emote: { x: 238, y: 528 } },
   hint: { x: 1296, y: 466, w: 284, h: 0 },
-  log: { x: 1288, y: 468, w: 300, h: 212 }, // the battle log takes the place of the old hint panel
+  log: { x: 1288, y: 506, w: 300, h: 174 }, // the battle log takes the place of the old hint panel
   hand: { y: 712, cardW: 160, cardH: 223, width: 780, cx: 780, step: 120 },
   oppHand: { y: -92, cx: 1130, step: 26, width: 160 },
   stageCard: { x: 630, y: 160 }, // the played card is shown in the middle of the field, clear of the right column
