@@ -581,14 +581,6 @@ function startBoard(session) {
       ui.newAch = checkAchievements(ctx);
       if (checkDaily(ctx)) { const d = dailyState(); ui.newAch = [{ icon: '📜', title: 'Задание дня выполнено', text: `${d.task.text}. Дней подряд: ${d.streak}` }, ...(ui.newAch || [])]; }
       drawDaily();
-// The menu picture: another one each time the menu is entered (the title art, then each Leader's painting), then it stays.
-function pickMenuArt() {
-  const art = document.querySelector('#menu .mv-art'); if (!art || !matchMedia('(min-width: 761px)').matches) return;
-  const pics = ['assets/ui/menu_art.webp', ...[20, 41, 62, 63, 117, 118].map((id) => `assets/leaders/${id}.webp`)];
-  const k = (store.get('menuArt', -1) + 1) % pics.length; store.set('menuArt', k);
-  art.style.backgroundImage = `url('${pics[k]}')`;
-}
-pickMenuArt();
 
     } catch (e) { console.warn(e); }
     // World ranking (draws are not sent): place and wins before and after this game, shown on the end screen.
@@ -599,6 +591,7 @@ pickMenuArt();
     const mine = (list) => { const k = (list || []).findIndex((x) => x.player_id === playerId()); return k < 0 ? null : { place: k + 1, wins: list[k].wins, games: list[k].games, winrate: list[k].winrate, total: list.length }; };
     (async () => {
       let before = null; try { before = mine(await loadPlayers(mode)); } catch { /* offline */ }
+      if (!session.server && !opt.name) { ui.setRankInfo('<span class="ov-wait">Без имени партия не идёт в мировой рейтинг. Укажите имя в «Профиле».</span>'); return; }
       // Games on the server are recorded by the server itself (honest ranking); here we only wait for it.
       const ok = session.server ? await new Promise((r) => setTimeout(() => r(true), 2500))
         : await submitResult({ name: myName(), deck: titleOf(me), leader: P[me].leader.id, oppName: P[1 - me].name, oppDeck: titleOf(1 - me), mode, won: winner === me, rounds: view.round, cards: session.cfgPlayers?.[me]?.deck });
@@ -941,6 +934,14 @@ function drawDaily() {
   box.innerHTML = `<span class="dl-ico">${d.done ? '✓' : '📜'}</span><span><b>Задание дня</b>${esc(d.task.text)}<br><span class="dl-st">${d.done ? '✓ Выполнено сегодня' : 'Ещё не выполнено'}</span>${d.streak > 1 ? ` · дней подряд: ${d.streak}` : ''}</span>`;
 }
 drawDaily();
+// The menu picture: another one each time the menu is entered (the title art, then each Leader's painting), then it stays.
+function pickMenuArt() {
+  const art = document.querySelector('#menu .mv-art'); if (!art || !matchMedia('(min-width: 761px)').matches) return;
+  const pics = ['assets/ui/menu_art.webp', ...[20, 41, 62, 63, 117, 118].map((id) => `assets/leaders/${id}.webp`)];
+  const k = (store.get('menuArt', -1) + 1) % pics.length; store.set('menuArt', k);
+  art.style.backgroundImage = `url('${pics[k]}')`;
+}
+pickMenuArt();
 
 // ---------- menu: profile bar on top and the ranking panel at the bottom right ----------
 function drawMenuTop() {

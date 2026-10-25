@@ -54,6 +54,7 @@ const REACTIONS = {
 };
 const mullKey = (q) => (q?.options || []).map((o) => o.id).join(',') + '|' + q?.keep;
 const BOT_BACK = { 20: 'royal', 41: 'forest', 62: 'vampire', 63: 'vampire', 117: 'skull', 118: 'classic' }; // the computer's card back by its Leader
+const LEGEND_LINES = { 20: 4 }; // Leaders with lines for their own legendary cards
 const BOARD_ART = new Set([160, 8, 33, 5, 125, 130, 116]); // Places with a painted board background
 const MULL_SEC = 45; // seconds to choose the starting hand
 const INTRO_LINE = { 20: 'Кёнигпон смотрит на нас. Строиться, бойцы!', 41: 'Хвост трубой, усы торчком — начинаем!', 62: 'Клан Баланов помнит каждую каплю крови. Начнём.',
@@ -1993,7 +1994,16 @@ ${optHtml}</div></div>
         }
         if (d.legend) {
           sfx.legend(p.x);
-          setTimeout(() => voice(d.id, 'Play'), 450); // the character's own line (assets/audio/elVo<id>Play), if it has one
+          setTimeout(() => {
+            const len = voice(d.id, 'Play') || 0; // the character's own line (assets/audio/elVo<id>Play), if it has one
+            // Then its Leader greets the legend (elVo<leader>Legend<k>, so far Сфинктерион), not every time and not twice in a row.
+            const lead = this.view?.players?.[ev.player]?.leader?.id;
+            if (!ev.created && LEGEND_LINES[lead] && Math.random() < 0.8) {
+              let k; do { k = Math.floor(Math.random() * LEGEND_LINES[lead]); } while (LEGEND_LINES[lead] > 1 && k === this._lastLegendLine);
+              this._lastLegendLine = k;
+              setTimeout(() => voice(lead, 'Legend' + k), len * 1000 + 350);
+            }
+          }, 450);
           el.classList.add('shine'); setTimeout(() => el.classList.remove('shine'), 1300);
         }
         if (ev.created && type === 'ally') sfx.animal(p.x);

@@ -53,6 +53,8 @@ export async function loadPlayers(mode) {
     }
     rows = [...m.values()].map((p) => ({ ...p, winrate: p.games ? Math.round((p.wins / p.games) * 100) : 0 }));
   } else rows = await get(`leaderboard?select=*&mode=eq.${encodeURIComponent(mode)}&order=wins.desc,winrate.desc&limit=300`);
+  // Games played without a name (the default «Игрок», «Игрок 1»…) are not shown in the world ranking.
+  rows = rows.filter((r) => r.player_name && !/^Игрок( \d)?$/.test(String(r.player_name).trim()));
   return rows.sort((a, b) => b.wins - a.wins || b.winrate - a.winrate || a.games - b.games);
 }
 /** Decks of one mode: games, wins and leader, counted from the latest results. */
