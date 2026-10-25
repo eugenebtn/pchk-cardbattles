@@ -795,7 +795,10 @@ export class Game {
     if (ap === 'smart') {
       const top = this.s.stack[this.s.stack.length - 1];
       const aimed = top && top.player !== i && top.ctx.targets.some((u) => this.card(u)?.ctrl === i);
-      if (!aimed) { this.fakeStop(i); return false; }
+      // Also the two calm moments of the opponent's turn (its start and its end), when a card from hand can be played
+      // with Опережение (or Эрик's «Непредсказуемость») — otherwise such a card could never be played off-turn.
+      const ownMove = !this.s.stack.length && ['turnStart', 'turnEnd'].includes(kind) && this.s.turn !== i && opts.some((o) => o.kind === 'play');
+      if (!aimed && !ownMove) { this.fakeStop(i); return false; }
     }
     // Answering the stack: by default ask only when a card from hand can be played, or when the item
     // targets this player's cards (then a Leader ability like a buff or protection matters).

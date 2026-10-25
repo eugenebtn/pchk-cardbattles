@@ -51,6 +51,16 @@ test('Эрик: карта вне своего хода + Володимир с�
   ok(!g.fastOptions(0).some((o) => o.kind === 'play'), 'только одна карта за фазу');
 });
 
+test('Опережение в чужой ход: при «спрашивать, когда целятся» игра даёт выложить Отряд зачистки в конце хода соперника', () => {
+  const g = makeGame({ p1: { leader: 117 } });
+  g.cfg.options.autoPass = [true, 'smart'];
+  addHand(g, 1, 168); g.P(1).coins = 5; // Отряд зачистки 3 💰, Опережение
+  toMain(g);
+  g.respond(0, 'end'); // P0 ends the turn
+  const q = g.pending;
+  ok(q && q.player === 1 && q.type === 'priority' && q.options.some((o) => o.kind === 'play'), 'P1 is asked and can play the card');
+});
+
 test('София: карта без ран / исцеление 2; Искусство друидов', () => {
   const g = makeGame({ p0: { leader: SOFIA } });
   const kick = addHand(g, 0, 134); const herbs = addHand(g, 0, 157);

@@ -56,7 +56,7 @@
 .mv-left { position: absolute; z-index: 2; left: 4vw; top: calc(64px + 3vh); width: min(390px, 32vw); display: flex; flex-direction: column; align-items: stretch; }
 .mv-logo { width: 100%; height: auto; max-height: 30vh; object-fit: contain; filter: drop-shadow(0 8px 16px rgba(0, 0, 0, .8)); animation: mv-logo .9s cubic-bezier(.2, .8, .3, 1.2) both; }
 @keyframes mv-logo { from { transform: scale(.8); opacity: 0; } }
-.mv-sub2 { margin: -.4vh 0 2.6vh; text-align: center; font: 600 clamp(14px, 1.9vh, 19px) 'Cormorant SC', serif; letter-spacing: 3px; color: #d9b469; text-shadow: 0 2px 4px #000; }
+.mv-sub2 { margin: 1.4vh 0 2.6vh; text-align: center; font: 600 clamp(14px, 1.9vh, 19px) 'Cormorant SC', serif; letter-spacing: 3px; color: #d9b469; text-shadow: 0 2px 4px #000; }
 .mv-btns { display: flex; flex-direction: column; gap: clamp(9px, 1.6vh, 16px); }
 .mv-btns .plq { animation: mv-in .5s cubic-bezier(.2, .8, .3, 1) both; }
 .mv-btns .plq:nth-child(2) { animation-delay: .06s; } .mv-btns .plq:nth-child(3) { animation-delay: .12s; } .mv-btns .plq:nth-child(4) { animation-delay: .18s; }
@@ -243,3 +243,5 @@ body.studio #splash .fan-sub, body.studio #splash .splash-legal { z-index: 2; an
 #menu.mv .credits { bottom: calc(10px + env(safe-area-inset-bottom)) !important; display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: nowrap; white-space: nowrap; }
 #menu.mv .credits .buy-real { margin-left: 0 !important; padding: 4px 12px; line-height: 1.2; }
 .mv-bottom { bottom: calc(52px + env(safe-area-inset-bottom)) !important; }
+.mv-left .mv-side { margin-top: 1.6vh; max-width: none; width: 100%; box-sizing: border-box; } /* the world ranking under the buttons */
+.log-panel { font-size: 16px !important; line-height: 1.25 !important; } /* the battle log a bit smaller */

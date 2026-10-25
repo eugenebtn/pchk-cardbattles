@@ -822,10 +822,10 @@ export class BoardUI {
         const da = pv.atk - pv.baseAtk, dh = pv.hp - pv.baseHp;
         const bonus = da || dh || pv.kws.length;
         const pl = pv.place != null ? CARDS[pv.place]?.name : null;
-        const note = bonus ? `${da || dh ? `${da >= 0 ? '+' : ''}${da}/${dh >= 0 ? '+' : ''}${dh}` : ''}${pv.kws.length ? ' ' + pv.kws.map((k) => KW_NAME[k] || k).join(', ') : ''}${pl ? ` · ${pl}` : ''}` : (pl ? `без бонуса · ${pl}` : 'без бонуса');
+        const note = bonus ? `${da || dh ? `${da >= 0 ? '+' : ''}${da}/${dh >= 0 ? '+' : ''}${dh}` : ''}${pv.kws.length ? ' ' + pv.kws.map((k) => KW_NAME[k] || k).join(', ') : ''}${pl ? ` · ${pl}` : ''}` : (pl || ''); // no note at all when the slot gives nothing
         const el = document.createElement('div');
         el.className = 'slot-prev' + (bonus ? ' bonus' : '');
-        el.innerHTML = `<div class="sp-gems"><span class="sp-gem atk">${pv.atk}</span><span class="sp-gem hp">${pv.hp}</span></div><div class="sp-note">${esc(note)}</div>`;
+        el.innerHTML = `<div class="sp-gems"><span class="sp-gem atk">${pv.atk}</span><span class="sp-gem hp">${pv.hp}</span></div>${note ? `<div class="sp-note">${esc(note)}</div>` : ''}`;
         slot.appendChild(el);
       }
     }
