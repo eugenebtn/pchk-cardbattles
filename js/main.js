@@ -23,6 +23,8 @@ import { installTooltips, linkTerms } from './ui/glossary.js';
 import { renderStats, recordGame, loadGames, loginDialog } from './ui/stats.js';
 import { unlocked, ACH } from './ui/achievements.js';
 import { currentUser } from './net/account.js';
+import { myAvatar, avatarFile, myLooks, cleanLooks } from './ui/cosmetics.js';
+window.addEventListener('pchk-looks', () => drawMenuTop());
 import { myFriendCode, loadFriends, addFriend, removeFriend, startPresence, setPresenceRoom, friendsStatus, sendInvite } from './net/friends.js';
 import { submitResult, loadPlayers, playerId } from './net/ranking.js';
 import { openFeedback } from './ui/feedback.js';
@@ -946,7 +948,7 @@ function drawMenuTop() {
   const cnt = new Map(); for (const g of games) cnt.set(g.myLeader, (cnt.get(g.myLeader) || 0) + 1);
   const fav = [...cnt.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
   const ava = $('#menu .mv-ava');
-  if (ava) ava.style.backgroundImage = `url('assets/leaders/face/${[20, 41, 62, 63, 117, 118].includes(fav) ? fav : 20}.webp')`;
+  if (ava) ava.style.backgroundImage = `url('${avatarFile(myAvatar()) || `assets/leaders/face/${[20, 41, 62, 63, 117, 118].includes(fav) ? fav : 20}.webp`}')`;
   const nm = $('#menu .mv-name'); if (nm) nm.textContent = opt.name || 'Игрок';
   const u = currentUser(), sub = $('#menu .mv-sub'); if (sub) sub.textContent = u ? 'Профиль сохранён' : 'Профиль';
   $('#mv-wins') && ($('#mv-wins').textContent = wins);
@@ -1004,11 +1006,11 @@ function serverPlay(code, deck, { creating = false, matched = false, tour: inTou
     $('#share-link') && ($('#share-link').onclick = () => navigator.share({ title: 'Карточные битвы ПЧК', text: 'Сыграем в Карточные битвы?', url }));
   } else ob.textContent = 'Соединяемся с сервером…';
   let ss = null;
-  const conn = connectRoom(code, { name: myName(), playerId: playerId(), autopass: AP_ENGINE(opt.autopass), timer: creating ? opt.timer : matched ? 90 : 0, rated: creating || matched ? rated : undefined, deck: { leader: deck.leader, cards: deck.cards, title: deck.title } }, {
+  const conn = connectRoom(code, { name: myName(), playerId: playerId(), autopass: AP_ENGINE(opt.autopass), timer: creating ? opt.timer : matched ? 90 : 0, rated: creating || matched ? rated : undefined, looks: myLooks(), deck: { leader: deck.leader, cards: deck.cards, title: deck.title } }, {
     onMessage(msg) {
       if (msg.t === 'events' && endedIn(msg.batch)) { markDone(code); store.set('live', null); }
       if ((msg.t === 'start' || msg.t === 'sync') && !ss) store.set('live', { code, at: Date.now() }); // a game in progress: offered again in the menu after a reload
-      if ((msg.t === 'start' || msg.t === 'sync') && !ss) { ss = new ServerSession(conn, msg.me ?? 0); ss.tour = inTour; ss.rated = msg.rated !== false; setPresenceRoom(code); startBoard(ss); if (msg.t === 'start') toast(ss.rated ? '🏆 Рейтинговая партия — результат пойдёт в рейтинг' : 'Обычная партия — в рейтинг не идёт', 3200); if (msg.t === 'sync') ss.onMessage(msg); return; }
+      if ((msg.t === 'start' || msg.t === 'sync') && !ss) { ss = new ServerSession(conn, msg.me ?? 0); ss.tour = inTour; ss.rated = msg.rated !== false; setPresenceRoom(code); startBoard(ss); ss.ui?.setOppLooks?.(cleanLooks(msg.opp)); if (msg.t === 'start') toast(ss.rated ? '🏆 Рейтинговая партия — результат пойдёт в рейтинг' : 'Обычная партия — в рейтинг не идёт', 3200); if (msg.t === 'sync') ss.onMessage(msg); return; }
       if (msg.t === 'start' && ss) { ss.me = msg.me; document.querySelector('#game > .over-screen')?.remove(); toast('Новая партия!', 1800); return; } // rematch, or a draw replayed in a tournament
       if (msg.t === 'waitOpponent' && !creating) ob.textContent = 'Подключено! Ждём второго игрока…';
       else if (msg.t === 'busy') ob.textContent = 'В этой комнате уже идёт игра. Можно посмотреть её как зритель.';

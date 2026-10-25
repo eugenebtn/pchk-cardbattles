@@ -4,7 +4,7 @@
 const BASE = 'https://fwwiwazpivgzfyqhgtsp.supabase.co';
 const KEY = 'sb_publishable_Ks5sPhKPZxt9B2yB4dirsA_3T_b4ims';
 const AUTH = 'pchk_auth';
-const SYNC = ['pchk_name', 'pchk_pid', 'pchk_decks', 'pchk_ach', 'pchk_stats', 'pchk_daily', 'pchk_botlvl'];
+const SYNC = ['pchk_name', 'pchk_pid', 'pchk_decks', 'pchk_ach', 'pchk_stats', 'pchk_daily', 'pchk_botlvl', 'pchk_avatar', 'pchk_back'];
 
 const ls = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },

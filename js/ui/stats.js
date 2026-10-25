@@ -9,6 +9,7 @@ import { loadReplays } from './replay.js';
 import { unlocked, ACH, medalHtml } from './achievements.js';
 import { dailyState } from './daily.js';
 import { currentUser, signIn, signUp, signOut } from '../net/account.js';
+import { looksHtml, bindLooks, myAvatar, avatarFile } from './cosmetics.js';
 
 const KEY = 'pchk_stats';
 const MODE_RU = { bot: 'с компьютером', online: 'с другом онлайн', hotseat: 'за одним экраном' };
@@ -77,12 +78,13 @@ function profileHtml(games, tot, name) {
   return `<div class="pf">
     <div class="pf-acc">${u ? `🔐 Вы вошли: <b>${esc(u.email)}</b> — профиль, колоды и награды сохраняются на всех устройствах. <button class="btn small" data-logout>Выйти</button>`
       : `💾 Профиль хранится только в этом браузере. <button class="btn small primary" data-login>Войти или зарегистрироваться</button> — и он будет на всех ваших устройствах.`}</div>
-    <div class="pf-head"><div class="pf-ava" style="background-image:url('${fav ? `assets/leaders/face/${fav}.webp` : ''}')"></div>
+    <div class="pf-head"><div class="pf-ava" style="background-image:url('${avatarFile(myAvatar()) || (fav ? `assets/leaders/face/${fav}.webp` : '')}')"></div>
       <div><div class="pf-name"><input type="text" maxlength="20" value="${esc(name)}" placeholder="Ваше имя"><button class="btn small">Сохранить</button></div>
       <div class="pf-sub">${fav ? `Любимый Лидер: <b>${esc(leaderName(fav))}</b> · ${byL[0][1].n} партий` : 'Сыграйте первую партию!'}</div>
       <div class="pf-rank">Загружаем место в рейтинге…</div></div></div>
     <div class="st-kpis"><div class="kpi"><b>${tot.n}</b><span>партий</span></div><div class="kpi win"><b>${tot.w}</b><span>побед</span></div><div class="kpi"><b>${pct(tot.w, tot.n)}%</b><span>процент побед</span></div><div class="kpi"><b>${best}</b><span>лучшая серия</span></div><div class="kpi"><b>${got.length}/${Object.keys(ACH).length}</b><span>наград</span></div><div class="kpi"><b>${d.total}</b><span>заданий дня</span></div></div>
     <div class="pf-daily ${d.done ? 'done' : ''}">📜 <b>Задание дня:</b> ${esc(d.task.text)} ${d.done ? '— <b>выполнено ✓</b>' : ''}${d.streak > 1 ? ` · дней подряд: ${d.streak}` : ''}</div>
+    ${looksHtml()}
     ${got.length ? `<h3>Последние награды</h3><div class="pf-ach">${got.slice(0, 8).map((k) => medalHtml(k, { size: 58 })).join('')}</div>` : ''}
   </div>`;
 }
@@ -166,6 +168,7 @@ export function renderStats(root, onBack, { tab: startTab = 'world', name = () =
       const inp = root.querySelector('.pf-name input');
       root.querySelector('.pf-name button').onclick = () => { setName(inp.value.trim()); root.querySelector('.pf-name button').textContent = 'Сохранено'; };
       const lo = root.querySelector('[data-logout]'); if (lo) lo.onclick = () => { signOut(); draw(); };
+      bindLooks(root, () => { const a = root.querySelector('.pf-ava'), f = avatarFile(myAvatar()); if (a && f) a.style.backgroundImage = `url('${f}')`; window.dispatchEvent(new Event('pchk-looks')); });
       const li = root.querySelector('[data-login]'); if (li) li.onclick = () => loginDialog();
       loadPlayers('all').then((list) => { const k = list.findIndex((x) => x.player_id === playerId()); const el = root.querySelector('.pf-rank'); if (el) el.innerHTML = k < 0 ? 'Пока не в рейтинге — сыграйте партию' : `<b>${k + 1}</b> место из ${list.length} в общем рейтинге`; }).catch(() => { const el = root.querySelector('.pf-rank'); if (el) el.textContent = 'Рейтинг сейчас недоступен'; });
     }

@@ -6,6 +6,7 @@ import { resultPicture, sharePicture, toggleRecording } from './share.js';
 import { medalHtml } from './achievements.js';
 import { pickLayout } from './layouts.js';
 import { linkTerms } from './glossary.js';
+import { backCss, myBack, avatarFile } from './cosmetics.js';
 import { ICON, KW_SVG, TOK_SVG } from './icons.js';
 
 const LEADER_ART = new Set([20, 41, 62, 63, 117, 118]);
@@ -52,6 +53,7 @@ const REACTIONS = {
   },
 };
 const mullKey = (q) => (q?.options || []).map((o) => o.id).join(',') + '|' + q?.keep;
+const BOT_BACK = { 20: 'royal', 41: 'forest', 62: 'vampire', 63: 'vampire', 117: 'skull', 118: 'classic' }; // the computer's card back by its Leader
 const BOARD_ART = new Set([160, 8, 33, 5, 125, 130, 116]); // Places with a painted board background
 const MULL_SEC = 45; // seconds to choose the starting hand
 const INTRO_LINE = { 20: 'Кёнигпон смотрит на нас. Строиться, бойцы!', 41: 'Хвост трубой, усы торчком — начинаем!', 62: 'Клан Баланов помнит каждую каплю крови. Начнём.',
@@ -73,6 +75,8 @@ export class BoardUI {
   constructor(stage, { me, onAnswer, onMenu, hotseat = false, theme = 'tavern' }) {
     this.theme = theme;
     this.stage = stage;
+    // Card backs: mine from the profile; the opponent's from them online, or one that suits the computer's Leader.
+    stage.style.setProperty('--back-me', backCss(myBack())); stage.style.setProperty('--back-op', backCss('classic')); this._oppLooks = false;
     this.board = stage.querySelector('#board');
     this.bindZoom();
     this.ui = stage.querySelector('#ui-layer');
@@ -348,6 +352,7 @@ export class BoardUI {
     this.ui.querySelector('#btn-undo')?.classList.toggle('hidden', !this.onUndo);
     this.ui.querySelector('#btn-undo2')?.classList.toggle('hidden', !this.onUndo);
     this.ui.querySelector('#btn-concede')?.classList.toggle('hidden', !this.onConcede || !!this.spectator);
+    if (!this._oppLooks && view.players?.[1 - this.me]?.leader) { this._oppLooks = true; this.stage.style.setProperty('--back-op', backCss(BOT_BACK[view.players[1 - this.me].leader.id] || 'classic')); }
     this.renderForecast(view);
     // More than 10 cards in hand: at the end of the turn the extra ones go to the graveyard (the player picks which).
     const nHand = P[this.me]?.hand?.length || 0;
@@ -695,6 +700,7 @@ export class BoardUI {
       return;
     }
   }
+  setOppLooks(looks) { this._oppLooks = true; this.stage.style.setProperty('--back-op', backCss(looks?.back || 'classic')); this.oppAvatar = avatarFile(looks?.avatar); }
   /** «+N» on the pile of extra companions and items; a click shows them all. */
   supportPile(side, cards, x, y) {
     let el = this.board.querySelector(`.sup-more[data-side="${side}"]`);
@@ -830,7 +836,9 @@ export class BoardUI {
       return;
     }
     // Choosing on the board (a target, a region): the question sits in the middle of the field, between the rows, where the eyes are.
-    if (this.L.name === 'land' && ['target', 'region'].includes(q.type) && !this.isManeuver(q)) {
+    // Only for a card's own unusual ability (choose a target for it) — not for the usual moves: where to put a card, a blow, a move, a defender.
+    const special = q.type === 'target' && !q.defense && !q.maneuver && q.hint !== 'face' && (q.src != null || q.srcId != null) && !this.isManeuver(q);
+    if (this.L.name === 'land' && special) {
       const fx = this.L.field;
       el.className = 'prompt center-q';
       el.style.left = (fx[0] + fx[2] / 2) + 'px'; el.style.top = this.L.midY + 'px';

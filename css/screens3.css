@@ -213,3 +213,16 @@
   .ov4-hp { width: 32px; height: 32px; font-size: 15px; right: -6px !important; top: -12px !important; }
   .ov4-vs img { width: 44px !important; }
 }
+/* Profile: avatar and card back */
+.pf-looks h3 { margin: 18px 0 8px; }
+.lk-avas { display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 8px; }
+.lk-ava { aspect-ratio: 1; border: none; border-radius: 50%; cursor: pointer; background: center / cover no-repeat, #2a1a0d; box-shadow: 0 0 0 2px #160c06, 0 0 0 3.5px rgba(217, 196, 138, .55); transition: transform .12s, box-shadow .12s; }
+.lk-ava:hover { transform: scale(1.08); }
+.lk-ava.on { box-shadow: 0 0 0 2px #160c06, 0 0 0 5px #f2cd6b, 0 0 18px rgba(255, 210, 110, .8); }
+.lk-backs { display: flex; flex-wrap: wrap; gap: 14px; }
+.lk-back { border: none; background: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; color: #e7d6ae; font: 700 14px var(--k-font); }
+.lk-back i { display: block; width: 92px; aspect-ratio: .714; border-radius: 9px; background: center / cover no-repeat; box-shadow: 0 6px 12px rgba(0, 0, 0, .55); transition: transform .12s, box-shadow .12s; }
+.lk-back:hover i { transform: translateY(-3px); }
+.lk-back.on i { box-shadow: 0 0 0 3px #160c06, 0 0 0 6px #f2cd6b, 0 0 22px rgba(255, 210, 110, .8); }
+.lk-back.on span { color: #fff3cf; }
+.lk-note { color: #b9a67f; font-size: 14px; margin: 10px 0 0; }

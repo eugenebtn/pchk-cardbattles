@@ -1,0 +1,234 @@
+/* Redesign («поле B»): a tavern table, the field in a carved gold frame, Leaders in round medallions,
+   a round gold «Завершить ход» seal, ornate card backs. Loaded last; uses the kit from ui3.css. */
+
+/* ---------- table and frame ---------- */
+#game #board, #game .theme-castle #board, #game .theme-dungeon #board, .theme-castle #game #board, .theme-dungeon #game #board {
+  background: url('../assets/ui/table.webp') center / cover no-repeat, #2a170b !important; }
+#game #stage.port #board, #stage.port #board { background: url('../assets/ui/table_port.webp') center / cover no-repeat, #2a170b !important; }
+#board::after { background: radial-gradient(ellipse 75% 70% at 50% 48%, transparent 50%, rgba(0, 0, 0, .5) 100%) !important; }
+.field { background: #120a05; border-radius: 10px; box-shadow: 0 26px 60px rgba(0, 0, 0, .75), 0 0 0 1px rgba(0, 0, 0, .6); }
+.field::after { content: ''; position: absolute; inset: -8px; pointer-events: none; z-index: 1;
+  border: 18px solid transparent; border-image: url('../assets/ui/frame.webp') 88 / 18px / 0 stretch; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .6)); }
+.field-art, .field-shade { inset: 12px !important; border-radius: 4px !important; }
+.field-shade { box-shadow: inset 0 0 70px rgba(0, 0, 0, .65) !important; background: radial-gradient(ellipse at 50% 50%, rgba(10, 6, 4, .18), rgba(10, 6, 4, .55)) !important; }
+#stage.port .field::after { inset: -6px; border-width: 14px; border-image-width: 14px; }
+#stage.port .field-art, #stage.port .field-shade { inset: 10px !important; }
+.field-ribbon { z-index: 2; box-shadow: inset 0 0 0 1.5px var(--k-gold), inset 0 0 0 3.5px #160c06, 0 6px 14px rgba(0, 0, 0, .6) !important; --c: var(--k-red); }
+
+/* ---------- Leaders: round medallions — a thin gold ring, the painting fills the circle ---------- */
+.card.leader.art .frame { inset: 0 0 auto 0 !important; height: var(--leader-w) !important; border-radius: 50% !important;
+  background: linear-gradient(160deg, #fff1b8, #d9a040 40%, #8a5a1c 75%, #e8b85a) !important;
+  box-shadow: 0 0 0 2px #160c06, 0 14px 28px rgba(0, 0, 0, .7) !important; }
+.card.leader.art .frame::after { display: none !important; }
+.card.leader.art .face, .card.leader.art .shade { left: 4% !important; right: 4% !important; top: calc(var(--leader-w) * .04) !important; bottom: auto !important;
+  height: calc(var(--leader-w) * .92) !important; border-radius: 50% !important; border: none !important; }
+.card.leader.art .face { background-color: #3a1a10; background-size: auto 116% !important; background-position: 50% 0% !important; box-shadow: inset 0 0 0 2px #160c06 !important; }
+.card.leader.art .shade { background: radial-gradient(circle at 50% 40%, transparent 62%, rgba(0, 0, 0, .3)) !important; }
+.card.leader.art .nm.rib { display: none !important; }
+.card.leader.art .stat.hp { right: -6% !important; bottom: auto !important; top: calc(var(--leader-w) * .6) !important; z-index: 4; }
+.card.leader.art .ward-bubble { border-radius: 50% !important; height: var(--leader-w); bottom: auto; }
+.card.leader.art:hover .frame { box-shadow: 0 0 0 2px #160c06, 0 0 30px 6px rgba(255, 222, 160, .35), 0 14px 28px rgba(0, 0, 0, .7) !important; }
+#stage.port .card.leader.art .stat.hp { top: calc(var(--leader-w) * .56) !important; right: -10% !important; }
+#stage.land .pile .lbl { display: none; }
+#stage.land .pname { font-size: 14px !important; opacity: .85; }
+
+/* ---------- the round gold seal: end turn ---------- */
+#stage.land .end-turn { width: 124px !important; height: 124px !important; padding: 0 12px !important; border-radius: 50% !important; border: none !important;
+  display: grid; place-items: center; text-align: center; line-height: 1.05; font-size: 19px !important; letter-spacing: .5px; white-space: normal;
+  color: #3a1206 !important; text-shadow: 0 1px 0 rgba(255, 240, 200, .6) !important;
+  background: radial-gradient(circle at 40% 30%, #fff6cf, #f0c25e 40%, #c98a2a 70%, #8a5a1c) !important;
+  box-shadow: inset 0 0 0 4px #9a611c, inset 0 0 0 6px #ffe39a, inset 0 -10px 18px rgba(90, 50, 10, .45), 0 0 0 3px #160c06, 0 12px 26px rgba(0, 0, 0, .7) !important; }
+#stage.land .end-turn::before { display: none; }
+#stage.land .end-turn.ready { animation: seal-glow 1.3s ease-in-out infinite alternate; }
+@keyframes seal-glow { to { box-shadow: inset 0 0 0 4px #9a611c, inset 0 0 0 6px #ffe39a, inset 0 -10px 18px rgba(90, 50, 10, .45), 0 0 0 3px #160c06, 0 0 34px 10px rgba(255, 205, 110, .75), 0 12px 26px rgba(0, 0, 0, .7); } }
+#stage.land .end-turn.wait { font-size: 16px !important; color: #d8d2c4 !important; text-shadow: 0 1px 0 #000 !important;
+  background: radial-gradient(circle at 40% 30%, #8a8478, #4a463e 55%, #1e1c18) !important;
+  box-shadow: inset 0 0 0 4px #2a2620, inset 0 0 0 6px #7a7266, 0 0 0 3px #160c06, 0 12px 26px rgba(0, 0, 0, .7) !important; }
+#stage.port .end-turn { border: none !important; border-radius: 40px !important; padding: 0 18px !important; color: #3a1206 !important; text-shadow: 0 1px 0 rgba(255, 240, 200, .6) !important;
+  background: linear-gradient(#fff0b0, #f0c25e 45%, #c98a2a 55%, #e9b24e) !important; box-shadow: inset 0 0 0 2px #fff6d0, inset 0 0 0 5px #9a611c, 0 0 0 3px #160c06, 0 10px 22px rgba(0, 0, 0, .65) !important; }
+#stage.port .end-turn::before { display: none; }
+#stage.port .end-turn.wait { color: #d8d2c4 !important; text-shadow: 0 1px 0 #000 !important; background: linear-gradient(#7a756a, #3a3730) !important; box-shadow: inset 0 0 0 2px #9a9284, inset 0 0 0 5px #2a2620, 0 0 0 3px #160c06, 0 10px 22px rgba(0, 0, 0, .65) !important; }
+
+/* ---------- round: a small parchment plate with a gold rim ---------- */
+#stage.land .round-box { width: 148px !important; padding: 6px 7px 7px !important; }
+#stage.land .round-box b { font-size: 18px; }
+#stage.land .round-box .phases { grid-template-columns: 1fr !important; gap: 3px; }
+#stage.land .round-box .ph { font-size: 13px; padding: 2px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.round-box, .hint-bar, .power { box-shadow: inset 0 0 14px rgba(120, 80, 30, .4), 0 0 0 1.5px var(--k-gold), 0 0 0 4px #160c06, 0 0 0 5px rgba(232, 184, 90, .45), 0 10px 20px rgba(0, 0, 0, .55) !important; }
+.log-panel { background: linear-gradient(rgba(40, 24, 12, .9), rgba(20, 12, 6, .92)) !important; box-shadow: var(--k-rim) !important; }
+
+/* ---------- card backs and piles ---------- */
+.card-back { background: url('../assets/ui/cardback.webp') center / cover no-repeat, #5a1010 !important;
+  box-shadow: inset 0 0 0 2px #160c06, inset 0 0 0 3.5px rgba(232, 184, 90, .7), 0 8px 16px rgba(0, 0, 0, .7) !important; }
+.pile.deck::before { background: url('../assets/ui/cardback.webp') center / cover, #3a0c0c; box-shadow: 3px 3px 0 #2a0808, 6px 6px 0 #1a0505, 0 10px 18px rgba(0, 0, 0, .6); filter: brightness(.6); }
+.pile .count { background: radial-gradient(circle at 40% 30%, #fff0b0, #e3ad4c 55%, #8a5a1c) !important; color: #2a1206 !important; border: none !important; box-shadow: 0 0 0 2px #160c06, 0 3px 6px rgba(0, 0, 0, .6); }
+.pile .lbl { color: var(--k-gold) !important; text-shadow: 0 2px 3px #000; }
+.pile.grave .empty { border: 1.5px solid rgba(232, 184, 90, .35) !important; background: rgba(20, 10, 4, .55) !important; }
+
+/* ---------- banner, names, top buttons ---------- */
+.banner { border: none !important; background: linear-gradient(rgba(255, 255, 255, .14), rgba(0, 0, 0, .25)), var(--k-red) !important;
+  box-shadow: inset 0 0 0 2px var(--k-gold), inset 0 0 0 5px #160c06, inset 0 0 0 6px rgba(232, 184, 90, .5), 0 0 40px rgba(255, 120, 60, .25), 0 18px 40px rgba(0, 0, 0, .7) !important; }
+.banner.dim { background: linear-gradient(rgba(255, 255, 255, .1), rgba(0, 0, 0, .3)), url('../assets/tex/walnut.webp') center / 400px, var(--k-wood-2) !important; color: var(--k-cream) !important; }
+.pname { color: var(--k-gold-hi) !important; }
+.icon-btn { background: radial-gradient(circle at 40% 30%, #fff0b0, #e3ad4c 55%, #8a5a1c) !important; box-shadow: 0 0 0 2px #160c06, 0 4px 10px rgba(0, 0, 0, .6) !important; }
+.emote-btn { box-shadow: 0 0 0 1.5px var(--k-gold), 0 0 0 4px #160c06, 0 4px 10px rgba(0, 0, 0, .6) !important; }
+.prompt .ptext { box-shadow: inset 0 0 14px rgba(120, 80, 30, .4), 0 0 0 1.5px var(--k-gold), 0 0 0 4px #160c06, 0 0 0 5px rgba(232, 184, 90, .45), 0 10px 20px rgba(0, 0, 0, .55) !important; }
+.prompt .btn.small { border: none !important; background: linear-gradient(rgba(255, 255, 255, .14), rgba(0, 0, 0, .25)), var(--k-red) !important;
+  box-shadow: inset 0 0 0 1.5px var(--k-gold), inset 0 0 0 3.5px #160c06, 0 6px 14px rgba(0, 0, 0, .6) !important; }
+.prompt .btn.small.cancel { background: linear-gradient(rgba(255, 220, 160, .1), rgba(0, 0, 0, .35)), url('../assets/tex/walnut.webp') center / 360px, var(--k-wood-2) !important; }
+
+/* The game's own coin (a hooded monk between crossed bones) for coin counters and the draw choice */
+.coins span { background: url('../assets/ui/coin.webp') center / 118% no-repeat !important; color: #fff6d8 !important; text-shadow: 0 0 4px #000, 0 2px 3px #000, 0 0 10px rgba(0, 0, 0, .9) !important;
+  box-shadow: 0 0 0 2px #160c06, 0 4px 10px rgba(0, 0, 0, .7) !important; }
+.draw-opt.opt-coin .draw-pic { background: url('../assets/ui/coin.webp') center / contain no-repeat !important; box-shadow: none !important; filter: drop-shadow(0 10px 16px rgba(0, 0, 0, .6)); }
+.draw-opt.opt-card .draw-pic { background: url('../assets/ui/cardback.webp') center / cover no-repeat !important; box-shadow: 0 0 0 2px #160c06, 0 10px 18px rgba(0, 0, 0, .6) !important; }
+.draw-opt .draw-pic::before, .draw-opt .draw-pic::after { display: none !important; }
+
+/* ---------- announcements on the painted crimson ribbon ---------- */
+.banner { width: 820px !important; height: 268px !important; margin-left: -410px !important; top: calc(var(--banner-y, 330px) - 46px) !important;
+  display: grid; place-items: center; padding: 18px 120px 0 !important; box-sizing: border-box; border: none !important; border-radius: 0 !important;
+  background: url('../assets/ui/fx_banner.webp') center / 100% 100% no-repeat !important; box-shadow: none !important;
+  filter: drop-shadow(0 18px 30px rgba(0, 0, 0, .65)); font-size: 50px !important; letter-spacing: 3px !important; }
+.banner span { color: #fff1c8; text-shadow: 0 3px 0 #4a0a06, 0 0 18px rgba(255, 190, 110, .55) !important; white-space: nowrap; }
+.banner.dim { background: url('../assets/ui/fx_banner.webp') center / 100% 100% no-repeat !important; filter: saturate(.45) brightness(.72) drop-shadow(0 18px 30px rgba(0, 0, 0, .65)); font-size: 42px !important; }
+.banner.battle { top: calc(var(--banner-y, 330px) + 90px) !important; transform-origin: 50% 50%; }
+.banner.battle span { font-size: 58px; letter-spacing: 6px; }
+#stage.port .banner { width: 860px !important; margin-left: -430px !important; height: 281px !important; }
+/* damage in a blood splat, coins as a gold number */
+.splat { width: 104px !important; height: 104px !important; border-radius: 0 !important; box-shadow: none !important; font-size: 40px !important;
+  background: url('../assets/ui/fx_splat.webp') center / contain no-repeat !important; display: grid !important; place-items: center; text-shadow: 0 2px 0 #3a0000, 0 0 8px #000 !important; }
+.float-num.coin { display: flex; align-items: center; gap: 4px; color: #ffe27a !important; font-size: 38px !important; text-shadow: 0 2px 0 #4a2a00, 0 0 10px #000 !important; }
+.float-num.coin::after { content: ''; width: 34px; height: 34px; background: url('../assets/ui/coin.webp') center / contain no-repeat; }
+/* the line at the top during a fight: a small plate */
+.caption { border-radius: 8px !important; border: none !important; background: linear-gradient(rgba(40, 24, 12, .95), rgba(20, 12, 6, .96)) !important; box-shadow: var(--k-rim), 0 10px 24px rgba(0, 0, 0, .6) !important; font-family: var(--k-font) !important; font-size: 20px !important; }
+.cap-reg { display: inline-block; margin-right: 6px; padding: 1px 10px; border-radius: 4px; color: #fff1c8; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; font-size: 16px;
+  background: linear-gradient(rgba(255, 255, 255, .14), rgba(0, 0, 0, .25)), var(--k-red); box-shadow: inset 0 0 0 1px var(--k-gold); }
+/* empty cells: engraved hollows in the mat */
+.slot, .slot.ally, .slot.place { border-radius: 10px !important; background: radial-gradient(ellipse at 50% 40%, rgba(0, 0, 0, .18), rgba(0, 0, 0, .38)) !important;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, .55), inset 0 0 0 1px rgba(232, 184, 90, .22), 0 1px 0 rgba(255, 230, 180, .08) !important; }
+/* VS intro: round painted Leaders and the painted VS sign */
+.vs-hero.art { border-radius: 50% !important; aspect-ratio: 1 !important; background-size: auto 116% !important; background-position: 50% 0 !important;
+  box-shadow: 0 0 0 3px #160c06, 0 0 0 9px #d9a040, 0 0 0 11px #160c06, 0 0 60px rgba(255, 170, 80, .45), 0 30px 60px rgba(0, 0, 0, .8) !important; border: none !important; }
+.vs-text { font-size: 0 !important; }
+.vs-text img { width: min(32vw, 300px); height: auto; filter: drop-shadow(0 12px 24px rgba(0, 0, 0, .8)); }
+.vs-name { font-family: var(--k-font) !important; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; font-size: 24px !important; bottom: -52px !important;
+  padding: 4px 14px; left: 8% !important; right: 8% !important; border-radius: 4px; color: #fff1c8 !important; background: linear-gradient(rgba(255, 255, 255, .14), rgba(0, 0, 0, .25)), var(--k-red); box-shadow: inset 0 0 0 1.5px var(--k-gold), 0 0 0 3px #160c06; }
+/* speech bubbles: parchment with a gold rim */
+.bubble { background: radial-gradient(ellipse at 50% 40%, #f6ebcf, #e6d3a6) !important; box-shadow: 0 0 0 1.5px var(--k-gold), 0 0 0 4px #160c06, 0 10px 20px rgba(0, 0, 0, .6) !important; font-family: var(--k-font) !important; font-weight: 600; }
+/* Leader abilities: wood plaques with a gold rim */
+.power { background: linear-gradient(rgba(255, 220, 160, .1), rgba(0, 0, 0, .35)), url('../assets/tex/walnut.webp') center / 360px, var(--k-wood-2) !important; color: var(--k-cream) !important;
+  box-shadow: inset 0 0 0 1.5px var(--k-gold), inset 0 0 0 3.5px #160c06, 0 6px 14px rgba(0, 0, 0, .55) !important; filter: saturate(.7) brightness(.85); }
+.power.ready { filter: none; }
+.power .pw-cost { color: #ffe27a !important; }
+
+/* ---------- in-game windows in the kit (starting hand, choices, graveyard, Опережение): walnut, gold rim, gold/red buttons ---------- */
+#game > .modal-back { background: radial-gradient(ellipse at 50% 45%, rgba(20, 10, 4, .55), rgba(4, 2, 1, .86)); backdrop-filter: blur(3px); }
+#game > .modal-back .modal { position: relative; border-radius: 14px; padding: 26px 30px 20px;
+  background: radial-gradient(ellipse at 50% 0%, rgba(255, 190, 110, .14), transparent 60%), linear-gradient(rgba(30, 18, 9, .55), rgba(10, 6, 3, .75)), url('../assets/tex/walnut.webp') center / 520px, #1c1109;
+  box-shadow: var(--k-rim), 0 0 0 1px rgba(0, 0, 0, .8), 0 40px 90px rgba(0, 0, 0, .85), 0 0 60px rgba(232, 184, 90, .12); }
+#game > .modal-back .modal h3 { font-size: clamp(24px, 2.3vw, 32px); margin: 0 0 16px; color: var(--k-gold-hi); text-shadow: 0 3px 0 rgba(0, 0, 0, .7), 0 0 18px rgba(255, 190, 90, .35); }
+#game > .modal-back .modal h3::after { content: ''; display: block; width: min(320px, 60%); height: 2px; margin: 10px auto 0; background: linear-gradient(90deg, transparent, var(--k-gold), transparent); }
+#game .modal .row-btns { background: linear-gradient(transparent, rgba(10, 6, 3, .85) 40%) !important; padding: 14px 0 4px; gap: 16px; }
+#game .modal .btn { font-family: var(--k-font); font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--k-cream); border: none; border-radius: 8px; padding: 12px 30px;
+  background: linear-gradient(rgba(255, 220, 160, .1), rgba(0, 0, 0, .35)), url('../assets/tex/walnut.webp') center / 360px, var(--k-wood-2);
+  box-shadow: inset 0 0 0 1.5px var(--k-gold), inset 0 0 0 3.5px #160c06, 0 6px 14px rgba(0, 0, 0, .55); transition: transform .12s, filter .15s, box-shadow .15s; }
+#game .modal .btn:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.15); box-shadow: inset 0 0 0 1.5px var(--k-gold-hi), inset 0 0 0 3.5px #160c06, 0 0 20px rgba(232, 184, 90, .4), 0 8px 16px rgba(0, 0, 0, .6); }
+#game .modal .btn.primary { color: #3a1206; text-shadow: 0 1px 0 rgba(255, 240, 200, .5); background: linear-gradient(#fff0b0, #f0c25e 45%, #c98a2a 55%, #e9b24e);
+  box-shadow: inset 0 0 0 1.5px #fff6d0, inset 0 0 0 4px #9a611c, inset 0 0 0 5px #ffe39a, 0 0 22px rgba(240, 190, 90, .45), 0 6px 14px rgba(0, 0, 0, .55); }
+#game .modal .btn.primary:not(:disabled) { animation: plq-glow 2.6s ease-in-out infinite; }
+#game .modal .btn.danger { color: #ffe0d4; background: linear-gradient(rgba(255, 255, 255, .12), rgba(0, 0, 0, .3)), var(--k-red); }
+#game .modal .btn:disabled { filter: saturate(.35) brightness(.62) !important; cursor: default; }
+#game .mcard { border-radius: 10px; box-shadow: 0 0 0 2px #160c06, 0 0 0 3.5px rgba(232, 184, 90, .55), 0 12px 24px rgba(0, 0, 0, .7); transition: transform .18s cubic-bezier(.2, .8, .3, 1), box-shadow .18s, filter .18s; }
+#game .mcard:hover { transform: translateY(-6px) scale(1.03); box-shadow: 0 0 0 2px #160c06, 0 0 0 4px var(--k-gold-hi), 0 0 24px rgba(255, 215, 120, .45), 0 16px 30px rgba(0, 0, 0, .7); }
+#game .mcard.on { transform: translateY(-12px) scale(1.04); box-shadow: 0 0 0 2px #160c06, 0 0 0 5px #ffd770, 0 0 34px rgba(255, 200, 90, .85), 0 18px 34px rgba(0, 0, 0, .7); }
+#game .mcard.on::after { content: '✓'; position: absolute; right: -10px; top: -10px; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%;
+  font: 900 20px/1 var(--k-font); color: #3a1206; background: radial-gradient(circle at 35% 30%, #fff4c0, #f0c25e 55%, #a86d22); box-shadow: 0 0 0 2px #160c06, 0 4px 10px rgba(0, 0, 0, .6); }
+#game .mull-modal:has(.mcard.on) .mcard:not(.on) { filter: brightness(.72) saturate(.85); }
+#game .mull-modal p { color: rgba(244, 226, 190, .75) !important; font-style: italic; }
+.pick-opt { font-family: var(--k-font) !important; color: var(--k-cream) !important; background: linear-gradient(rgba(255, 220, 160, .08), rgba(0, 0, 0, .3)), url('../assets/tex/walnut.webp') center / 360px, var(--k-wood-2) !important;
+  box-shadow: inset 0 0 0 1.5px rgba(232, 184, 90, .75), inset 0 0 0 3.5px #160c06, 0 6px 14px rgba(0, 0, 0, .5) !important; }
+.pick-opt:hover { box-shadow: inset 0 0 0 1.5px var(--k-gold-hi), inset 0 0 0 3.5px #160c06, 0 0 22px rgba(232, 184, 90, .45), 0 8px 16px rgba(0, 0, 0, .6) !important; }
+.pick-opt.cancel { opacity: .8; }
+
+/* tooltips and the big card: a dark plate with the gold rim */
+.tooltip { border: none !important; border-radius: 10px !important; color: var(--k-cream) !important; background: linear-gradient(rgba(44, 27, 14, .97), rgba(20, 12, 6, .98)) !important;
+  box-shadow: var(--k-rim), 0 14px 30px rgba(0, 0, 0, .7) !important; padding: 12px 15px !important; }
+.tooltip b { font-family: var(--k-font) !important; text-transform: uppercase; letter-spacing: .8px; color: var(--k-gold-hi) !important; }
+.zoom-card { box-shadow: 0 0 0 2px #160c06, 0 0 0 4.5px var(--k-gold), 0 0 40px rgba(255, 200, 100, .3), 0 30px 60px rgba(0, 0, 0, .8) !important; }
+
+/* free slots you can play into (allies and Places): a glowing gold frame that breathes — above the engraved slot look */
+.slot.selectable, .slot.ally.selectable, .slot.place.selectable { cursor: pointer;
+  background: radial-gradient(ellipse at 50% 50%, rgba(255, 215, 120, .34), rgba(255, 190, 80, .1) 72%) !important;
+  box-shadow: inset 0 0 0 2px #ffd770, 0 0 0 1px rgba(40, 20, 6, .8), 0 0 26px rgba(255, 205, 100, .7) !important; animation: slot-breathe 1.1s ease-in-out infinite alternate; }
+.slot.selectable:hover { background: radial-gradient(ellipse at 50% 50%, rgba(255, 225, 140, .5), rgba(255, 200, 90, .16) 72%) !important; }
+@keyframes slot-breathe { to { box-shadow: inset 0 0 0 2px #fff0b0, 0 0 0 1px rgba(40, 20, 6, .8), 0 0 40px rgba(255, 215, 120, .95); } }
+
+/* VS intro: the Leader who speaks steps forward and glows; the subtitle plate under them; the coin toss */
+.vs-hero { transition: filter .25s, box-shadow .25s; }
+.vs-hero.speaking { filter: brightness(1.12) saturate(1.1); box-shadow: 0 0 0 3px #160c06, 0 0 0 6px #ffd770, 0 0 50px rgba(255, 210, 110, .75), 0 24px 50px rgba(0, 0, 0, .7) !important; z-index: 3; }
+.vs-hero.first { box-shadow: 0 0 0 3px #160c06, 0 0 0 7px #ffe39a, 0 0 70px rgba(255, 220, 120, .95), 0 24px 50px rgba(0, 0, 0, .7) !important; }
+.vs-sub { position: absolute; transform: translateX(-50%); z-index: 6; max-width: min(440px, 46vw); padding: 10px 18px; text-align: center; border-radius: 10px;
+  font: italic 600 clamp(16px, 1.7vw, 22px)/1.25 var(--k-font); color: #fff3cf; text-shadow: 0 2px 0 rgba(0, 0, 0, .7);
+  background: linear-gradient(rgba(44, 27, 14, .95), rgba(20, 12, 6, .96)); box-shadow: var(--k-rim), 0 12px 26px rgba(0, 0, 0, .65);
+  animation: vs-sub-in .3s cubic-bezier(.2, .8, .3, 1) both; }
+@keyframes vs-sub-in { from { opacity: 0; transform: translateX(-50%) translateY(10px) scale(.95); } }
+.vs-sub.side-l, .vs-sub.side-r { transform: none; text-align: left; animation-name: vs-bub-in; }
+@keyframes vs-bub-in { from { opacity: 0; transform: scale(.85); } }
+.vs-sub.side-l { transform-origin: 100% 30%; } .vs-sub.side-r { transform-origin: 0 30%; }
+.vs-sub.side-l::after, .vs-sub.side-r::after { content: ''; position: absolute; top: 18px; border: 12px solid transparent; }
+.vs-sub.side-l::after { right: -22px; border-left-color: #2a190c; }
+.vs-sub.side-r::after { left: -22px; border-right-color: #2a190c; }
+.vs-sub.under::after { content: ''; position: absolute; left: 50%; top: -22px; margin-left: -12px; border: 12px solid transparent; border-bottom-color: #2c1b0e; }
+.vs-coin { position: absolute; left: 0; top: 0; width: 96px; height: 96px; z-index: 7; pointer-events: none; filter: drop-shadow(0 10px 14px rgba(0, 0, 0, .7)) drop-shadow(0 0 18px rgba(255, 210, 110, .55)); }
+@media (max-width: 760px) { .vs-sub { max-width: 80vw; font-size: 16px; } }
+.vs-turn { position: absolute; left: 50%; top: 50%; z-index: 8; width: min(620px, 86vw); aspect-ratio: 4.2; display: grid; place-items: center; pointer-events: none;
+  background: url('../assets/ui/fx_banner.webp') center / 100% 100% no-repeat; filter: drop-shadow(0 12px 24px rgba(0, 0, 0, .8)); }
+.vs-turn span { margin-top: -2%; font: 800 clamp(22px, 3vw, 38px)/1 var(--k-font); letter-spacing: .06em; text-transform: uppercase; color: #fff3cf; text-shadow: 0 3px 0 rgba(60, 10, 4, .95), 0 0 18px rgba(255, 190, 90, .5); }
+
+/* Starting hand: the clock in the title and the «opponent is still choosing» window. */
+#game .mull-clock { display: inline-block; margin-left: 14px; padding: 2px 12px; border-radius: 999px; font-size: .7em; vertical-align: middle;
+  background: rgba(0, 0, 0, .45); box-shadow: inset 0 0 0 1px rgba(217, 196, 138, .6); color: #f3e7c8; }
+#game .mull-clock.low { color: #ffb4a0; box-shadow: inset 0 0 0 1px #e0603c; animation: mullPulse .8s infinite alternate; }
+@keyframes mullPulse { to { transform: scale(1.08); } }
+#game .wait-modal { min-width: min(520px, 90vw); text-align: center; }
+#game .wait-hand p { color: rgba(244, 226, 190, .8); font-size: 17px; margin: 0; }
+#game .wh-cards { position: relative; height: 120px; margin: 4px auto 14px; width: 160px; }
+#game .wh-cards i { position: absolute; left: 50%; top: 6px; width: 74px; height: 104px; margin-left: -37px; border-radius: 8px;
+  background: url('../assets/ui/cardback.webp') center/cover, #3a2614; box-shadow: 0 6px 16px rgba(0, 0, 0, .6), inset 0 0 0 2px #d9c48a;
+  transform-origin: 50% 120%; animation: whFan 1.6s ease-in-out infinite alternate; }
+#game .wh-cards i:nth-child(1) { --r: -18deg; } #game .wh-cards i:nth-child(2) { --r: 0deg; animation-delay: .2s; } #game .wh-cards i:nth-child(3) { --r: 18deg; animation-delay: .4s; }
+@keyframes whFan { from { transform: rotate(0); } to { transform: rotate(var(--r)) translateY(-4px); } }
+#game .mcard { position: relative; }
+#game .mcard .ord-n:not(:empty) { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center;
+  font: 800 30px/1 var(--k-font); color: #2a1608; background: radial-gradient(#ffe7a0, #d9a33a); box-shadow: 0 0 0 3px #160c06, 0 6px 16px rgba(0, 0, 0, .7); }
+#game .mull-modal .cards { padding: 14px 6px 8px; align-content: flex-start; } /* the top row is never cut (selected cards rise) */
+/* Two-sided cards: the back is shown in the preview and in the «перевернуть?» window */
+.preview .pv-back { margin-top: 8px; display: flex; align-items: center; gap: 8px; background: rgba(12, 7, 3, .95); border-radius: 10px; padding: 6px 8px; box-shadow: inset 0 0 0 1px rgba(217, 196, 138, .5); }
+.preview .pv-back img { width: 46%; border-radius: 8px; }
+.preview .pv-back span { flex: 1; color: #f2cd6b; font: 700 15px/1.2 var(--k-font); }
+#game .pick-win.with-back { align-items: center; }
+#game .pick-arrow { font-size: 44px; color: #f2cd6b; align-self: center; text-shadow: 0 0 14px rgba(255, 200, 90, .7); }
+#game .pick-card.back { position: relative; filter: saturate(1.05); box-shadow: 0 0 0 3px #f2cd6b, 0 0 26px rgba(255, 200, 90, .55); }
+#game .pick-card.back small { position: absolute; left: 50%; top: -14px; transform: translateX(-50%); padding: 2px 10px; border-radius: 999px; background: #2a1608; color: #f2cd6b; font: 700 14px var(--k-font); box-shadow: inset 0 0 0 1px #d9c48a; }
+/* «Отмена» while choosing a target: a big red plaque that cannot be missed */
+#game .prompt .btn.small.cancel { font-size: 20px !important; padding: 12px 26px !important; color: #fff3e6 !important; text-shadow: 0 2px 0 rgba(0, 0, 0, .6);
+  background: linear-gradient(#c2402c, #7d1d12) !important; box-shadow: 0 0 0 2px #160c06, 0 0 0 4px #e89a6a, 0 0 22px rgba(255, 110, 70, .55), 0 8px 18px rgba(0, 0, 0, .6) !important;
+  animation: cancelPulse 1.6s ease-in-out infinite alternate; }
+@keyframes cancelPulse { to { box-shadow: 0 0 0 2px #160c06, 0 0 0 4px #ffc09a, 0 0 32px rgba(255, 130, 80, .8), 0 8px 18px rgba(0, 0, 0, .6); } }
+/* A changed price on a hand card: the printed price crossed out next to the coin (green coin = cheaper, red = dearer) */
+.hand-card .cost-now .cost-was { position: absolute; left: calc(100% + 2px); top: 50%; transform: translateY(-50%); padding: 0 6px; border-radius: 8px; text-decoration: line-through;
+  font: 700 .62em/1.5 'Fira Sans Extra Condensed', sans-serif; color: #f3e7c8; background: rgba(15, 10, 6, .9); box-shadow: inset 0 0 0 1px rgba(217, 196, 138, .6); }
+/* Places on the field: a thin one-line name strip at the very bottom, so the picture shows */
+#stage .card.place .nm.rib { left: 6px !important; right: 6px !important; bottom: 5px !important; height: 22px !important; line-height: 22px !important; padding: 0 6px !important;
+  font-size: 14px !important; border-radius: 4px !important; opacity: .92; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#stage .card.place .nm.rib.two span, #stage .card.place .nm.rib span { white-space: nowrap; display: block; overflow: hidden; text-overflow: ellipsis; }
+#stage.port .card.place .nm.rib { height: 24px !important; line-height: 24px !important; font-size: 15px !important; }
+#stage .card.place .face { background-position: 50% 30% !important; }
+/* The board's own Place: a small quiet label in the frame's top corner instead of a big banner */
+#stage .field-ribbon { width: auto !important; height: 22px !important; padding: 0 12px !important; font-size: 13px !important; line-height: 22px !important; opacity: .75;
+  background: rgba(15, 10, 6, .82) !important; color: #d9c48a !important; box-shadow: inset 0 0 0 1px rgba(217, 196, 138, .5) !important; letter-spacing: .06em; }
+/* The pile of extra companions and items */
+#stage .sup-more { position: absolute; z-index: 30; border: none; border-radius: 10px; cursor: pointer; display: grid; place-content: center; gap: 0;
+  background: rgba(15, 10, 6, .72); box-shadow: inset 0 0 0 2px #d9c48a, 0 6px 14px rgba(0, 0, 0, .6); color: #f6e2a8; font-family: 'Fira Sans Extra Condensed', sans-serif; }
+#stage .sup-more b { font-size: 34px; line-height: 1; } #stage .sup-more small { font-size: 15px; }
+#stage .sup-more:hover { background: rgba(40, 26, 12, .8); }
