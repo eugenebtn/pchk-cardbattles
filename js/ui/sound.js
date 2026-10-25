@@ -301,3 +301,9 @@ export function voice(leaderId, kind) {
   play(g, { vol: 0.95, verb: 0.06, vary: 0 });
   return true;
 }
+/** The same, but waits until the sounds are loaded (right after the first click they may still be on the way). */
+export async function voiceSoon(leaderId, kind) {
+  if (!ac()) return false;
+  await loadAll();
+  return voice(leaderId, kind);
+}

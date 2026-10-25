@@ -11,7 +11,7 @@ import { levelAnswer, LEVEL_RU, adaptiveLevel, adaptiveAfterGame } from './engin
 import { CARDS } from './data/cards.js';
 import { DECKS } from './data/decks.js';
 import { BoardUI, esc } from './ui/board.js';
-import { sfx, setSound, setMusic, playMusic, unlockAudio, setVolumes, playAmbient } from './ui/sound.js';
+import { sfx, setSound, setMusic, playMusic, unlockAudio, setVolumes, playAmbient, voiceSoon } from './ui/sound.js';
 import * as FX from './ui/fx.js';
 import { hostRoom, joinRoom } from './net/online.js';
 import { serverOn, newRoomCode, connectRoom, findMatch, connectTour } from './net/server.js';
@@ -150,7 +150,7 @@ const LEADER_IDS = [62, 117, 41, 20, 118, 63];
   requestAnimationFrame(frame);
 })();
 // Splash: the first click also turns the sound on.
-$('#splash').addEventListener('click', () => { sfx.confirm(); show('menu'); });
+$('#splash').addEventListener('click', () => { sfx.confirm(); show('menu'); setTimeout(() => voiceSoon(20, 'Hello'), 900); }); // Lionheart greets the guest
 $('#menu [data-act=settings]')?.addEventListener('click', () => { $('#menu-opts').classList.toggle('hidden'); });
 
 // ---------- decks ----------

@@ -424,7 +424,8 @@
   "elAxe_0.mp3"
  ],
  "elBattle": [
-  "elBattle_0.mp3"
+  "elBattle_0.mp3",
+  "elBattle_1.mp3"
  ],
  "elBlood": [
   "elBlood_0.mp3"
@@ -461,7 +462,8 @@
   "elDebuff_0.mp3"
  ],
  "elDraw": [
-  "elDraw_0.mp3"
+  "elDraw_0.mp3",
+  "elDraw_1.mp3"
  ],
  "elExplosion": [
   "elExplosion_0.mp3"
@@ -480,8 +482,7 @@
  ],
  "elHit": [
   "elHit_0.mp3",
-  "elHit_1.mp3",
-  "elHit_2.mp3"
+  "elHit_1.mp3"
  ],
  "elHitBig": [
   "elHitBig_0.mp3"
@@ -502,9 +503,7 @@
   "elMonster_0.mp3"
  ],
  "elPlay": [
-  "elPlay_0.mp3",
-  "elPlay_1.mp3",
-  "elPlay_2.mp3"
+  "elPlay_0.mp3"
  ],
  "elShield": [
   "elShield_0.mp3"
@@ -520,7 +519,8 @@
   "elSwing_1.mp3"
  ],
  "elTurn": [
-  "elTurn_0.mp3"
+  "elTurn_0.mp3",
+  "elTurn_1.mp3"
  ],
  "elWin": [
   "elWin_0.mp3"
@@ -560,5 +560,8 @@
  ],
  "elVo63Win": [
   "elVo63Win_0.mp3"
+ ],
+ "elVo20Hello": [
+  "elVo20Hello_0.mp3"
  ]
 }
