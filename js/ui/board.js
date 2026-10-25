@@ -538,9 +538,7 @@ export class BoardUI {
         if (e.target.closest('[data-r]') && this.logEl.classList.contains('open')) return;
         const L = this.L.log; if (!L) return;
         const open = this.logEl.classList.toggle('open');
-        this.logEl.style.top = (open ? L.y - 320 : L.y) + 'px';
-        this.logEl.style.height = (open ? L.h + 320 : L.h) + 'px';
-        if (open) this.logEl.scrollTop = this.logEl.scrollHeight;
+        if (open) { this.logEl.style.top = (L.y - 320) + 'px'; this.logEl.style.height = (L.h + 320) + 'px'; this.logEl.scrollTop = this.logEl.scrollHeight; } else this.placeLog();
       });
     }
     if (atBottom) this.logEl.scrollTop = this.logEl.scrollHeight;
@@ -1098,8 +1096,18 @@ export class BoardUI {
       }
     }
     el.innerHTML = (this.coachText && q && q.player === me ? `<div class="coach-line" title="${esc(this.coachText)}"><b>Совет:</b> ${esc(this.coachText)}</div>` : '')
-      + (title ? `<span class="hint-ico"><i style="-webkit-mask-image:url(assets/icons/${ico}.svg);mask-image:url(assets/icons/${ico}.svg)"></i></span><span class="hint-txt"><b>${esc(title)}</b>${sub ? `<em>${esc(sub)}</em>` : ''}</span>` : '');
+      + (title ? `<span class="hint-ico"><i style="-webkit-mask-image:url(assets/icons/${ico}.svg);mask-image:url(assets/icons/${ico}.svg)"></i></span><span class="hint-txt"><b>${esc(title)}</b>${sub && !(this.coachText && q && q.player === me) ? `<em>${esc(sub)}</em>` : ''}</span>` : '');
     el.classList.toggle('empty', !title);
+    this.placeLog();
+  }
+  /** The history starts right under the hint panel, whatever its height, and keeps its bottom edge. */
+  placeLog() {
+    const L = this.L.log, log = this.logEl, hint = this.hintEl;
+    if (!L || !log || !hint || log.classList.contains('open') || this.L.name !== 'land') return;
+    const bottom = L.y + L.h;
+    const hb = hint.classList.contains('empty') || !hint.offsetHeight ? this.L.hint.y : this.L.hint.y + hint.offsetHeight + 8;
+    const top = Math.max(L.y, Math.min(hb, bottom - 60));
+    log.style.top = top + 'px'; log.style.height = (bottom - top) + 'px';
   }
 
   /** The «Опережение» decision, explained. */

@@ -433,7 +433,7 @@ function startBoard(session) {
     }
   }
   // Online games: a watchers' badge and their comments for players; the full chat for watchers.
-  if (session.watch) {
+  if (session.watch && !session.replay) {
     ui.chat = createChat({ watcher: true, onSend: (text) => { session.conn.send({ t: 'chat', name: myName() || 'Зритель', text }); ui.chat.add(myName() || 'Вы', text, true); } });
   } else if (session.remote || session.conn) ui.chat = createChat({ watcher: false });
   if (session.inviteCode || session.code) { ui.onInviteWatchers = () => inviteWatchers(session.inviteCode || session.code, !!session.server); document.querySelector('#btn-watch')?.classList.remove('hidden'); }
