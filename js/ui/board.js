@@ -614,6 +614,7 @@ export class BoardUI {
   }
   /** Move clock (online games with a timer): seconds left shown under the end-turn button. */
   setDeadline(ms) {
+    this._deadline = ms || null;
     clearInterval(this._clock);
     let el = this.ui.querySelector('.turn-clock');
     if (!ms) { el?.remove(); return; }
@@ -737,7 +738,17 @@ export class BoardUI {
     if (q && this.view?.phase === 'setup' && (q.player !== this.me || q.type === 'wait')) this.openWaitHand();
   }
   openWaitHand() {
-    this.modal(`<div class="wait-hand"><div class="wh-cards"><i></i><i></i><i></i></div><h3>Соперник выбирает стартовую руку…</h3><p>Ваши карты уже выбраны. Партия начнётся, как только соперник закончит.</p></div>`, (m) => m.querySelector('.modal').classList.add('wait-modal'));
+    // My hand is still to choose (the opponent goes first on this server) — or it is chosen and the opponent is last.
+    const mineLeft = !!this.view?.players?.[this.me]?.mull;
+    const text = mineLeft ? 'Сначала выбирает соперник, сразу после него — вы.' : 'Ваши карты уже выбраны. Партия начнётся, как только соперник закончит.';
+    this.modal(`<div class="wait-hand"><div class="wh-cards"><i></i><i></i><i></i></div><h3>Соперник выбирает стартовую руку…</h3><p>${text}</p><div class="wh-clock" data-clock></div></div>`, (m) => { m.querySelector('.modal').classList.add('wait-modal'); this.modalClock(m.querySelector('[data-clock]')); });
+  }
+  /** The move clock inside a window (online games with a timer): «Осталось 0:42». */
+  modalClock(el) {
+    clearInterval(this._mclock);
+    if (!el || !this._deadline) { el?.remove(); return; }
+    const tick = () => { if (!el.isConnected) { clearInterval(this._mclock); return; } const s = Math.max(0, Math.ceil((this._deadline - Date.now()) / 1000)); el.textContent = `⏳ Осталось ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; el.classList.toggle('low', s <= 10); };
+    tick(); this._mclock = setInterval(tick, 250);
   }
   myOptions() { return this.q && this.q.player === this.me ? this.q.options : []; }
   applyInteractivity() {
@@ -1588,7 +1599,7 @@ ${optHtml}</div></div>
       // 45 seconds to choose (not in the first, training game): then the chosen cards are kept, topped up from the left.
       clearInterval(this._mullT);
       if (!this.noTimer) {
-        const end = Date.now() + MULL_SEC * 1000, clock = document.createElement('div');
+        const end = this._deadline || Date.now() + MULL_SEC * 1000, clock = document.createElement('div');
         clock.className = 'mull-clock'; m.querySelector('h3').appendChild(clock);
         const tick = () => {
           if (!m.isConnected) { clearInterval(this._mullT); return; }

@@ -58,10 +58,10 @@ export function connectRoom(code, hello, { onMessage, onState } = {}) {
 }
 
 /** «Найти соперника»: waits in the queue; onMatch(code, opponentName), onQueue(n). */
-export function findMatch(name, { onMatch, onQueue, onError } = {}) {
+export function findMatch(name, { onMatch, onQueue, onError, rated = true } = {}) {
   const ws = new WebSocket(wsUrl('/ws/lobby'));
   let done = false;
-  ws.onopen = () => ws.send(JSON.stringify({ t: 'find', name }));
+  ws.onopen = () => ws.send(JSON.stringify({ t: 'find', name, rated })); // players are paired only with the same choice
   ws.onmessage = (e) => {
     const m = JSON.parse(e.data);
     if (m.t === 'queue') onQueue && onQueue(m.n);

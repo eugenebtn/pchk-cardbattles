@@ -23,7 +23,7 @@ import { installTooltips, linkTerms } from './ui/glossary.js';
 import { renderStats, recordGame, loadGames, loginDialog } from './ui/stats.js';
 import { unlocked, ACH } from './ui/achievements.js';
 import { currentUser } from './net/account.js';
-import { myFriendCode, loadFriends, addFriend, removeFriend, startPresence, setPresenceRoom, friendsStatus } from './net/friends.js';
+import { myFriendCode, loadFriends, addFriend, removeFriend, startPresence, setPresenceRoom, friendsStatus, sendInvite } from './net/friends.js';
 import { submitResult, loadPlayers, playerId } from './net/ranking.js';
 import { openFeedback } from './ui/feedback.js';
 import { renderLegal } from './ui/legal.js';
@@ -125,6 +125,17 @@ const doneKey = (code) => 'pchk_done_' + code;
 function markDone(code) { try { if (code) localStorage.setItem(doneKey(code), '1'); } catch { /* private mode */ } }
 function isDone(code) { try { return !!localStorage.getItem(doneKey(code)); } catch { return false; } }
 const endedIn = (batch) => (batch || []).some((b) => b?.ev?.type === 'gameOver');
+/** The invitation card above the menu buttons: who calls, «Присоединиться» or «Отказаться». */
+function showInvite(code, from, watch = false) {
+  const jb = $('#join-banner');
+  jb.classList.remove('hidden'); jb.classList.add('invite-card');
+  jb.innerHTML = `<b>${watch ? (from ? `${esc(from)} зовёт посмотреть партию` : 'Вас позвали посмотреть партию') : from ? `${esc(from)} зовёт вас в партию` : 'Вас пригласили в партию'}</b>
+    <div class="ic-btns"><button class="btn primary" data-yes>${watch ? '👁 Смотреть' : '⚔ Присоединиться'}</button><button class="btn" data-no>Отказаться</button></div>`;
+  const clear = () => { jb.classList.add('hidden'); history.replaceState(null, '', location.pathname); };
+  jb.querySelector('[data-yes]').onclick = () => { sfx.click(); clear(); if (watch) startServerWatch(code); else startServerJoin(code); };
+  jb.querySelector('[data-no]').onclick = () => { sfx.click(); clear(); markDone(code); };
+  return jb;
+}
 /** A newcomer is asked for a name (and offered a profile) once, before the first game or invitation. */
 function askName() {
   if (opt.name || currentUser() || store.get('nameAsked', false)) return Promise.resolve();
@@ -975,7 +986,7 @@ function serverPlay(code, deck, { creating = false, matched = false, tour: inTou
   $('#picker-list').innerHTML = '';
   const ob = $('#picker-online'); ob.classList.remove('hidden');
   $('#picker-title').textContent = creating ? 'Ждём друга' : 'Подключаемся…';
-  const url = `${location.origin}${location.pathname}?room=${code}`;
+  const url = `${location.origin}${location.pathname}?room=${code}&from=${encodeURIComponent(myName())}`;
   if (creating) {
     ob.innerHTML = `Отправьте другу эту ссылку. Игра начнётся, как только он откроет её и выберет колоду.
       <div class="link"><input readonly value="${url}"><button class="btn small" id="copy-link">Копировать</button>${navigator.share ? '<button class="btn small" id="share-link">Поделиться</button>' : ''}</div>
@@ -984,7 +995,7 @@ function serverPlay(code, deck, { creating = false, matched = false, tour: inTou
     $('#share-link') && ($('#share-link').onclick = () => navigator.share({ title: 'Карточные битвы ПЧК', text: 'Сыграем в Карточные битвы?', url }));
   } else ob.textContent = 'Соединяемся с сервером…';
   let ss = null;
-  const conn = connectRoom(code, { name: myName(), playerId: playerId(), autopass: AP_ENGINE(opt.autopass), timer: creating ? opt.timer : matched ? 90 : 0, rated: creating ? rated : matched ? true : undefined, deck: { leader: deck.leader, cards: deck.cards, title: deck.title } }, {
+  const conn = connectRoom(code, { name: myName(), playerId: playerId(), autopass: AP_ENGINE(opt.autopass), timer: creating ? opt.timer : matched ? 90 : 0, rated: creating || matched ? rated : undefined, deck: { leader: deck.leader, cards: deck.cards, title: deck.title } }, {
     onMessage(msg) {
       if (msg.t === 'events' && endedIn(msg.batch)) markDone(code);
       if ((msg.t === 'start' || msg.t === 'sync') && !ss) { ss = new ServerSession(conn, msg.me ?? 0); ss.tour = inTour; ss.rated = msg.rated !== false; setPresenceRoom(code); startBoard(ss); if (msg.t === 'start') toast(ss.rated ? '🏆 Рейтинговая партия — результат пойдёт в рейтинг' : 'Обычная партия — в рейтинг не идёт', 3200); if (msg.t === 'sync') ss.onMessage(msg); return; }
@@ -999,10 +1010,11 @@ function serverPlay(code, deck, { creating = false, matched = false, tour: inTou
   $('#picker').querySelector('[data-act=back]').onclick = () => { conn.close(); show('menu'); };
   return conn;
 }
-async function startServerHost(rated = false) {
+async function startServerHost(rated = false, inviteTo = null) {
   const r = await pickDecks([{ title: 'Ваша колода — затем отправьте ссылку другу', goLabel: 'Создать комнату' }]);
   if (!r) return;
   let code; try { code = await newRoomCode(); } catch { toast('Сервер недоступен — играем напрямую'); return startHost(true); }
+  if (inviteTo) sendInvite(inviteTo, code, myName()).then((ok) => ok && toast('Приглашение отправлено — друг увидит его в меню', 3000));
   serverPlay(code, r[0], { creating: true, rated });
 }
 async function startServerJoin(code) {
@@ -1015,8 +1027,8 @@ async function startServerJoin(code) {
   serverPlay(code, r[0]);
 }
 /** «Найти соперника»: pick a deck, wait in the queue, then play in the room the server made. */
-async function startMatchmaking() {
-  const r = await pickDecks([{ title: 'Ваша колода для игры со случайным соперником', goLabel: 'Искать соперника' }]);
+async function startMatchmaking(rated = true) {
+  const r = await pickDecks([{ title: rated ? 'Ваша колода — рейтинговая партия со случайным соперником' : 'Ваша колода — обычная партия со случайным соперником', goLabel: 'Искать соперника' }]);
   if (!r) return;
   show('picker');
   $('#picker-title').textContent = 'Ищем соперника…';
@@ -1025,7 +1037,8 @@ async function startMatchmaking() {
   ob.textContent = 'Ждём, когда кто-то ещё нажмёт «Найти соперника»…';
   const mm = findMatch(myName(), {
     onQueue(n) { ob.textContent = n > 1 ? `В очереди: ${n}. Сейчас подберём пару…` : 'Вы первый в очереди. Как только кто-то ещё начнёт поиск — партия начнётся.'; },
-    onMatch(code, vs) { toast(`Соперник найден: ${vs}`); serverPlay(code, r[0], { matched: true }); },
+    onMatch(code, vs) { toast(`Соперник найден: ${vs}`); serverPlay(code, r[0], { matched: true, rated }); },
+    rated,
     onError() { ob.textContent = 'Сервер поиска недоступен. Попробуйте позже или позовите друга по ссылке.'; },
   });
   $('#picker').querySelector('[data-act=back]').onclick = () => { mm.cancel(); show('menu'); };
@@ -1125,14 +1138,58 @@ function openBuilder({ startNew = false, back = () => show('menu') } = {}) {
 }
 
 // ---------- tutorial ----------
-function openTutorial() {
-  showTutorial(() => {
-    try { localStorage.removeItem('pchk_tips'); } catch { /* ignore */ }
-    const mk = (d, n) => ({ name: n, leader: d.leader, deck: d.main });
-    const s = new Session({ players: [mk(DECKS.sfinkteirion, myName()), mk(DECKS.larisa, 'Учебный соперник')], controllers: ['human', 'bot'], me: 0 });
-    s.botLevel = 'novice'; s.coachMode = 'tutorial';
-    startBoard(s);
-  });
+function openTutorial() { showTutorial(startLearning); }
+/** The learning game: the computer as a beginner, the coach points at the best move. */
+function startLearning() {
+  try { localStorage.removeItem('pchk_tips'); } catch { /* ignore */ }
+  const mk = (d, n) => ({ name: n, leader: d.leader, deck: d.main });
+  const s = new Session({ players: [mk(DECKS.sfinkteirion, myName()), mk(DECKS.larisa, 'Учебный соперник')], controllers: ['human', 'bot'], me: 0 });
+  s.botLevel = 'novice'; s.coachMode = 'tutorial';
+  startBoard(s);
+}
+
+// ---------- «Играть»: how shall we play? ----------
+const PLAY_RU = { bot: 'с компьютером', friend: 'с другом по ссылке', random: 'со случайным соперником', hotseat: 'вдвоём за одним устройством', learn: 'учебная партия' };
+function drawPlayLast() {
+  const el = $('#play-last'), last = store.get('lastPlay', null);
+  if (el) el.textContent = last && PLAY_RU[last] ? `в прошлый раз: ${PLAY_RU[last]}` : '';
+}
+drawPlayLast();
+function openPlay() {
+  const online = serverOn();
+  let rated = store.get('friendRated', false), rrated = store.get('randomRated', true);
+  const b = document.createElement('div');
+  b.className = 'modal-back play-back'; b.style.cssText = 'position:fixed;inset:0;z-index:400';
+  const lv = (l) => `<button class="pl-lv ${opt.botLevel === l ? 'on' : ''}" data-lv="${l}">${LEVEL_RU[l]}</button>`;
+  b.innerHTML = `<div class="modal play-win"><h3>Как сыграем?</h3>
+    <div class="pl-tiles">
+      <div class="pl-tile" data-go="bot"><i class="pl-pic" style="background-image:url('assets/leaders/20.webp')"></i><b>🤖 С компьютером</b><span>Спокойная партия в любое время</span>
+        <div class="pl-opts">${['novice', 'normal', 'strong', 'auto'].map(lv).join('')}</div><button class="btn primary pl-go">Играть</button></div>
+      <div class="pl-tile" data-go="friend"><i class="pl-pic" style="background-image:url('assets/leaders/41.webp')"></i><b>🔗 С другом по ссылке</b><span>Создаём комнату — вы отправляете ссылку</span>
+        <div class="pl-opts"><button class="pl-rt ${rated ? '' : 'on'}" data-rt="0">Обычная</button><button class="pl-rt ${rated ? 'on' : ''}" data-rt="1">🏆 Рейтинговая</button></div>
+        <small class="pl-note" data-rt-note></small><button class="btn primary pl-go">Создать ссылку</button></div>
+      <div class="pl-tile ${online ? '' : 'off'}" data-go="random"><i class="pl-pic" style="background-image:url('assets/leaders/63.webp')"></i><b>🎲 Случайный соперник</b><span>${online ? 'Подберём живого игрока с таким же выбором' : 'Сейчас недоступно: нет связи с сервером'}</span>
+        <div class="pl-opts">${online ? `<button class="pl-rr ${rrated ? '' : 'on'}" data-rr="0">Обычная</button><button class="pl-rr ${rrated ? 'on' : ''}" data-rr="1">🏆 Рейтинговая</button>` : ''}</div><button class="btn primary pl-go" ${online ? '' : 'disabled'}>Найти соперника</button></div>
+    </div>
+    <div class="pl-more"><button class="btn small" data-go="hotseat">👥 Вдвоём за одним устройством</button><button class="btn small" data-go="learn">🎓 Учебная партия с подсказками</button><button class="btn small" data-close>Отмена</button></div></div>`;
+  document.body.appendChild(b);
+  const note = () => { b.querySelector('[data-rt-note]').textContent = rated ? 'Результат пойдёт в мировой рейтинг' : 'В рейтинг не идёт — играйте спокойно'; };
+  note();
+  b.querySelectorAll('[data-lv]').forEach((x) => x.addEventListener('click', (e) => { e.stopPropagation(); sfx.select(); opt.botLevel = x.dataset.lv; store.set('botLevel', opt.botLevel); b.querySelectorAll('[data-lv]').forEach((y) => y.classList.toggle('on', y === x)); }));
+  b.querySelectorAll('[data-rt]').forEach((x) => x.addEventListener('click', (e) => { e.stopPropagation(); sfx.select(); rated = x.dataset.rt === '1'; store.set('friendRated', rated); b.querySelectorAll('[data-rt]').forEach((y) => y.classList.toggle('on', y === x)); note(); }));
+  b.querySelectorAll('[data-rr]').forEach((x) => x.addEventListener('click', (e) => { e.stopPropagation(); sfx.select(); rrated = x.dataset.rr === '1'; store.set('randomRated', rrated); b.querySelectorAll('[data-rr]').forEach((y) => y.classList.toggle('on', y === x)); }));
+  const go = (kind) => {
+    b.remove(); store.set('lastPlay', kind); drawPlayLast();
+    if (kind === 'bot') startBot();
+    else if (kind === 'friend') { if (online) startServerHost(rated); else startHost(true); }
+    else if (kind === 'random') startMatchmaking(rrated);
+    else if (kind === 'hotseat') startHotseat();
+    else if (kind === 'learn') startLearning();
+  };
+  b.querySelectorAll('.pl-tile:not(.off)').forEach((t) => t.addEventListener('click', () => { sfx.click(); go(t.dataset.go); }));
+  b.querySelectorAll('.pl-more [data-go]').forEach((x) => x.addEventListener('click', () => { sfx.click(); go(x.dataset.go); }));
+  b.querySelector('[data-close]').onclick = () => b.remove();
+  b.addEventListener('click', (e) => { if (e.target === b) b.remove(); });
 }
 // First visit: offer the tutorial once (after the splash).
 $('#splash').addEventListener('click', () => {
@@ -1183,10 +1240,7 @@ if (replayParam) {
 const roomCode = new URLSearchParams(location.search).get('room'), watchRoom = new URLSearchParams(location.search).get('watchroom');
 if ((roomCode || watchRoom) && /^[a-z0-9]{4,10}$/.test(roomCode || watchRoom) && isDone(roomCode || watchRoom)) history.replaceState(null, '', location.pathname);
 else if ((roomCode || watchRoom) && /^[a-z0-9]{4,10}$/.test(roomCode || watchRoom)) {
-  const jb = $('#join-banner');
-  jb.classList.remove('hidden');
-  jb.innerHTML = roomCode ? `Вас пригласили в игру! <button class="btn primary" style="margin-left:8px">Присоединиться</button>` : `Вас позвали посмотреть партию! <button class="btn primary" style="margin-left:8px">👁 Смотреть</button>`;
-  jb.querySelector('button').addEventListener('click', () => { sfx.click(); jb.classList.add('hidden'); history.replaceState(null, '', location.pathname); if (roomCode) startServerJoin(roomCode); else startServerWatch(watchRoom); });
+  const jb = showInvite(roomCode || watchRoom, (new URLSearchParams(location.search).get('from') || '').slice(0, 24), !roomCode);
   // An old invitation (the game is over, or both players left) is not offered again.
   roomStatus(roomCode || watchRoom).then((st) => {
     if (st === 'over' || (roomCode && st === 'playing' && !hasSeat(roomCode))) { jb.innerHTML = 'Эта партия уже закончилась. Позовите друга заново или сыграйте с компьютером.'; setTimeout(() => jb.classList.add('hidden'), 6000); history.replaceState(null, '', location.pathname); }
@@ -1224,7 +1278,8 @@ else if (joinCode) {
 document.querySelectorAll('#menu [data-act]').forEach((b) => b.addEventListener('click', () => {
   sfx.click();
   const a = b.dataset.act;
-  if (a === 'bot') startBot();
+  if (a === 'play') openPlay();
+  else if (a === 'bot') startBot();
   else if (a === 'hotseat') startHotseat();
   else if (a === 'friends') openFriends();
   else if (a === 'watchbots') startWatchBots();
@@ -1243,7 +1298,8 @@ document.querySelectorAll('#menu [data-act]').forEach((b) => b.addEventListener(
 window.addEventListener('beforeunload', (e) => { if (current && !current.game?.s.over) { e.preventDefault(); e.returnValue = ''; } });
 
 // ---------- friends ----------
-startPresence(() => myName());
+// A friend's call into a game shows the invitation card (only while I am in the menu and the game is not over).
+startPresence(() => myName(), (room, name) => { if (!isDone(room) && document.querySelector('#menu.active')) showInvite(room, name); });
 async function openFriends() {
   const code = await myFriendCode();
   const link = `${location.origin}${location.pathname}?friend=${code}&fn=${encodeURIComponent(myName())}`;
@@ -1264,9 +1320,10 @@ async function openFriends() {
     box.innerHTML = list.map((f) => {
       const s = st[f.code] || {};
       const state = s.room ? '<span class="fr-st play">⚔️ в партии</span>' : s.online ? '<span class="fr-st on">● в игре на сайте</span>' : '<span class="fr-st">не в сети</span>';
-      return `<div class="fr-row"><b>${esc(s.name || f.name)}</b>${state}${s.room ? `<button class="btn small primary" data-watch="${s.room}">👁 Смотреть</button>` : ''}<button class="btn small" data-del="${f.code}" title="Убрать из друзей">✕</button></div>`;
+      return `<div class="fr-row"><b>${esc(s.name || f.name)}</b>${state}${s.room ? `<button class="btn small primary" data-watch="${s.room}">👁 Смотреть</button>` : s.online ? `<button class="btn small primary" data-call="${f.code}">⚔ Позвать в партию</button>` : ''}<button class="btn small" data-del="${f.code}" title="Убрать из друзей">✕</button></div>`;
     }).join('');
     box.querySelectorAll('[data-watch]').forEach((x) => { x.onclick = () => { clearInterval(t); b.remove(); startServerWatch(x.dataset.watch); }; });
+    box.querySelectorAll('[data-call]').forEach((x) => { x.onclick = () => { clearInterval(t); b.remove(); startServerHost(false, x.dataset.call); }; });
     box.querySelectorAll('[data-del]').forEach((x) => { x.onclick = () => { removeFriend(x.dataset.del); draw(); }; });
   };
   draw(); const t = setInterval(draw, 15000);

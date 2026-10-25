@@ -232,3 +232,7 @@
   background: rgba(15, 10, 6, .72); box-shadow: inset 0 0 0 2px #d9c48a, 0 6px 14px rgba(0, 0, 0, .6); color: #f6e2a8; font-family: 'Fira Sans Extra Condensed', sans-serif; }
 #stage .sup-more b { font-size: 34px; line-height: 1; } #stage .sup-more small { font-size: 15px; }
 #stage .sup-more:hover { background: rgba(40, 26, 12, .8); }
+#game .wh-clock { margin-top: 12px; display: inline-block; padding: 4px 16px; border-radius: 999px; font: 800 20px 'Fira Sans Extra Condensed', sans-serif; color: #f6e2a8; background: rgba(0, 0, 0, .4); box-shadow: inset 0 0 0 1px rgba(217, 196, 138, .6); }
+#game .wh-clock.low { color: #fff; background: #b8281c; }
+/* the clock in the starting-hand title: bigger, never hidden */
+#game .mull-clock { font-size: .85em !important; padding: 4px 16px !important; }
