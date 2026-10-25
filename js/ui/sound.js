@@ -1,6 +1,6 @@
 // Sound engine: the game's own effects made with ElevenLabs Sound Effects (credited on the Legal page), mixed through a small desk —
 // compressor, a short room reverb (a table in a tavern, not a cathedral), stereo position by board location,
-// random pitch/volume per hit. Music: menu theme ElevenLabs Music (tools/build-music.py); match music Kevin MacLeod, incompetech.com (CC BY 4.0) and RandomMind (CC0).
+// random pitch/volume per hit. Music: Kevin MacLeod, incompetech.com (CC BY 4.0) and RandomMind (CC0) — the ElevenLabs tracks were tried and rejected (inputs/audio_src/music/_old_versions).
 let ctx = null, master, sfxBus, musicBus, verb, verbSend, comp;
 let enabled = true, musicOn = true;
 let manifest = null;
@@ -57,7 +57,7 @@ async function loadAll() {
   if (loading) return loading;
   loading = (async () => {
     try {
-      manifest = await (await fetch(BASE + 'manifest.json')).json();
+      manifest = await (await fetch(BASE + 'manifest.json', { cache: 'no-cache' })).json(); // always the current list (sounds change)
       // Only the groups the effects below actually use (older packs stay on disk but are not downloaded).
       const names = Object.keys(manifest).filter((n) => USED.has(n) || n.startsWith('elVo')); // + Leader voices
       await Promise.all(names.flatMap((n) => manifest[n].map((f) => load(f))));
