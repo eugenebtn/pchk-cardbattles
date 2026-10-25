@@ -705,3 +705,20 @@
 #stage.land .hint-bar { min-height: 0 !important; padding: 6px 12px 6px 8px !important; }
 #stage.land .hint-bar .hint-ico { width: 30px; height: 30px; }
 #stage.land .hint-bar .hint-txt em { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* ---------- Phone (upright): compact Leader bars, big field and hand ---------- */
+#stage.port { --gem: 46px; --gem-font: 26px; --name: 15px; --rib-h: 28px; }
+#stage.port .card.leader .nm.rib { display: none !important; }          /* the name is written next to the portrait */
+#stage.port .pile { transform: scale(.62); transform-origin: top left; }
+#stage.port .pile .lbl { display: none; }
+#stage.port .pname { font-size: 26px; max-width: 320px; }
+#stage.port .coins { transform: scale(.82); transform-origin: top left; }
+#stage.port .round-box { transform: scale(.78); transform-origin: left top; }
+#stage.port .end-turn { width: 240px; height: 76px; font-size: 24px; }
+#stage.port .hint-bar { min-height: 0 !important; padding: 6px 12px !important; font-size: 21px !important; }
+#stage.port .hint-bar .hint-txt em { display: none; }                   /* one line on the phone: just what to do */
+#stage.port .hint-bar .coach-line { font-size: 20px; }
+#stage.port .hero-powers .power { font-size: 22px; }
+#stage.port .forecast { font-size: 20px; }
+/* The opponent's deck and graveyard are only animation points on the phone (no room in the top bar). */
+#stage.port .pile.opp-pile { visibility: hidden; }

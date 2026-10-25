@@ -28,56 +28,64 @@ export const LAND = {
   regionLabel: false,
 };
 
+// Phone held upright (390×844 and similar): compact bars for the two Leaders, the whole field in the middle
+// with bigger cards, the round and the end-turn button in one row, and a big hand at the bottom.
 export const PORT = {
   name: 'port', W: 900, H: 1600,
   colX: (k) => 6 + k * 178, colW: 176,
-  ally: { w: 166, h: 210, dx: 5 }, place: { w: 166, h: 92, dx: 5 }, small: { w: 108, h: 136 }, leaderSize: { w: 186, h: 204 },
-  y: { oppPlace: 306, oppAlly: 404, myAlly: 716, myPlace: 934 },
-  mats: { opp: [2, 298, 896, 322], me: [2, 708, 896, 322] },
-  field: [0, 286, 900, 756],
-  midY: 662,
-  leader: { me: { x: 14, y: 1040 }, opp: { x: 14, y: 82 } },
-  support: { me: { x: 216, y: 1046, max: 440 }, opp: { x: 216, y: 112, max: 440 } },
-  piles: { myDeck: { x: 676, y: 1048 }, myGrave: { x: 786, y: 1048 }, oppDeck: { x: 676, y: 112 }, oppGrave: { x: 786, y: 112 } },
-  names: { me: { x: 216, y: 1196 }, opp: { x: 216, y: 12 } },
-  coins: { me: { x: 470, y: 1186 }, opp: { x: 216, y: 52 } },
-  round: { x: 8, y: 622 },
-  end: { x: 680, y: 626 },
-  powers: { x: 604, y: 1176, w: 290, emote: { x: 160, y: 1032 } },
-  hint: { x: 10, y: 1252, w: 880, h: 0 },
+  ally: { w: 166, h: 236, dx: 5 }, place: { w: 166, h: 76, dx: 5 }, small: { w: 76, h: 96 }, leaderSize: { w: 112, h: 126 },
+  y: { oppPlace: 150, oppAlly: 236, myAlly: 512, myPlace: 760 },
+  field: [0, 130, 900, 720],
+  mats: { opp: [2, 142, 896, 334], me: [2, 504, 896, 334] },
+  midY: 494,
+  leader: { me: { x: 12, y: 958 }, opp: { x: 12, y: 4 } },
+  support: { me: { x: 470, y: 968, max: 200 }, opp: { x: 470, y: 18, max: 120 } },
+  piles: { myDeck: { x: 706, y: 960 }, myGrave: { x: 800, y: 960 }, oppDeck: { x: 616, y: 66 }, oppGrave: { x: 676, y: 66 } },
+  names: { me: { x: 150, y: 966 }, opp: { x: 150, y: 12 } },
+  coins: { me: { x: 150, y: 1010 }, opp: { x: 150, y: 56 } },
+  round: { x: 10, y: 868 },
+  end: { x: 650, y: 866 },
+  powers: { x: 136, y: 1052, w: 330, emote: { x: 396, y: 1004 } },
+  hint: { x: 10, y: 1098, w: 880, h: 0 },
   log: null,
-  hand: { y: 1322, cardW: 200, cardH: 279, width: 860, cx: 450, step: 212 },
-  oppHand: { y: -96, cx: 520, step: 30, width: 160 },
-  stageCard: { x: 300, y: 420 },
+  hand: { y: 1232, cardW: 250, cardH: 348, width: 880, cx: 450, step: 190 },
+  oppHand: { y: -140, cx: 520, step: 30, width: 160 },
+  stageCard: { x: 300, y: 260 },
   torches: [],
-  bannerY: 560,
+  bannerY: 470,
   regionLabel: false,
 };
 
-// Tall phones get a taller stage: the board moves down a little, my side and the hand more.
+// Taller phones: the field and its cards grow a little, the hand gets the rest of the height.
 const portCache = new Map();
 function makePort(H) {
   if (portCache.has(H)) return portCache.get(H);
-  // Extra height: a little moves the board down, my side stays right under it, the rest goes to a bigger hand.
-  const ex = H - 1600, a = Math.round(ex * 0.3), b = a + Math.round(ex * 0.08);
-  const sh = (o, d) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, { ...v, y: v.y + d }]));
+  const ex = Math.max(0, H - 1600);
+  const g = Math.min(150, Math.round(ex * 0.34)); // extra height of each ally row
+  const f = 2 * g; // the field grows by both rows
+  // The hand sits at the bottom edge; its cards grow with what is left.
+  const hw = Math.min(310, 250 + Math.round((ex - f) * 0.25)), hh = Math.round(hw * 1.39), hy = H - hh - 18;
+  // Whatever is still free between my bar and the hand is split: half above the round row, half below my bar.
+  const o = Math.max(0, Math.round((hy - (PORT.hint.y + 60 + f) - 20) / 2));
+  const d1 = f + o; // everything under the field moves down by this
+  const down = (p, d) => ({ ...p, y: p.y + d });
   const L = {
     ...PORT, H,
-    y: Object.fromEntries(Object.entries(PORT.y).map(([k, v]) => [k, v + a])),
-    mats: { opp: [PORT.mats.opp[0], PORT.mats.opp[1] + a, PORT.mats.opp[2], PORT.mats.opp[3]], me: [PORT.mats.me[0], PORT.mats.me[1] + a, PORT.mats.me[2], PORT.mats.me[3]] },
-    field: [PORT.field[0], PORT.field[1] + a, PORT.field[2], PORT.field[3]],
-    midY: PORT.midY + a, round: { ...PORT.round, y: PORT.round.y + a }, end: { ...PORT.end, y: PORT.end.y + a },
-    stageCard: { ...PORT.stageCard, y: PORT.stageCard.y + a }, bannerY: PORT.bannerY + a,
-    leader: { me: { ...PORT.leader.me, y: PORT.leader.me.y + b }, opp: PORT.leader.opp },
-    support: { me: { ...PORT.support.me, y: PORT.support.me.y + b }, opp: PORT.support.opp },
-    piles: { ...PORT.piles, myDeck: { ...PORT.piles.myDeck, y: PORT.piles.myDeck.y + b }, myGrave: { ...PORT.piles.myGrave, y: PORT.piles.myGrave.y + b } },
-    names: { me: { ...PORT.names.me, y: PORT.names.me.y + b }, opp: PORT.names.opp },
-    coins: { me: { ...PORT.coins.me, y: PORT.coins.me.y + b }, opp: PORT.coins.opp },
-    hint: { ...PORT.hint, y: PORT.hint.y + b },
-    powers: { ...PORT.powers, y: PORT.powers.y + b, emote: { ...PORT.powers.emote, y: PORT.powers.emote.y + b } },
-    hand: { ...PORT.hand, y: PORT.hand.y + b + Math.round((ex - b) * 0.25), cardW: ex > 200 ? 228 : PORT.hand.cardW, cardH: ex > 200 ? 318 : PORT.hand.cardH, width: 880 },
+    ally: { ...PORT.ally, h: PORT.ally.h + g },
+    y: { oppPlace: PORT.y.oppPlace, oppAlly: PORT.y.oppAlly, myAlly: PORT.y.myAlly + g, myPlace: PORT.y.myPlace + f },
+    field: [PORT.field[0], PORT.field[1], PORT.field[2], PORT.field[3] + f],
+    mats: { opp: [2, 142, 896, 334 + g], me: [2, 504 + g, 896, 334 + g] },
+    midY: PORT.midY + g, bannerY: PORT.bannerY + g, stageCard: down(PORT.stageCard, g),
+    round: down(PORT.round, d1), end: down(PORT.end, d1),
+    leader: { me: down(PORT.leader.me, d1), opp: PORT.leader.opp },
+    support: { me: down(PORT.support.me, d1), opp: PORT.support.opp },
+    piles: { ...PORT.piles, myDeck: down(PORT.piles.myDeck, d1), myGrave: down(PORT.piles.myGrave, d1) },
+    names: { me: down(PORT.names.me, d1), opp: PORT.names.opp },
+    coins: { me: down(PORT.coins.me, d1), opp: PORT.coins.opp },
+    powers: { ...down(PORT.powers, d1), emote: down(PORT.powers.emote, d1) },
+    hint: down(PORT.hint, d1),
+    hand: { ...PORT.hand, cardW: hw, cardH: hh, y: hy },
   };
-  void sh;
   portCache.set(H, L);
   return L;
 }

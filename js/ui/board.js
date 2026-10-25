@@ -76,7 +76,13 @@ export class BoardUI {
     this.stage.style.width = W + 'px'; this.stage.style.height = H + 'px';
     this.stage.classList.toggle('port', this.L.name === 'port');
     this.stage.classList.toggle('land', this.L.name === 'land');
-    if (this.L.name === 'port') { this.stage.style.setProperty('--hand-w', this.L.hand.cardW + 'px'); this.stage.style.setProperty('--hand-h', this.L.hand.cardH + 'px'); }
+    if (this.L.name === 'port') {
+      // Phone: card sizes come from the layout (they grow a little on tall phones).
+      const L = this.L, set = (k, v) => this.stage.style.setProperty(k, v + 'px');
+      set('--hand-w', L.hand.cardW); set('--hand-h', L.hand.cardH);
+      set('--ally-w', L.ally.w); set('--ally-h', L.ally.h); set('--place-w', L.place.w); set('--place-h', L.place.h);
+      set('--small-w', L.small.w); set('--small-h', L.small.h); set('--leader-w', L.leaderSize.w); set('--leader-h', L.leaderSize.h);
+    }
     const s = Math.min(window.innerWidth / W, window.innerHeight / H);
     this.scale = s;
     this.stage.style.transform = `scale(${s})`;
@@ -129,9 +135,9 @@ export class BoardUI {
     const mk = (cls, pos, html = '') => { const e = document.createElement('div'); e.className = cls; e.style.left = pos.x + 'px'; e.style.top = pos.y + 'px'; e.innerHTML = html; b.appendChild(e); return e; };
     this.piles = {
       myDeck: mk('pile deck', L.piles.myDeck, '<div class="lbl">Скрижаль</div><div class="card-back" style="left:0;top:0"></div><div class="count">0</div>'),
-      oppDeck: mk('pile deck', L.piles.oppDeck, '<div class="lbl">Скрижаль</div><div class="card-back" style="left:0;top:0"></div><div class="count">0</div>'),
+      oppDeck: mk('pile deck opp-pile', L.piles.oppDeck, '<div class="lbl">Скрижаль</div><div class="card-back" style="left:0;top:0"></div><div class="count">0</div>'),
       myGrave: mk('pile grave', L.piles.myGrave, '<div class="lbl">Кладбище</div><div class="empty">🪦</div><div class="count">0</div>'),
-      oppGrave: mk('pile grave', L.piles.oppGrave, '<div class="lbl">Кладбище</div><div class="empty">🪦</div><div class="count">0</div>'),
+      oppGrave: mk('pile grave opp-pile', L.piles.oppGrave, '<div class="lbl">Кладбище</div><div class="empty">🪦</div><div class="count">0</div>'),
     };
     for (const [k, t] of Object.entries({ myDeck: 'Ваша Скрижаль (колода)|Сколько карт осталось. Карты берутся сверху.', oppDeck: 'Скрижаль соперника|Сколько карт у него осталось.', myGrave: 'Ваше кладбище|Сыгранные, сброшенные и погибшие карты. Нажмите, чтобы посмотреть.', oppGrave: 'Кладбище соперника|Нажмите, чтобы посмотреть его карты.' })) this.piles[k].setAttribute('data-tip', t);
     this.piles.myGrave.addEventListener('click', () => this.showGrave(this.me));
