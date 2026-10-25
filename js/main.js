@@ -120,6 +120,11 @@ $('#opt-bonus').addEventListener('change', (e) => { opt.bonus = e.target.checked
 $('#opt-autopass').addEventListener('change', (e) => { opt.autopass = e.target.value === 'never' ? true : e.target.value; store.set('autopass', opt.autopass); });
 $('#opt-name').addEventListener('input', (e) => { opt.name = e.target.value.trim(); store.set('name', opt.name); });
 const myName = () => opt.name || 'Игрок';
+/** Invitations whose game is already over in this browser are not offered again (works without the server too). */
+const doneKey = (code) => 'pchk_done_' + code;
+function markDone(code) { try { if (code) localStorage.setItem(doneKey(code), '1'); } catch { /* private mode */ } }
+function isDone(code) { try { return !!localStorage.getItem(doneKey(code)); } catch { return false; } }
+const endedIn = (batch) => (batch || []).some((b) => b?.ev?.type === 'gameOver');
 /** A newcomer is asked for a name (and offered a profile) once, before the first game or invitation. */
 function askName() {
   if (opt.name || currentUser() || store.get('nameAsked', false)) return Promise.resolve();
@@ -489,7 +494,7 @@ function startBoard(session) {
       const live = !session.watch && !ui.view?.over && ui.view?.players;
       const online = !!(session.remote || session.conn);
       if (!(force || session.watch || confirm(online && live ? 'Выйти из партии? Это засчитается как поражение.' : 'Выйти в меню? Партия будет потеряна.'))) return;
-      const leave = () => { session.close(); ui.chat?.destroy(); ui.coach?.destroy(); ui.destroy(); current = null; show('menu'); };
+      const leave = () => { session.close(); ui.chat?.destroy(); ui.coach?.destroy(); ui.destroy(); current = null; if (session.remote || session.conn) $('#join-banner')?.classList.add('hidden'); show('menu'); };
       // Online: the opponent is told at once (a win for them) instead of waiting for a game that will not go on.
       if (online && live && !force) { session.concede?.(); setTimeout(leave, 400); } else leave();
     },
@@ -752,6 +757,7 @@ async function startJoin(code) {
   const conn = joinRoom(code, { name: myName(), autopass: AP_ENGINE(opt.autopass), deck: { leader: d.leader, cards: d.cards, title: d.title } }, {
     onOpen() { ob.textContent = 'Соединено! Ждём начала…'; },
     onMessage(msg) {
+      if (msg.t === 'events' && endedIn(msg.batch)) markDone(code);
       if (msg.t === 'start' || (msg.t === 'sync' && !gs)) {
         if (!gs) { gs = new GuestSession(conn); gs.code = code; startBoard(gs); }
         if (msg.t === 'sync') gs.onMessage(msg);
@@ -980,6 +986,7 @@ function serverPlay(code, deck, { creating = false, matched = false, tour: inTou
   let ss = null;
   const conn = connectRoom(code, { name: myName(), playerId: playerId(), autopass: AP_ENGINE(opt.autopass), timer: creating ? opt.timer : matched ? 90 : 0, rated: creating ? rated : matched ? true : undefined, deck: { leader: deck.leader, cards: deck.cards, title: deck.title } }, {
     onMessage(msg) {
+      if (msg.t === 'events' && endedIn(msg.batch)) markDone(code);
       if ((msg.t === 'start' || msg.t === 'sync') && !ss) { ss = new ServerSession(conn, msg.me ?? 0); ss.tour = inTour; ss.rated = msg.rated !== false; setPresenceRoom(code); startBoard(ss); if (msg.t === 'start') toast(ss.rated ? '🏆 Рейтинговая партия — результат пойдёт в рейтинг' : 'Обычная партия — в рейтинг не идёт', 3200); if (msg.t === 'sync') ss.onMessage(msg); return; }
       if (msg.t === 'start' && ss) { ss.me = msg.me; document.querySelector('#game > .over-screen')?.remove(); toast('Новая партия!', 1800); return; } // rematch, or a draw replayed in a tournament
       if (msg.t === 'waitOpponent' && !creating) ob.textContent = 'Подключено! Ждём второго игрока…';
@@ -1174,7 +1181,8 @@ if (replayParam) {
   if (new URLSearchParams(location.search).get('autoplay')) jb.querySelector('button').click(); // for recordings and screenshots
 }
 const roomCode = new URLSearchParams(location.search).get('room'), watchRoom = new URLSearchParams(location.search).get('watchroom');
-if ((roomCode || watchRoom) && /^[a-z0-9]{4,10}$/.test(roomCode || watchRoom)) {
+if ((roomCode || watchRoom) && /^[a-z0-9]{4,10}$/.test(roomCode || watchRoom) && isDone(roomCode || watchRoom)) history.replaceState(null, '', location.pathname);
+else if ((roomCode || watchRoom) && /^[a-z0-9]{4,10}$/.test(roomCode || watchRoom)) {
   const jb = $('#join-banner');
   jb.classList.remove('hidden');
   jb.innerHTML = roomCode ? `Вас пригласили в игру! <button class="btn primary" style="margin-left:8px">Присоединиться</button>` : `Вас позвали посмотреть партию! <button class="btn primary" style="margin-left:8px">👁 Смотреть</button>`;
@@ -1206,11 +1214,12 @@ if (friendParam && /^[0-9a-f]{10}$/.test(friendParam)) {
   });
 }
 const joinCode = new URLSearchParams(location.search).get('join');
-if (joinCode) {
+if (joinCode && isDone(joinCode)) history.replaceState(null, '', location.pathname);
+else if (joinCode) {
   const jb = $('#join-banner');
   jb.classList.remove('hidden');
   jb.innerHTML = `Вас пригласили в игру! <button class="btn primary" style="margin-left:8px">Присоединиться</button>`;
-  jb.querySelector('button').addEventListener('click', () => { sfx.click(); startJoin(joinCode); });
+  jb.querySelector('button').addEventListener('click', () => { sfx.click(); jb.classList.add('hidden'); history.replaceState(null, '', location.pathname); startJoin(joinCode); });
 }
 document.querySelectorAll('#menu [data-act]').forEach((b) => b.addEventListener('click', () => {
   sfx.click();
