@@ -27,6 +27,13 @@ function ac() {
     comp.threshold.value = -16; comp.knee.value = 12; comp.ratio.value = 4; comp.attack.value = 0.004; comp.release.value = 0.25;
     master = ctx.createGain(); master.gain.value = 0.9;
     comp.connect(master); master.connect(ctx.destination);
+    // Video recording (tools/record-video.mjs): everything the game plays also goes to a recorder.
+    if (window.__recAudio) {
+      const dest = ctx.createMediaStreamDestination(); master.connect(dest);
+      const rec = new MediaRecorder(dest.stream, { mimeType: 'audio/webm;codecs=opus', audioBitsPerSecond: 160000 }), parts = [];
+      rec.ondataavailable = (e) => parts.push(e.data);
+      rec.start(1000); window.__recAudio = { start: Date.now(), rec, parts };
+    }
     sfxBus = ctx.createGain(); sfxBus.gain.value = SFX_BASE * VOL.sfx; sfxBus.connect(comp);
     musicBus = ctx.createGain(); musicBus.gain.value = MUSIC_BASE * VOL.music; musicBus.connect(master);
     // Hall reverb from a generated impulse response.
