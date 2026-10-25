@@ -238,7 +238,7 @@
 #game .mull-clock { font-size: .85em !important; padding: 4px 16px !important; }
 /* A question answered by clicking the board: a plate in the middle of the field, text and «Отмена» in one line */
 #stage .prompt.center-q { transform: translate(-50%, -50%) !important; flex-direction: row; align-items: center; gap: 14px; max-width: 900px; z-index: 72; pointer-events: none;
-  padding: 3px 6px 3px 14px; border-radius: 10px; background: rgba(15, 10, 6, .82); box-shadow: inset 0 0 0 1.5px #d9c48a, 0 10px 26px rgba(0, 0, 0, .7); }
+  padding: 4px 6px 4px 16px; border-radius: 10px; background: rgba(15, 10, 6, .95); box-shadow: inset 0 0 0 1.5px #d9c48a, 0 10px 26px rgba(0, 0, 0, .7); }
 #stage .prompt.center-q .ptext { font-size: 17px; padding: 0; background: none !important; box-shadow: none !important; white-space: nowrap; color: #f6e2a8; }
 #stage .prompt.center-q .pbtns { flex-direction: row; } #stage .prompt.center-q button { pointer-events: auto; }
 #stage .kw-row .kw, #stage .tok-row .tok { pointer-events: auto; cursor: help; } /* their tips show on hover */
@@ -268,3 +268,9 @@
 /* my own card backs (the deck pile and its card) use my back; the opponent's pile and hand theirs */
 #stage .pile.deck.opp-pile::before { background-image: var(--back-op, url('../assets/ui/cardback.webp')) !important; }
 #stage .pile.deck:not(.opp-pile) .card-back { background-image: var(--back-me, url('../assets/ui/cardback.webp')) !important; }
+#stage .prompt.center-q { z-index: 80; } /* above the hand's top edge */
+#stage .prompt.center-q { width: max-content !important; max-width: 900px; }
+#stage .prompt.center-q .ptext { min-width: 0 !important; color: #fff3cf !important; opacity: 1 !important; font-weight: 800 !important; text-shadow: 0 1px 2px #000, 0 0 8px rgba(0, 0, 0, .8) !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 760px; }
+/* Readable grey states: the waiting seal and any prompt text are bright, not faded */
+#stage .end-turn.wait { color: #fff6e0 !important; text-shadow: 0 1px 0 #000, 0 0 6px rgba(0, 0, 0, .8) !important; font-weight: 900 !important; }
+#stage .prompt .ptext { color: #fff3cf !important; opacity: 1 !important; }

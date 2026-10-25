@@ -841,7 +841,8 @@ export class BoardUI {
     if (this.L.name === 'land' && special) {
       const fx = this.L.field;
       el.className = 'prompt center-q';
-      el.style.left = (fx[0] + fx[2] / 2) + 'px'; el.style.top = this.L.midY + 'px';
+      // variant 3: a strip between the field and the hand
+      el.style.left = (fx[0] + fx[2] / 2) + 'px'; el.style.top = (fx[1] + fx[3] + 12) + 'px';
     }
     if (this.isManeuver(q)) {
       const fx = this.L.field;
