@@ -120,3 +120,38 @@
   box-shadow: inset 0 0 0 1.5px var(--k-gold), inset 0 0 0 3.5px #160c06, 0 6px 14px rgba(0, 0, 0, .55) !important; filter: saturate(.7) brightness(.85); }
 .power.ready { filter: none; }
 .power .pw-cost { color: #ffe27a !important; }
+
+/* ---------- in-game windows in the kit (starting hand, choices, graveyard, Опережение): walnut, gold rim, gold/red buttons ---------- */
+#game > .modal-back { background: radial-gradient(ellipse at 50% 45%, rgba(20, 10, 4, .55), rgba(4, 2, 1, .86)); backdrop-filter: blur(3px); }
+#game > .modal-back .modal { position: relative; border-radius: 14px; padding: 26px 30px 20px;
+  background: radial-gradient(ellipse at 50% 0%, rgba(255, 190, 110, .14), transparent 60%), linear-gradient(rgba(30, 18, 9, .55), rgba(10, 6, 3, .75)), url('../assets/tex/walnut.webp') center / 520px, #1c1109;
+  box-shadow: var(--k-rim), 0 0 0 1px rgba(0, 0, 0, .8), 0 40px 90px rgba(0, 0, 0, .85), 0 0 60px rgba(232, 184, 90, .12); }
+#game > .modal-back .modal h3 { font-size: clamp(24px, 2.3vw, 32px); margin: 0 0 16px; color: var(--k-gold-hi); text-shadow: 0 3px 0 rgba(0, 0, 0, .7), 0 0 18px rgba(255, 190, 90, .35); }
+#game > .modal-back .modal h3::after { content: ''; display: block; width: min(320px, 60%); height: 2px; margin: 10px auto 0; background: linear-gradient(90deg, transparent, var(--k-gold), transparent); }
+#game .modal .row-btns { background: linear-gradient(transparent, rgba(10, 6, 3, .85) 40%) !important; padding: 14px 0 4px; gap: 16px; }
+#game .modal .btn { font-family: var(--k-font); font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--k-cream); border: none; border-radius: 8px; padding: 12px 30px;
+  background: linear-gradient(rgba(255, 220, 160, .1), rgba(0, 0, 0, .35)), url('../assets/tex/walnut.webp') center / 360px, var(--k-wood-2);
+  box-shadow: inset 0 0 0 1.5px var(--k-gold), inset 0 0 0 3.5px #160c06, 0 6px 14px rgba(0, 0, 0, .55); transition: transform .12s, filter .15s, box-shadow .15s; }
+#game .modal .btn:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.15); box-shadow: inset 0 0 0 1.5px var(--k-gold-hi), inset 0 0 0 3.5px #160c06, 0 0 20px rgba(232, 184, 90, .4), 0 8px 16px rgba(0, 0, 0, .6); }
+#game .modal .btn.primary { color: #3a1206; text-shadow: 0 1px 0 rgba(255, 240, 200, .5); background: linear-gradient(#fff0b0, #f0c25e 45%, #c98a2a 55%, #e9b24e);
+  box-shadow: inset 0 0 0 1.5px #fff6d0, inset 0 0 0 4px #9a611c, inset 0 0 0 5px #ffe39a, 0 0 22px rgba(240, 190, 90, .45), 0 6px 14px rgba(0, 0, 0, .55); }
+#game .modal .btn.primary:not(:disabled) { animation: plq-glow 2.6s ease-in-out infinite; }
+#game .modal .btn.danger { color: #ffe0d4; background: linear-gradient(rgba(255, 255, 255, .12), rgba(0, 0, 0, .3)), var(--k-red); }
+#game .modal .btn:disabled { filter: saturate(.35) brightness(.62) !important; cursor: default; }
+#game .mcard { border-radius: 10px; box-shadow: 0 0 0 2px #160c06, 0 0 0 3.5px rgba(232, 184, 90, .55), 0 12px 24px rgba(0, 0, 0, .7); transition: transform .18s cubic-bezier(.2, .8, .3, 1), box-shadow .18s, filter .18s; }
+#game .mcard:hover { transform: translateY(-6px) scale(1.03); box-shadow: 0 0 0 2px #160c06, 0 0 0 4px var(--k-gold-hi), 0 0 24px rgba(255, 215, 120, .45), 0 16px 30px rgba(0, 0, 0, .7); }
+#game .mcard.on { transform: translateY(-12px) scale(1.04); box-shadow: 0 0 0 2px #160c06, 0 0 0 5px #ffd770, 0 0 34px rgba(255, 200, 90, .85), 0 18px 34px rgba(0, 0, 0, .7); }
+#game .mcard.on::after { content: '✓'; position: absolute; right: -10px; top: -10px; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%;
+  font: 900 20px/1 var(--k-font); color: #3a1206; background: radial-gradient(circle at 35% 30%, #fff4c0, #f0c25e 55%, #a86d22); box-shadow: 0 0 0 2px #160c06, 0 4px 10px rgba(0, 0, 0, .6); }
+#game .mull-modal:has(.mcard.on) .mcard:not(.on) { filter: brightness(.72) saturate(.85); }
+#game .mull-modal p { color: rgba(244, 226, 190, .75) !important; font-style: italic; }
+.pick-opt { font-family: var(--k-font) !important; color: var(--k-cream) !important; background: linear-gradient(rgba(255, 220, 160, .08), rgba(0, 0, 0, .3)), url('../assets/tex/walnut.webp') center / 360px, var(--k-wood-2) !important;
+  box-shadow: inset 0 0 0 1.5px rgba(232, 184, 90, .75), inset 0 0 0 3.5px #160c06, 0 6px 14px rgba(0, 0, 0, .5) !important; }
+.pick-opt:hover { box-shadow: inset 0 0 0 1.5px var(--k-gold-hi), inset 0 0 0 3.5px #160c06, 0 0 22px rgba(232, 184, 90, .45), 0 8px 16px rgba(0, 0, 0, .6) !important; }
+.pick-opt.cancel { opacity: .8; }
+
+/* tooltips and the big card: a dark plate with the gold rim */
+.tooltip { border: none !important; border-radius: 10px !important; color: var(--k-cream) !important; background: linear-gradient(rgba(44, 27, 14, .97), rgba(20, 12, 6, .98)) !important;
+  box-shadow: var(--k-rim), 0 14px 30px rgba(0, 0, 0, .7) !important; padding: 12px 15px !important; }
+.tooltip b { font-family: var(--k-font) !important; text-transform: uppercase; letter-spacing: .8px; color: var(--k-gold-hi) !important; }
+.zoom-card { box-shadow: 0 0 0 2px #160c06, 0 0 0 4.5px var(--k-gold), 0 0 40px rgba(255, 200, 100, .3), 0 30px 60px rgba(0, 0, 0, .8) !important; }

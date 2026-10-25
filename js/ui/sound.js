@@ -89,7 +89,7 @@ export function unlockAudio() { ac(); }
  */
 function play(group, o = {}) {
   const c = ac(); if (!c || !enabled) return;
-  const b = pickBuf(group); if (!b) return;
+  const b = pickBuf(group); if (!b) return 0;
   const t = c.currentTime + (o.delay || 0);
   const src = c.createBufferSource(); src.buffer = b;
   const vary = o.vary ?? 0.06;
@@ -105,6 +105,7 @@ function play(group, o = {}) {
   const send = c.createGain(); send.gain.value = o.verb ?? 0.35; g.connect(send); send.connect(verbSend);
   if (o.fadeOut) { g.gain.setValueAtTime(g.gain.value, t + o.fadeOut[0]); g.gain.exponentialRampToValueAtTime(0.0001, t + o.fadeOut[0] + o.fadeOut[1]); }
   src.start(t, o.offset || 0, o.dur);
+  return b.duration / src.playbackRate.value;
 }
 // Synth layers for weight and shimmer.
 function sub(freq = 70, dur = 0.45, vol = 0.6, delay = 0) {
@@ -300,8 +301,7 @@ export function voice(leaderId, kind) {
   const g = `elVo${leaderId}${kind}`;
   if (!manifest || !manifest[g]) return false;
   duckMusic(0.3, 3.2);
-  play(g, { vol: 0.95, verb: 0.06, vary: 0 });
-  return true;
+  return play(g, { vol: 0.95, verb: 0.06, vary: 0 }) || 0; // seconds the line lasts (0 = silent)
 }
 /** The same, but waits until the sounds are loaded (right after the first click they may still be on the way). */
 export async function voiceSoon(leaderId, kind) {

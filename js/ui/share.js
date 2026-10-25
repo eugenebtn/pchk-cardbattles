@@ -11,7 +11,7 @@ export async function resultPicture(p) {
   bg.addColorStop(0, '#3e1424'); bg.addColorStop(1, '#0e0408');
   x.fillStyle = bg; x.fillRect(0, 0, W, H);
   const side = async (s, left) => {
-    const a = await img(`assets/leaders/${s.leader}.webp`);
+    const a = await img(`assets/leaders/face/${s.leader}.webp`);
     const bx = left ? 40 : W - 40 - 360, by = 60, bw = 360, bh = 420;
     x.save();
     x.beginPath(); x.roundRect(bx, by, bw, bh, 22); x.clip();

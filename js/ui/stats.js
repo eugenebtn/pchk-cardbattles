@@ -77,7 +77,7 @@ function profileHtml(games, tot, name) {
   return `<div class="pf">
     <div class="pf-acc">${u ? `🔐 Вы вошли: <b>${esc(u.email)}</b> — профиль, колоды и награды сохраняются на всех устройствах. <button class="btn small" data-logout>Выйти</button>`
       : `💾 Профиль хранится только в этом браузере. <button class="btn small primary" data-login>Войти или зарегистрироваться</button> — и он будет на всех ваших устройствах.`}</div>
-    <div class="pf-head"><div class="pf-ava" style="background-image:url('${fav ? `assets/leaders/${fav}.webp` : ''}')"></div>
+    <div class="pf-head"><div class="pf-ava" style="background-image:url('${fav ? `assets/leaders/face/${fav}.webp` : ''}')"></div>
       <div><div class="pf-name"><input type="text" maxlength="20" value="${esc(name)}" placeholder="Ваше имя"><button class="btn small">Сохранить</button></div>
       <div class="pf-sub">${fav ? `Любимый Лидер: <b>${esc(leaderName(fav))}</b> · ${byL[0][1].n} партий` : 'Сыграйте первую партию!'}</div>
       <div class="pf-rank">Загружаем место в рейтинге…</div></div></div>

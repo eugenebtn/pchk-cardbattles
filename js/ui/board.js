@@ -383,7 +383,7 @@ export class BoardUI {
     el.dataset.key = key;
     const img = d?.img;
     // Leaders with a big cleaned-up painting (assets/leaders) show it in their round medallion.
-    const bg = w.mode === 'leader' && LEADER_ART.has(c.id) ? `background-image:url('assets/leaders/${c.id}.webp')` : img ? `background-image:url('${img}')` : '';
+    const bg = w.mode === 'leader' && LEADER_ART.has(c.id) ? `background-image:url('assets/leaders/face/${c.id}.webp')` : img ? `background-image:url('${img}')` : '';
     const gen = !img && d ? `<div class="gen-art" style="position:absolute;inset:0;border-radius:inherit">${GEN_EMOJI[c.id] || '✨'}</div>` : '';
     if (w.mode === 'back' || (w.mode === 'ohand' && !d)) {
       el.className = 'card-back';
@@ -932,7 +932,7 @@ export class BoardUI {
     const me = this.me, P = view.players;
     const mine = CARDS[P[me].leader.id], theirs = CARDS[P[1 - me].leader.id];
     const port = this.L.name === 'port';
-    const art = (id) => (LEADER_ART.has(id) ? `assets/leaders/${id}.webp` : '');
+    const art = (id) => (LEADER_ART.has(id) ? `assets/leaders/face/${id}.webp` : '');
     const layer = document.createElement('div');
     layer.className = 'vs-layer';
     layer.innerHTML = `<div class="vs-bg"></div>
@@ -958,8 +958,8 @@ export class BoardUI {
     await FX.wait(300);
     sfx.explosion(); FX.shake(2);
     // Both Leaders say their line: yours first, then the opponent's.
-    setTimeout(() => voice(P[me].leader.id, 'Intro'), 500);
-    setTimeout(() => voice(P[1 - me].leader.id, 'Intro'), 3600);
+    // The second Leader answers only after the first has finished, with a short pause between them.
+    setTimeout(() => { const len = voice(P[me].leader.id, 'Intro'); setTimeout(() => voice(P[1 - me].leader.id, 'Intro'), len ? len * 1000 + 1100 : 600); }, 500);
     await FX.wait(1100);
     // Leaders fly to their corners on the board.
     const sr = this.stage.getBoundingClientRect(), sc = this.scale;
@@ -1935,7 +1935,7 @@ ${optHtml}</div></div>
     let bestCard = null;
     for (const [k, v] of st.byCard) { const [side, id] = k.split(':').map(Number); if (side === me && CARDS[id]?.type !== 'leader' && (!bestCard || v > bestCard.v)) bestCard = { id, v }; }
     const name = (i) => esc(LEADER_SHORT[P[i].leader?.id] || CARDS[P[i].leader?.id]?.name.split(',')[0] || P[i].name);
-    const art = (i) => (P[i].leader?.id != null ? `assets/leaders/${P[i].leader.id}.webp` : '');
+    const art = (i) => (P[i].leader?.id != null ? `assets/leaders/face/${P[i].leader.id}.webp` : '');
     const row = (lbl, a, b) => `<tr><td>${lbl}</td><td class="${a > b ? 'up' : ''}">${a}</td><td class="${b > a ? 'up' : ''}">${b}</td></tr>`;
     const fighter = (i) => {
       const won = !draw && winner === i, hp = Math.max(0, P[i].leader?.hp ?? 0);

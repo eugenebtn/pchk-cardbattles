@@ -156,9 +156,10 @@ $('#menu [data-act=settings]')?.addEventListener('click', () => { $('#menu-opts'
 // ---------- decks ----------
 // What each Leader does, in plain words for a first game, and how hard the deck is to play.
 // Where the face is on each Leader card (for round portraits).
-const FOCUS = { 20: '71% 25%', 41: '32% 21%', 62: '50% 24%', 63: '54% 21%', 117: '41% 25%', 118: '50% 21%' };
+const FOCUS = { 20: '37% 30%', 41: '31% 30%', 62: '36% 24%', 63: '40% 22%', 117: '35% 32%', 118: '34% 27%' };
 // The Leader's painting alone, large and cleaned up (tools/enhance-cards.py); the face sits at the same x as on the card.
 const art = (id) => `assets/leaders/${id}.webp`;
+const face = (id) => `assets/leaders/face/${id}.webp`; // square, the face in the middle (round portraits)
 const artFocus = (id) => (FOCUS[id] || '50%').split(' ')[0] + ' 40%';
 const DIFF_RU = { 1: '★ Просто — для первой партии', 2: '★★ Средне', 3: '★★★ Сложно — для опытных' };
 const LEADER_PLAIN = {
@@ -205,7 +206,7 @@ function pickDecks(steps) {
         root.innerHTML = `<div class="hero-select">
           ${steps.length > 1 ? `<div class="hs-step s${step}">Шаг ${step + 1} из ${steps.length}</div>` : ''}
           <div class="hs-title">${esc(st.title)}</div>
-          ${chosen.length ? `<div class="hs-chosen">${chosen.map((c, k) => `<span><i class="la" style="background-image:url('${art(c.leader)}');background-position:${artFocus(c.leader)}"></i>${k === 0 ? 'Ваш выбор' : 'Выбор ' + (k + 1)}: <b>${esc(c.title)}</b> ✓</span>`).join('')}</div>` : ''}
+          ${chosen.length ? `<div class="hs-chosen">${chosen.map((c, k) => `<span><i class="la" style="background-image:url('${face(c.leader)}')"></i>${k === 0 ? 'Ваш выбор' : 'Выбор ' + (k + 1)}: <b>${esc(c.title)}</b> ✓</span>`).join('')}</div>` : ''}
           <div class="hs-main">
             <div class="hs-portrait art la" style="background-image:url('${art(L ? sel.leader : 63)}')${sel.random ? ';filter:brightness(.35) blur(2px)' : `;background-position:${artFocus(sel.leader)}`}">${L ? `<div class="hs-port-name">${esc(L.name.split(',')[0])}</div>` : ''}${sel.random ? '<div style="position:absolute;inset:0;display:grid;place-items:center;font-size:120px;filter:none">🎲</div>' : ''}</div>
             <div class="hs-info">
@@ -219,7 +220,7 @@ function pickDecks(steps) {
             </div>
           </div>
           <div class="hs-roster"><div class="hs-medal newdeck" data-new><div class="m">＋</div>Своя колода<div class="tag">собрать</div></div>${list.map((d) => `<div class="hs-medal ${d === sel ? 'sel' : ''} ${d.random ? 'random' : ''}" data-key="${d.key}">
-            <div class="m ${d.random ? '' : 'la'}" ${d.random ? '' : `style="background-image:url('${art(d.leader)}');background-position:${artFocus(d.leader)}"`}>${d.random ? '🎲' : ''}</div>
+            <div class="m ${d.random ? '' : 'la'}" ${d.random ? '' : `style="background-image:url('${face(d.leader)}')"`}>${d.random ? '🎲' : ''}</div>
             ${esc(d.random ? 'Случайный' : d.title)}${!d.random && !d.official ? '<div class="tag">своя</div>' : ''}</div>`).join('')}</div>
           ${st.level ? `<div class="hs-level"><span>Сложность:</span>${['auto', 'novice', 'normal', 'strong'].map((l) => `<button class="hs-lv ${opt.botLevel === l ? 'on' : ''}" data-lv="${l}">${l === 'auto' ? `Подстраиваться <small>сейчас: ${LEVEL_RU[adaptiveLevel()]}</small>` : LEVEL_RU[l]}</button>`).join('')}<div class="hs-lv-help">${esc(LEVEL_HELP[opt.botLevel])}</div></div>` : ''}
           <div class="hs-bar"><button class="btn" data-back>← Назад</button><button class="btn hs-go" data-go>${esc(step === steps.length - 1 ? (st.goLabel || 'В бой!') : 'Далее')}</button></div>
@@ -245,7 +246,7 @@ function pickDecks(steps) {
           // A short pause that shows the choice was taken, then the next step slides in.
           const box = root.querySelector('.hero-select');
           box.classList.add('picked');
-          box.insertAdjacentHTML('beforeend', `<div class="hs-picked"><div class="hs-picked-in"><i class="la" style="background-image:url('${art(d.leader)}');background-position:${artFocus(d.leader)}"></i><span>Выбрано: <b>${esc(d.title)}</b></span><small>Теперь: ${esc(steps[step].title)}</small></div></div>`);
+          box.insertAdjacentHTML('beforeend', `<div class="hs-picked"><div class="hs-picked-in"><i class="la" style="background-image:url('${face(d.leader)}')"></i><span>Выбрано: <b>${esc(d.title)}</b></span><small>Теперь: ${esc(steps[step].title)}</small></div></div>`);
           root.querySelectorAll('button').forEach((b) => { b.disabled = true; });
           setTimeout(() => { draw(); root.querySelector('.hero-select')?.classList.add('step-in'); }, 1300);
         };
@@ -842,7 +843,7 @@ function drawMenuTop() {
   const cnt = new Map(); for (const g of games) cnt.set(g.myLeader, (cnt.get(g.myLeader) || 0) + 1);
   const fav = [...cnt.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
   const ava = $('#menu .mv-ava');
-  if (ava) ava.style.backgroundImage = `url('assets/leaders/${[20, 41, 62, 63, 117, 118].includes(fav) ? fav : 20}.webp')`;
+  if (ava) ava.style.backgroundImage = `url('assets/leaders/face/${[20, 41, 62, 63, 117, 118].includes(fav) ? fav : 20}.webp')`;
   const nm = $('#menu .mv-name'); if (nm) nm.textContent = opt.name || 'Игрок';
   const u = currentUser(), sub = $('#menu .mv-sub'); if (sub) sub.textContent = u ? 'Профиль сохранён' : 'Профиль';
   $('#mv-wins') && ($('#mv-wins').textContent = wins);
@@ -989,7 +990,7 @@ function drawTour() {
   ob.innerHTML = `<div class="tour">
     ${!st?.started ? `<p>Отправьте ссылку участникам (до 8 человек). Каждый выбирает колоду и попадает в сетку.</p>
       <div class="link"><input readonly value="${url}"><button class="btn small" data-copy>Копировать</button></div>
-      <h3>Участники: ${st?.players.length || 0} из 8</h3><div class="tour-players">${(st?.players || []).map((p, i) => `<span><i style="background-image:url('assets/leaders/${p.leader}.webp')"></i>${name(i)}</span>`).join('')}</div>
+      <h3>Участники: ${st?.players.length || 0} из 8</h3><div class="tour-players">${(st?.players || []).map((p, i) => `<span><i style="background-image:url('assets/leaders/face/${p.leader}.webp')"></i>${name(i)}</span>`).join('')}</div>
       ${tour.owner ? `<button class="btn primary" data-start ${(st?.players.length || 0) < 2 ? 'disabled' : ''}>Начать турнир</button>` : '<p>Турнир начнёт его создатель.</p>'}` : ''}
     ${st?.started ? `<div class="tour-bracket">${st.rounds.map((r, k) => `<div class="tour-round"><b>${r.length === 1 ? 'Финал' : r.length === 2 ? 'Полуфинал' : `Раунд ${k + 1}`}</b>${r.map((m) => `<div class="tour-match ${m.winner != null ? 'done' : m.room ? 'live' : ''}"><span class="${m.winner === m.a && m.a != null ? 'win' : ''}">${name(m.a)}</span><span class="${m.winner === m.b && m.b != null ? 'win' : ''}">${name(m.b)}</span>${m.room && m.winner == null ? `<button class="btn small" data-watch="${m.room}">👁</button>` : ''}</div>`).join('')}</div>`).join('')}</div>` : ''}
     ${st?.champion != null ? `<h3 class="tour-champ">🏆 Победитель: ${name(st.champion)}</h3>` : ''}
