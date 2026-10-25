@@ -228,3 +228,8 @@ body.studio #splash .fan-sub, body.studio #splash .splash-legal { z-index: 2; an
 .menu-opts .mo-test { margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(217, 196, 138, .35); font-size: 14px; color: #b9a67f; }
 .menu-opts .mo-test b { display: block; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 4px; }
 .mv-left .menu-daily { width: 100% !important; margin-top: 1.6vh !important; }
+/* «в прошлый раз: …» — a small line inside the gold «Играть» plaque, under the word */
+.plq .plq-last { position: absolute; left: 0; right: 0; bottom: 5px; font: 600 12px/1 var(--k-font); color: rgba(60, 30, 8, .78); text-transform: none; letter-spacing: 0; text-shadow: none; pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 30px; }
+.plq .plq-last:empty { display: none; }
+.plq.gold:has(.plq-last:not(:empty)) > span { transform: translateY(-6px); }
+@media (min-width: 761px) and (max-height: 720px) { .mv-logo { max-height: 22vh; } .mv-sub2 { margin-bottom: 1.4vh; } .mv-btns { gap: 8px; } .mv .mv-more { margin-top: 1vh; } .mv-left .menu-daily { margin-top: 1vh !important; padding: 8px 12px !important; } }
