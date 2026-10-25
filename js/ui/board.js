@@ -8,6 +8,7 @@ import { pickLayout } from './layouts.js';
 import { linkTerms } from './glossary.js';
 import { ICON, KW_SVG, TOK_SVG } from './icons.js';
 
+const LEADER_ART = new Set([20, 41, 62, 63, 117, 118]);
 const KW_ICON = { breakthrough: '💥', defense: '🛡️', maneuver: '🏃', ward: '✨', fast: '⚡', deathtouch: '☠️', bloodsucker: '🩸', indestructible: '🪨', advantage: '🎯' };
 const KW_NAME = { breakthrough: 'Прорыв', defense: 'Оборона', maneuver: 'Манёвр', ward: 'Оберег', fast: 'Опережение', deathtouch: 'Смертельный удар', bloodsucker: 'Кровопийца', indestructible: 'Нерушимость', created: 'Созданная', advantage: 'Преимущество' };
 const KW_HELP = {
@@ -380,7 +381,8 @@ export class BoardUI {
     const prev = el.dataset.key ? JSON.parse(el.dataset.key) : null;
     el.dataset.key = key;
     const img = d?.img;
-    const bg = img ? `background-image:url('${img}')` : '';
+    // Leaders with a big cleaned-up painting (assets/leaders) show it in their round medallion.
+    const bg = w.mode === 'leader' && LEADER_ART.has(c.id) ? `background-image:url('assets/leaders/${c.id}.webp')` : img ? `background-image:url('${img}')` : '';
     const gen = !img && d ? `<div class="gen-art" style="position:absolute;inset:0;border-radius:inherit">${GEN_EMOJI[c.id] || '✨'}</div>` : '';
     if (w.mode === 'back' || (w.mode === 'ohand' && !d)) {
       el.className = 'card-back';
@@ -416,6 +418,7 @@ export class BoardUI {
     }
     const mode = w.mode;
     const cls = ['card', mode === 'small' ? `small ${d.type}` : mode];
+    if (mode === 'leader' && LEADER_ART.has(c.id)) cls.push('art');
     if (d.legend) cls.push('legend');
     if (d.rarity === 'Золото') cls.push('gold');
     if (c.created) cls.push('created');

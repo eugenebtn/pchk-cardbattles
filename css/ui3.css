@@ -121,3 +121,7 @@
   box-shadow: var(--k-rim), 0 30px 70px rgba(0, 0, 0, .8); }
 .modal h3, #game > .modal-back .modal h3, .fb-win h3 { font-family: var(--k-font); font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: var(--k-gold-hi); text-shadow: 0 2px 0 rgba(0, 0, 0, .6); }
 .picker-box h2, .rules-box h2, .builder-head h2, .stats-box h2 { font-family: var(--k-font) !important; font-weight: 800 !important; text-transform: uppercase; letter-spacing: 2px; color: var(--k-gold-hi) !important; text-shadow: 0 3px 0 rgba(0, 0, 0, .6); }
+
+/* Splash: the same gold logo as the menu */
+.fan-logo-img { margin: 2vh 0 0; line-height: 0; }
+.fan-logo-img img { width: min(480px, 76vw); max-height: 24vh; object-fit: contain; filter: drop-shadow(0 8px 16px rgba(0, 0, 0, .8)); animation: mv-logo .9s cubic-bezier(.2, .8, .3, 1.2) both; }

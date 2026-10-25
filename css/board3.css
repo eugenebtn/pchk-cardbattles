@@ -1,0 +1,77 @@
+/* Redesign («поле B»): a tavern table, the field in a carved gold frame, Leaders in round medallions,
+   a round gold «Завершить ход» seal, ornate card backs. Loaded last; uses the kit from ui3.css. */
+
+/* ---------- table and frame ---------- */
+#game #board, #game .theme-castle #board, #game .theme-dungeon #board, .theme-castle #game #board, .theme-dungeon #game #board {
+  background: url('../assets/ui/table.webp') center / cover no-repeat, #2a170b !important; }
+#game #stage.port #board, #stage.port #board { background: url('../assets/ui/table_port.webp') center / cover no-repeat, #2a170b !important; }
+#board::after { background: radial-gradient(ellipse 75% 70% at 50% 48%, transparent 50%, rgba(0, 0, 0, .5) 100%) !important; }
+.field { background: #120a05; border-radius: 10px; box-shadow: 0 26px 60px rgba(0, 0, 0, .75), 0 0 0 1px rgba(0, 0, 0, .6); }
+.field::after { content: ''; position: absolute; inset: -16px; pointer-events: none; z-index: 1;
+  border: 30px solid transparent; border-image: url('../assets/ui/frame.webp') 88 / 30px / 0 stretch; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .6)); }
+.field-art, .field-shade { inset: 12px !important; border-radius: 4px !important; }
+.field-shade { box-shadow: inset 0 0 70px rgba(0, 0, 0, .65) !important; background: radial-gradient(ellipse at 50% 50%, rgba(10, 6, 4, .18), rgba(10, 6, 4, .55)) !important; }
+#stage.port .field::after { inset: -10px; border-width: 22px; border-image-width: 22px; }
+#stage.port .field-art, #stage.port .field-shade { inset: 10px !important; }
+.field-ribbon { z-index: 2; box-shadow: inset 0 0 0 1.5px var(--k-gold), inset 0 0 0 3.5px #160c06, 0 6px 14px rgba(0, 0, 0, .6) !important; --c: var(--k-red); }
+
+/* ---------- Leaders: round gold medallions with the big painting ---------- */
+.card.leader.art .frame { inset: 0 0 auto 0 !important; height: var(--leader-w) !important; border-radius: 50% !important;
+  background: conic-gradient(from 210deg, #fff1b8, #c98a2a, #ffe39a, #8a5a1c, #f0c25e, #fff1b8) !important;
+  box-shadow: 0 0 0 3px #160c06, 0 0 0 5px rgba(232, 184, 90, .5), 0 16px 30px rgba(0, 0, 0, .75) !important; }
+.card.leader.art .frame::after { display: none !important; }
+.card.leader.art .face, .card.leader.art .shade { left: 8% !important; right: 8% !important; top: calc(var(--leader-w) * .08) !important; bottom: auto !important;
+  height: calc(var(--leader-w) * .84) !important; border-radius: 50% !important; border: none !important; }
+.card.leader.art .face { background-size: auto 128% !important; background-position: 50% 12% !important; box-shadow: inset 0 0 0 3px #160c06, inset 0 -18px 30px rgba(0, 0, 0, .45) !important; }
+.card.leader.art .shade { background: radial-gradient(circle at 50% 35%, transparent 55%, rgba(0, 0, 0, .35)) !important; }
+.card.leader.art .nm.rib { left: 6% !important; right: 6% !important; bottom: 2px !important; top: auto !important; z-index: 3;
+  box-shadow: inset 0 0 0 1.5px var(--k-gold), inset 0 0 0 3.5px #160c06, 0 6px 12px rgba(0, 0, 0, .6) !important; }
+.card.leader.art .stat.hp { right: -2% !important; bottom: auto !important; top: calc(var(--leader-w) * .62) !important; z-index: 4; }
+.card.leader.art .ward-bubble { border-radius: 50% !important; height: var(--leader-w); bottom: auto; }
+.card.leader.art:hover .frame { box-shadow: 0 0 0 3px #160c06, 0 0 0 5px var(--k-gold-hi), 0 0 36px 6px rgba(255, 222, 160, .35), 0 16px 30px rgba(0, 0, 0, .75) !important; }
+#stage.port .card.leader.art .stat.hp { top: calc(var(--leader-w) * .56) !important; right: -10% !important; }
+
+/* ---------- the round gold seal: end turn ---------- */
+#stage.land .end-turn { width: 124px !important; height: 124px !important; padding: 0 12px !important; border-radius: 50% !important; border: none !important;
+  display: grid; place-items: center; text-align: center; line-height: 1.05; font-size: 19px !important; letter-spacing: .5px; white-space: normal;
+  color: #3a1206 !important; text-shadow: 0 1px 0 rgba(255, 240, 200, .6) !important;
+  background: radial-gradient(circle at 40% 30%, #fff6cf, #f0c25e 40%, #c98a2a 70%, #8a5a1c) !important;
+  box-shadow: inset 0 0 0 4px #9a611c, inset 0 0 0 6px #ffe39a, inset 0 -10px 18px rgba(90, 50, 10, .45), 0 0 0 3px #160c06, 0 12px 26px rgba(0, 0, 0, .7) !important; }
+#stage.land .end-turn::before { display: none; }
+#stage.land .end-turn.ready { animation: seal-glow 1.3s ease-in-out infinite alternate; }
+@keyframes seal-glow { to { box-shadow: inset 0 0 0 4px #9a611c, inset 0 0 0 6px #ffe39a, inset 0 -10px 18px rgba(90, 50, 10, .45), 0 0 0 3px #160c06, 0 0 34px 10px rgba(255, 205, 110, .75), 0 12px 26px rgba(0, 0, 0, .7); } }
+#stage.land .end-turn.wait { font-size: 16px !important; color: #d8d2c4 !important; text-shadow: 0 1px 0 #000 !important;
+  background: radial-gradient(circle at 40% 30%, #8a8478, #4a463e 55%, #1e1c18) !important;
+  box-shadow: inset 0 0 0 4px #2a2620, inset 0 0 0 6px #7a7266, 0 0 0 3px #160c06, 0 12px 26px rgba(0, 0, 0, .7) !important; }
+#stage.port .end-turn { border: none !important; border-radius: 40px !important; padding: 0 18px !important; color: #3a1206 !important; text-shadow: 0 1px 0 rgba(255, 240, 200, .6) !important;
+  background: linear-gradient(#fff0b0, #f0c25e 45%, #c98a2a 55%, #e9b24e) !important; box-shadow: inset 0 0 0 2px #fff6d0, inset 0 0 0 5px #9a611c, 0 0 0 3px #160c06, 0 10px 22px rgba(0, 0, 0, .65) !important; }
+#stage.port .end-turn::before { display: none; }
+#stage.port .end-turn.wait { color: #d8d2c4 !important; text-shadow: 0 1px 0 #000 !important; background: linear-gradient(#7a756a, #3a3730) !important; box-shadow: inset 0 0 0 2px #9a9284, inset 0 0 0 5px #2a2620, 0 0 0 3px #160c06, 0 10px 22px rgba(0, 0, 0, .65) !important; }
+
+/* ---------- round: a small parchment plate with a gold rim ---------- */
+#stage.land .round-box { width: 148px !important; padding: 6px 7px 7px !important; }
+#stage.land .round-box b { font-size: 18px; }
+#stage.land .round-box .phases { grid-template-columns: 1fr !important; gap: 3px; }
+#stage.land .round-box .ph { font-size: 13px; padding: 2px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.round-box, .hint-bar, .power { box-shadow: inset 0 0 14px rgba(120, 80, 30, .4), 0 0 0 1.5px var(--k-gold), 0 0 0 4px #160c06, 0 0 0 5px rgba(232, 184, 90, .45), 0 10px 20px rgba(0, 0, 0, .55) !important; }
+.log-panel { background: linear-gradient(rgba(40, 24, 12, .9), rgba(20, 12, 6, .92)) !important; box-shadow: var(--k-rim) !important; }
+
+/* ---------- card backs and piles ---------- */
+.card-back { background: url('../assets/ui/cardback.webp') center / cover no-repeat, #5a1010 !important;
+  box-shadow: inset 0 0 0 2px #160c06, inset 0 0 0 3.5px rgba(232, 184, 90, .7), 0 8px 16px rgba(0, 0, 0, .7) !important; }
+.pile.deck::before { background: url('../assets/ui/cardback.webp') center / cover, #3a0c0c; box-shadow: 3px 3px 0 #2a0808, 6px 6px 0 #1a0505, 0 10px 18px rgba(0, 0, 0, .6); filter: brightness(.6); }
+.pile .count { background: radial-gradient(circle at 40% 30%, #fff0b0, #e3ad4c 55%, #8a5a1c) !important; color: #2a1206 !important; border: none !important; box-shadow: 0 0 0 2px #160c06, 0 3px 6px rgba(0, 0, 0, .6); }
+.pile .lbl { color: var(--k-gold) !important; text-shadow: 0 2px 3px #000; }
+.pile.grave .empty { border: 1.5px solid rgba(232, 184, 90, .35) !important; background: rgba(20, 10, 4, .55) !important; }
+
+/* ---------- banner, names, top buttons ---------- */
+.banner { border: none !important; background: linear-gradient(rgba(255, 255, 255, .14), rgba(0, 0, 0, .25)), var(--k-red) !important;
+  box-shadow: inset 0 0 0 2px var(--k-gold), inset 0 0 0 5px #160c06, inset 0 0 0 6px rgba(232, 184, 90, .5), 0 0 40px rgba(255, 120, 60, .25), 0 18px 40px rgba(0, 0, 0, .7) !important; }
+.banner.dim { background: linear-gradient(rgba(255, 255, 255, .1), rgba(0, 0, 0, .3)), url('../assets/tex/walnut.webp') center / 400px, var(--k-wood-2) !important; color: var(--k-cream) !important; }
+.pname { color: var(--k-gold-hi) !important; }
+.icon-btn { background: radial-gradient(circle at 40% 30%, #fff0b0, #e3ad4c 55%, #8a5a1c) !important; box-shadow: 0 0 0 2px #160c06, 0 4px 10px rgba(0, 0, 0, .6) !important; }
+.emote-btn { box-shadow: 0 0 0 1.5px var(--k-gold), 0 0 0 4px #160c06, 0 4px 10px rgba(0, 0, 0, .6) !important; }
+.prompt .ptext { box-shadow: inset 0 0 14px rgba(120, 80, 30, .4), 0 0 0 1.5px var(--k-gold), 0 0 0 4px #160c06, 0 0 0 5px rgba(232, 184, 90, .45), 0 10px 20px rgba(0, 0, 0, .55) !important; }
+.prompt .btn.small { border: none !important; background: linear-gradient(rgba(255, 255, 255, .14), rgba(0, 0, 0, .25)), var(--k-red) !important;
+  box-shadow: inset 0 0 0 1.5px var(--k-gold), inset 0 0 0 3.5px #160c06, 0 6px 14px rgba(0, 0, 0, .6) !important; }
+.prompt .btn.small.cancel { background: linear-gradient(rgba(255, 220, 160, .1), rgba(0, 0, 0, .35)), url('../assets/tex/walnut.webp') center / 360px, var(--k-wood-2) !important; }
