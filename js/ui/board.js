@@ -27,6 +27,8 @@ export const cardDef = (id) => CARDS[id];
 const plural = (n, one, few, many) => (n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? few : many);
 // Old board themes now map to Place cards whose painting fills the battlefield.
 const PLACE_THEME = { tavern: 160, castle: 8, dungeon: 33 };
+// Cards the game draws itself (tools/render-cards.mjs): on the field they use the art-only version in assets/cards/field.
+const DRAWN = /assets\/cards\/(levenheart|larisa)_/;
 // Short Leader names for the ribbon on the board.
 const LEADER_SHORT = { 20: 'Лёвенхарт', 41: 'Крыса Лариса', 62: 'Дан Балан', 63: 'Граф Влад', 117: 'Эрик Пэнисов', 118: 'София' };
 const LEADER_ACC = { 20: 'Лёвенхарта', 41: 'Крысу Ларису', 62: 'Дана Балана', 63: 'Графа Влада', 117: 'Эрика Пэнисова', 118: 'Софию' };
@@ -447,7 +449,7 @@ export class BoardUI {
       <div class="shadow"></div>
       ${kws.includes('defense') && mode !== 'leader' ? '<div class="taunt"></div>' : ''}
       <div class="frame"></div>
-      <div class="face" style="${bg}">${gen}</div><div class="shade"></div>
+      <div class="face" style="${DRAWN.test(img || '') && w.mode !== 'leader' ? `background-image:url('${img.replace('/cards/', '/cards/field/')}')` : bg}">${gen}</div><div class="shade"></div>
       ${d.legend && mode !== 'leader' ? '<div class="legend-medal" data-tip="Легенда|У вас на поле не может быть двух Легенд с одним именем."></div>' : ''}
       ${showName ? (() => { const nm = mode === 'leader' ? (LEADER_SHORT[c.id] || d.name.split(',')[0]) : d.name.split(',')[0]; const len = nm.length; const fit = mode === 'leader' ? (len > 9 ? 'lname-long' : '') : len > (mode === 'place' ? 18 : 12) ? 'two' : len <= 8 ? 'big' : ''; return `<div class="nm rib ${d.type} ${fit}"><span>${nm}</span></div>`; })() : ''}
       ${stats}
@@ -1689,6 +1691,7 @@ ${optHtml}</div></div>
         }
         if (d.legend) {
           sfx.legend(p.x);
+          setTimeout(() => voice(d.id, 'Play'), 450); // the character's own line (assets/audio/elVo<id>Play), if it has one
           el.classList.add('shine'); setTimeout(() => el.classList.remove('shine'), 1300);
         }
         if (ev.created && type === 'ally') sfx.animal(p.x);
