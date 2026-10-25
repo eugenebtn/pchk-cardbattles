@@ -7,29 +7,30 @@
 #game #stage.port #board, #stage.port #board { background: url('../assets/ui/table_port.webp') center / cover no-repeat, #2a170b !important; }
 #board::after { background: radial-gradient(ellipse 75% 70% at 50% 48%, transparent 50%, rgba(0, 0, 0, .5) 100%) !important; }
 .field { background: #120a05; border-radius: 10px; box-shadow: 0 26px 60px rgba(0, 0, 0, .75), 0 0 0 1px rgba(0, 0, 0, .6); }
-.field::after { content: ''; position: absolute; inset: -16px; pointer-events: none; z-index: 1;
-  border: 30px solid transparent; border-image: url('../assets/ui/frame.webp') 88 / 30px / 0 stretch; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .6)); }
+.field::after { content: ''; position: absolute; inset: -8px; pointer-events: none; z-index: 1;
+  border: 18px solid transparent; border-image: url('../assets/ui/frame.webp') 88 / 18px / 0 stretch; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .6)); }
 .field-art, .field-shade { inset: 12px !important; border-radius: 4px !important; }
 .field-shade { box-shadow: inset 0 0 70px rgba(0, 0, 0, .65) !important; background: radial-gradient(ellipse at 50% 50%, rgba(10, 6, 4, .18), rgba(10, 6, 4, .55)) !important; }
-#stage.port .field::after { inset: -10px; border-width: 22px; border-image-width: 22px; }
+#stage.port .field::after { inset: -6px; border-width: 14px; border-image-width: 14px; }
 #stage.port .field-art, #stage.port .field-shade { inset: 10px !important; }
 .field-ribbon { z-index: 2; box-shadow: inset 0 0 0 1.5px var(--k-gold), inset 0 0 0 3.5px #160c06, 0 6px 14px rgba(0, 0, 0, .6) !important; --c: var(--k-red); }
 
-/* ---------- Leaders: round gold medallions with the big painting ---------- */
+/* ---------- Leaders: round medallions — a thin gold ring, the painting fills the circle ---------- */
 .card.leader.art .frame { inset: 0 0 auto 0 !important; height: var(--leader-w) !important; border-radius: 50% !important;
-  background: conic-gradient(from 210deg, #fff1b8, #c98a2a, #ffe39a, #8a5a1c, #f0c25e, #fff1b8) !important;
-  box-shadow: 0 0 0 3px #160c06, 0 0 0 5px rgba(232, 184, 90, .5), 0 16px 30px rgba(0, 0, 0, .75) !important; }
+  background: linear-gradient(160deg, #fff1b8, #d9a040 40%, #8a5a1c 75%, #e8b85a) !important;
+  box-shadow: 0 0 0 2px #160c06, 0 14px 28px rgba(0, 0, 0, .7) !important; }
 .card.leader.art .frame::after { display: none !important; }
-.card.leader.art .face, .card.leader.art .shade { left: 8% !important; right: 8% !important; top: calc(var(--leader-w) * .08) !important; bottom: auto !important;
-  height: calc(var(--leader-w) * .84) !important; border-radius: 50% !important; border: none !important; }
-.card.leader.art .face { background-size: auto 128% !important; background-position: 50% 12% !important; box-shadow: inset 0 0 0 3px #160c06, inset 0 -18px 30px rgba(0, 0, 0, .45) !important; }
-.card.leader.art .shade { background: radial-gradient(circle at 50% 35%, transparent 55%, rgba(0, 0, 0, .35)) !important; }
-.card.leader.art .nm.rib { left: 6% !important; right: 6% !important; bottom: 2px !important; top: auto !important; z-index: 3;
-  box-shadow: inset 0 0 0 1.5px var(--k-gold), inset 0 0 0 3.5px #160c06, 0 6px 12px rgba(0, 0, 0, .6) !important; }
-.card.leader.art .stat.hp { right: -2% !important; bottom: auto !important; top: calc(var(--leader-w) * .62) !important; z-index: 4; }
+.card.leader.art .face, .card.leader.art .shade { left: 4% !important; right: 4% !important; top: calc(var(--leader-w) * .04) !important; bottom: auto !important;
+  height: calc(var(--leader-w) * .92) !important; border-radius: 50% !important; border: none !important; }
+.card.leader.art .face { background-color: #3a1a10; background-size: auto 116% !important; background-position: 50% 0% !important; box-shadow: inset 0 0 0 2px #160c06 !important; }
+.card.leader.art .shade { background: radial-gradient(circle at 50% 40%, transparent 62%, rgba(0, 0, 0, .3)) !important; }
+.card.leader.art .nm.rib { display: none !important; }
+.card.leader.art .stat.hp { right: -6% !important; bottom: auto !important; top: calc(var(--leader-w) * .6) !important; z-index: 4; }
 .card.leader.art .ward-bubble { border-radius: 50% !important; height: var(--leader-w); bottom: auto; }
-.card.leader.art:hover .frame { box-shadow: 0 0 0 3px #160c06, 0 0 0 5px var(--k-gold-hi), 0 0 36px 6px rgba(255, 222, 160, .35), 0 16px 30px rgba(0, 0, 0, .75) !important; }
+.card.leader.art:hover .frame { box-shadow: 0 0 0 2px #160c06, 0 0 30px 6px rgba(255, 222, 160, .35), 0 14px 28px rgba(0, 0, 0, .7) !important; }
 #stage.port .card.leader.art .stat.hp { top: calc(var(--leader-w) * .56) !important; right: -10% !important; }
+#stage.land .pile .lbl { display: none; }
+#stage.land .pname { font-size: 14px !important; opacity: .85; }
 
 /* ---------- the round gold seal: end turn ---------- */
 #stage.land .end-turn { width: 124px !important; height: 124px !important; padding: 0 12px !important; border-radius: 50% !important; border: none !important;
