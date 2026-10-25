@@ -1,7 +1,7 @@
 // Online play through the game server (Cloudflare). The server runs the game; this page only shows it and answers.
-// Until SERVER is set (after the server is published) the site keeps using direct browser-to-browser play (online.js).
+// If the server cannot be reached, «С другом» falls back to direct browser-to-browser play (online.js).
 // For testing: ?server=http://127.0.0.1:8787 (remembered in this browser; ?server=off forgets it).
-const SERVER = '';
+const SERVER = 'https://pchk-cardbattles.eugenebtn.workers.dev';
 
 function base() {
   try {

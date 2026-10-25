@@ -506,8 +506,8 @@ export class BoardUI {
       if (old.outerHTML !== want) { old.outerHTML = want; }
     }
     const turnDot = (i) => (view.turn === i && view.phase === 'turn' ? '<span class="turn-dot"></span>' : '');
-    this.names.me.innerHTML = `${turnDot(me)}${esc(P[me].name)}`;
-    this.names.opp.innerHTML = `${turnDot(op)}${esc(P[op].name)}`;
+    this.names.me.innerHTML = `${turnDot(me)}${esc(P[me].name)}`; this.names.me.title = P[me].name;
+    this.names.opp.innerHTML = `${turnDot(op)}${esc(P[op].name)}`; this.names.opp.title = P[op].name;
     for (const [el, p] of [[this.coinsEl.me, P[me]], [this.coinsEl.opp, P[op]]]) {
       const span = el.querySelector('span');
       if (span.textContent !== String(p.coins)) { span.textContent = p.coins; span.animate([{ transform: 'scale(1.6)' }, { transform: 'scale(1)' }], { duration: 300 }); }

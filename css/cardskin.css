@@ -681,3 +681,6 @@
 .ach-cell.on { background: rgba(246, 215, 122, .07); box-shadow: inset 0 0 0 1.5px rgba(217, 196, 138, .55); }
 .ach-cell.on b { color: #f6e2a8; }
 .ach-cell.on small { color: #d0c3a2; }
+/* Player names never run past the left column (full name on hover). */
+#stage.land .pname { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#stage.land .pname { font-size: 15px; letter-spacing: .8px; }

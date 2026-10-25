@@ -170,7 +170,9 @@ function pickDecks(steps) {
     const draw = () => {
       const st = steps[step];
       const list = st.allowRandom ? [{ key: 'random', title: 'Случайный', leader: null, cards: [], random: true }, ...decks] : decks;
-      let sel = list.find((d) => d.key === (draw.last || '')) || list[st.allowRandom ? 1 : 0];
+      // The opponent's step starts on «Случайный» (not on the deck you just took); each step remembers its own pick.
+      draw.byStep = draw.byStep || {};
+      let sel = list.find((d) => d.key === draw.byStep[step]) || (st.allowRandom ? list[0] : list.find((d) => d.key === (draw.last || '')) || list[0]);
       const paint = () => {
         const L = sel.random ? null : CARDS[sel.leader];
         root.innerHTML = `<div class="hero-select">
@@ -198,7 +200,7 @@ function pickDecks(steps) {
         root.querySelectorAll('.hs-medal').forEach((m) => m.addEventListener('click', () => {
           const d = list.find((x) => x.key === m.dataset.key);
           if (!d || d === sel) return; // «＋ Своя колода» has its own handler
-          sel = d; draw.last = d.key; sfx.select(); sfx.reveal(); paint();
+          sel = d; draw.last = d.key; draw.byStep[step] = d.key; sfx.select(); sfx.reveal(); paint();
         }));
         root.querySelectorAll('[data-lv]').forEach((b) => b.addEventListener('click', () => { sfx.select(); opt.botLevel = b.dataset.lv; store.set('botLevel', opt.botLevel); paint(); }));
         root.querySelector('[data-new]').onclick = () => {
@@ -516,7 +518,7 @@ async function startBot() {
   if (!r) return;
   const [mine, bot] = r;
   const adaptive = opt.botLevel === 'auto', level = adaptive ? adaptiveLevel() : opt.botLevel;
-  const s = new Session({ players: [playerCfg(mine, myName()), playerCfg(bot, `Компьютер · ${LEVEL_RU[level]} (${bot.title})`)], controllers: ['human', 'bot'], me: 0 });
+  const s = new Session({ players: [playerCfg(mine, myName()), playerCfg(bot, `Компьютер · ${LEVEL_RU[level]}`)], controllers: ['human', 'bot'], me: 0 });
   s.botLevel = level; s.adaptive = adaptive;
   startBoard(s);
 }
