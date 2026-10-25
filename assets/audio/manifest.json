@@ -415,5 +415,150 @@
  ],
  "ambDungeon": [
   "ambDungeon_lute.mp3"
+ ],
+ "elAnimal": [
+  "elAnimal_0.mp3",
+  "elAnimal_1.mp3"
+ ],
+ "elAxe": [
+  "elAxe_0.mp3"
+ ],
+ "elBattle": [
+  "elBattle_0.mp3"
+ ],
+ "elBlood": [
+  "elBlood_0.mp3"
+ ],
+ "elBook": [
+  "elBook_0.mp3"
+ ],
+ "elBuff": [
+  "elBuff_0.mp3"
+ ],
+ "elChain": [
+  "elChain_0.mp3"
+ ],
+ "elClick": [
+  "elClick_0.mp3"
+ ],
+ "elCoin": [
+  "elCoin_0.mp3",
+  "elCoin_1.mp3"
+ ],
+ "elConfirm": [
+  "elConfirm_0.mp3"
+ ],
+ "elDanger": [
+  "elDanger_0.mp3"
+ ],
+ "elDark": [
+  "elDark_0.mp3"
+ ],
+ "elDeath": [
+  "elDeath_0.mp3"
+ ],
+ "elDebuff": [
+  "elDebuff_0.mp3"
+ ],
+ "elDraw": [
+  "elDraw_0.mp3"
+ ],
+ "elExplosion": [
+  "elExplosion_0.mp3"
+ ],
+ "elFace": [
+  "elFace_0.mp3"
+ ],
+ "elFire": [
+  "elFire_0.mp3"
+ ],
+ "elFlip": [
+  "elFlip_0.mp3"
+ ],
+ "elHeal": [
+  "elHeal_0.mp3"
+ ],
+ "elHit": [
+  "elHit_0.mp3",
+  "elHit_1.mp3",
+  "elHit_2.mp3"
+ ],
+ "elHitBig": [
+  "elHitBig_0.mp3"
+ ],
+ "elLandBig": [
+  "elLandBig_0.mp3"
+ ],
+ "elLegend": [
+  "elLegend_0.mp3"
+ ],
+ "elLose": [
+  "elLose_0.mp3"
+ ],
+ "elMagic": [
+  "elMagic_0.mp3"
+ ],
+ "elMonster": [
+  "elMonster_0.mp3"
+ ],
+ "elPlay": [
+  "elPlay_0.mp3",
+  "elPlay_1.mp3",
+  "elPlay_2.mp3"
+ ],
+ "elShield": [
+  "elShield_0.mp3"
+ ],
+ "elShuffle": [
+  "elShuffle_0.mp3"
+ ],
+ "elStun": [
+  "elStun_0.mp3"
+ ],
+ "elSwing": [
+  "elSwing_0.mp3",
+  "elSwing_1.mp3"
+ ],
+ "elTurn": [
+  "elTurn_0.mp3"
+ ],
+ "elWin": [
+  "elWin_0.mp3"
+ ],
+ "elVo117Intro": [
+  "elVo117Intro_0.mp3"
+ ],
+ "elVo117Win": [
+  "elVo117Win_0.mp3"
+ ],
+ "elVo118Intro": [
+  "elVo118Intro_0.mp3"
+ ],
+ "elVo118Win": [
+  "elVo118Win_0.mp3"
+ ],
+ "elVo20Intro": [
+  "elVo20Intro_0.mp3"
+ ],
+ "elVo20Win": [
+  "elVo20Win_0.mp3"
+ ],
+ "elVo41Intro": [
+  "elVo41Intro_0.mp3"
+ ],
+ "elVo41Win": [
+  "elVo41Win_0.mp3"
+ ],
+ "elVo62Intro": [
+  "elVo62Intro_0.mp3"
+ ],
+ "elVo62Win": [
+  "elVo62Win_0.mp3"
+ ],
+ "elVo63Intro": [
+  "elVo63Intro_0.mp3"
+ ],
+ "elVo63Win": [
+  "elVo63Win_0.mp3"
  ]
 }

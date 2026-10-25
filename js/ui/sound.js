@@ -1,7 +1,6 @@
-// Sound engine: recorded CC0 samples (Kenney, OpenGameArt) through a small mixing desk —
+// Sound engine: the game's own effects made with ElevenLabs Sound Effects (credited on the Legal page), mixed through a small desk —
 // compressor, a short room reverb (a table in a tavern, not a cathedral), stereo position by board location,
-// random pitch/volume per hit. Samples: Little Robot Sound Factory (CC BY 3.0), RPG Sound Pack by artisticdude
-// (CC0), Kenney (CC0); music: Kevin MacLeod, incompetech.com (CC BY 4.0).
+// random pitch/volume per hit. Music: Kevin MacLeod, incompetech.com (CC BY 4.0) and RandomMind (CC0).
 let ctx = null, master, sfxBus, musicBus, verb, verbSend, comp;
 let enabled = true, musicOn = true;
 let manifest = null;
@@ -17,7 +16,7 @@ export function volumes() { return { ...VOL }; }
 const buffers = new Map();
 let loading = null;
 const BASE = 'assets/audio/';
-const USED = new Set(['bell', 'book', 'boom', 'chain', 'chop', 'die', 'dragon', 'fire', 'fireball', 'goblin', 'jEpic', 'jLose', 'jWin', 'lrGold', 'lrMenu', 'lrSpell', 'lrTrap', 'monster', 'plate', 'punch', 'punchMed', 'rpgArmor', 'rpgCloth', 'rpgCoin', 'rpgMetal', 'rpgSwing', 'rpgSword', 'rpgUi', 'rpgWood', 'slime', 'soft']);
+const USED = new Set(['elAnimal', 'elAxe', 'elBattle', 'elBlood', 'elBook', 'elBuff', 'elChain', 'elClick', 'elCoin', 'elConfirm', 'elDanger', 'elDark', 'elDeath', 'elDebuff', 'elDraw', 'elExplosion', 'elFace', 'elFire', 'elFlip', 'elHeal', 'elHit', 'elHitBig', 'elLandBig', 'elLegend', 'elLose', 'elMagic', 'elMonster', 'elPlay', 'elShield', 'elShuffle', 'elStun', 'elSwing', 'elTurn', 'elWin', 'soft']);
 
 function ac() {
   if (!ctx) {
@@ -60,7 +59,7 @@ async function loadAll() {
     try {
       manifest = await (await fetch(BASE + 'manifest.json')).json();
       // Only the groups the effects below actually use (older packs stay on disk but are not downloaded).
-      const names = Object.keys(manifest).filter((n) => USED.has(n));
+      const names = Object.keys(manifest).filter((n) => USED.has(n) || n.startsWith('elVo')); // + Leader voices
       await Promise.all(names.flatMap((n) => manifest[n].map((f) => load(f))));
     } catch (e) { console.warn('audio load failed', e); }
   })();
@@ -235,64 +234,70 @@ export function duckMusic(amount = 0.35, seconds = 1.6) {
 }
 
 // ---------- named effects ----------
+// The game's own effects made with ElevenLabs Sound Effects (groups «el…», tools/build-el-audio.py), with a synth sub-bass for weight.
 export const sfx = {
-  // Interface: soft fantasy UI clicks (RPG Sound Pack, Little Robot Sound Factory).
-  click(x) { play('rpgUi', { vol: 0.3 * VOL.ui, verb: 0.05, x }); },
+  // Interface.
+  click(x) { play('elClick', { vol: 0.45 * VOL.ui, verb: 0.03, x }); },
   hover() {},
-  select(x) { play('lrMenu', { vol: 0.3 * VOL.ui, verb: 0.08, x }); },
-  confirm() { play('lrMenu', { vol: 0.45 * VOL.ui, verb: 0.1 }); },
-  error() { play('rpgUi', { vol: 0.35 * VOL.ui, rate: 0.7, verb: 0.05 }); },
-  // A Leader is in danger: a low drum and a dark bell, once per danger level.
-  danger(x) { sub(46, 0.9, 1.0); play('bell', { vol: 0.32, rate: 0.55, x, verb: 0.45, delay: 0.05 }); },
-  // Cards: cloth-like swishes and a wooden tap on the table.
-  draw(x) { play('rpgCloth', { vol: 0.35, rate: 1.25, verb: 0.08, x }); },
-  shuffle() { play('rpgCloth', { vol: 0.4, rate: 1.1 }); play('rpgCloth', { vol: 0.3, rate: 1.3, delay: 0.12 }); },
-  play(x) { play('rpgCloth', { vol: 0.45, rate: 1.1, x, verb: 0.1 }); },
-  reveal() { play('rpgCloth', { vol: 0.4, verb: 0.12 }); },
-  flip(x) { play('rpgCloth', { vol: 0.4, rate: 1.2, x, verb: 0.12 }); },
+  select(x) { play('elClick', { vol: 0.4 * VOL.ui, rate: 1.15, verb: 0.05, x }); },
+  confirm() { play('elConfirm', { vol: 0.5 * VOL.ui, verb: 0.08 }); },
+  error() { play('elClick', { vol: 0.45 * VOL.ui, rate: 0.7, verb: 0.05 }); },
+  // A Leader is in danger: heartbeat and a low bell, once per danger level.
+  danger(x) { play('elDanger', { vol: 0.7, x, verb: 0.3 }); },
+  // Cards.
+  draw(x) { play('elDraw', { vol: 0.5, verb: 0.06, x }); },
+  shuffle() { play('elShuffle', { vol: 0.55, verb: 0.08 }); },
+  play(x) { play('elPlay', { vol: 0.55, x, verb: 0.08 }); },
+  reveal() { play('elFlip', { vol: 0.5, verb: 0.1 }); },
+  flip(x) { play('elFlip', { vol: 0.5, x, verb: 0.1 }); },
   land(big = false, x) {
-    play('rpgWood', { vol: big ? 0.75 : 0.5, rate: big ? 0.8 : 1, x, verb: 0.15 });
-    if (big) { play('rpgArmor', { vol: 0.35, x, verb: 0.2, delay: 0.03 }); sub(60, 0.5, 0.7); }
+    if (big) { play('elLandBig', { vol: 0.75, x, verb: 0.15 }); sub(60, 0.5, 0.6); }
+    else play('elPlay', { vol: 0.6, x, verb: 0.1 });
   },
-  legend(x) { play('jEpic', { vol: 0.5, verb: 0.25, x }); },
+  legend(x) { duckMusic(0.35, 3); play('elLegend', { vol: 0.75, verb: 0.2, x }); },
   // Fighting.
-  swing(x) { play('rpgSwing', { vol: 0.55, x, verb: 0.15 }); },
+  swing(x) { play('elSwing', { vol: 0.6, x, verb: 0.1 }); },
   hit(n = 3, x) {
-    const heavy = n >= 4;
-    if (n >= 6) play('boom', { vol: 0.35, x, verb: 0.25, delay: 0.02 }); // a crushing blow
-    play(heavy ? 'punch' : 'punchMed', { vol: Math.min(0.85, 0.45 + n * 0.07), x, verb: 0.15 });
-    play('rpgMetal', { vol: heavy ? 0.35 : 0.2, x, verb: 0.15, delay: 0.01 });
-    if (heavy) sub(60, 0.4, 0.8);
+    if (n >= 5) { play('elHitBig', { vol: Math.min(0.95, 0.6 + n * 0.04), x, verb: 0.2 }); sub(55, 0.45, 0.8); }
+    else play('elHit', { vol: Math.min(0.85, 0.5 + n * 0.08), x, verb: 0.12 });
   },
-  face(n = 3, x) { play('plate', { vol: Math.min(0.9, 0.5 + n * 0.06), x, verb: 0.3 }); sub(50, 0.5, 0.8); },
-  slash(x) { play('rpgSword', { vol: 0.5, x, verb: 0.15 }); },
-  death(x) { play('rpgCloth', { vol: 0.5, rate: 0.7, x, verb: 0.2 }); play('die', { vol: 0.3, x, verb: 0.3, delay: 0.05 }); },
-  battle() { duckMusic(0.35, 2.5); play('rpgSword', { vol: 0.55, verb: 0.25 }); sub(55, 0.5, 0.9); play('soft', { vol: 0.4, rate: 0.6, verb: 0.3, delay: 0.1 }); },
+  face(n = 3, x) { play('elFace', { vol: Math.min(0.95, 0.55 + n * 0.06), x, verb: 0.25 }); sub(50, 0.5, 0.7); },
+  slash(x) { play('elSwing', { vol: 0.55, rate: 1.15, x, verb: 0.12 }); },
+  death(x) { play('elDeath', { vol: 0.65, x, verb: 0.25 }); },
+  battle() { duckMusic(0.35, 2.5); play('elBattle', { vol: 0.7, verb: 0.2 }); },
   // Magic.
-  heal(x) { play('lrSpell', { vol: 0.35, rate: 1.25, x, verb: 0.3 }); },
-  buff(x) { play('lrSpell', { vol: 0.3, rate: 1.45, x, verb: 0.25 }); },
-  debuff(x) { play('slime', { vol: 0.45, x, verb: 0.3, rate: 0.85 }); },
-  magic(x) { play('lrSpell', { vol: 0.45, x, verb: 0.3 }); },
-  dark(x) { play('lrSpell', { vol: 0.45, rate: 0.6, x, verb: 0.35 }); play('monster', { vol: 0.2, x, verb: 0.3, rate: 0.75, lp: 2500 }); },
-  fire(x) { play(Math.random() < 0.4 ? 'fireball' : 'fire', { vol: 0.75, x, verb: 0.35 }); sub(70, 0.5, 0.35, 0.1); },
-  explosion(x) { play('boom', { vol: 0.8, x, verb: 0.4 }); sub(40, 0.9, 0.9); duckMusic(0.4, 1.2); },
-  shield(x) { play('rpgArmor', { vol: 0.45, x, verb: 0.2 }); },
-  stun(x) { play('lrTrap', { vol: 0.4, x, verb: 0.2 }); },
+  heal(x) { play('elHeal', { vol: 0.55, x, verb: 0.25 }); },
+  buff(x) { play('elBuff', { vol: 0.5, x, verb: 0.2 }); },
+  debuff(x) { play('elDebuff', { vol: 0.55, x, verb: 0.25 }); },
+  magic(x) { play('elMagic', { vol: 0.6, x, verb: 0.25 }); },
+  dark(x) { play('elDark', { vol: 0.6, x, verb: 0.3 }); },
+  fire(x) { play('elFire', { vol: 0.75, x, verb: 0.3 }); sub(70, 0.5, 0.35, 0.1); },
+  explosion(x) { play('elExplosion', { vol: 0.85, x, verb: 0.35 }); sub(40, 0.9, 0.8); duckMusic(0.4, 1.2); },
+  shield(x) { play('elShield', { vol: 0.6, x, verb: 0.15 }); },
+  stun(x) { play('elStun', { vol: 0.55, x, verb: 0.15 }); },
   // Coins.
-  coin(x) { play('lrGold', { vol: 0.4, x, verb: 0.15 }); },
-  coinStack(x) { play('rpgCoin', { vol: 0.4, x, verb: 0.15 }); },
-  // Turn, win, lose: short orchestral stings instead of slot-machine jingles.
+  coin(x) { play('elCoin', { vol: 0.5, x, verb: 0.1 }); },
+  coinStack(x) { play('elCoin', { vol: 0.55, rate: 0.9, x, verb: 0.1 }); },
+  // Turn, win, lose.
   drum() { sub(60, 0.5, 0.9); play('soft', { vol: 0.6, rate: 0.7, verb: 0.4 }); },
-  turn() { duckMusic(0.6, 1.2); play('lrMenu', { vol: 0.5, rate: 0.85, verb: 0.2 }); },
-  win() { stopMusic(true); play('jWin', { vol: 0.7, verb: 0.2 }); },
-  lose() { stopMusic(true); play('jLose', { vol: 0.6, verb: 0.2 }); },
-  // Creatures and misc.
-  animal(x) { play('goblin', { vol: 0.35, x, verb: 0.25, rate: 1.15 }); },
-  monster(x) { play('dragon', { vol: 0.4, x, verb: 0.3, rate: 1.1 }); },
-  blood(x) { play('slime', { vol: 0.5, x, verb: 0.25 }); },
-  book(x) { play('book', { vol: 0.5, x, verb: 0.2 }); },
-  chain(x) { play('chain', { vol: 0.45, x, verb: 0.3 }); },
-  axe(x) { play('chop', { vol: 0.65, x, verb: 0.25 }); },
-  wood(x) { play('rpgWood', { vol: 0.55, x, verb: 0.2 }); },
+  turn() { duckMusic(0.6, 1.4); play('elTurn', { vol: 0.6, verb: 0.15 }); },
+  win() { stopMusic(true); play('elWin', { vol: 0.8, verb: 0.15 }); },
+  lose() { stopMusic(true); play('elLose', { vol: 0.75, verb: 0.15 }); },
+  // Creatures and things.
+  animal(x) { play('elAnimal', { vol: 0.55, x, verb: 0.15 }); },
+  monster(x) { play('elMonster', { vol: 0.6, x, verb: 0.25 }); },
+  blood(x) { play('elBlood', { vol: 0.6, x, verb: 0.15 }); },
+  book(x) { play('elBook', { vol: 0.6, x, verb: 0.15 }); },
+  chain(x) { play('elChain', { vol: 0.55, x, verb: 0.25 }); },
+  axe(x) { play('elAxe', { vol: 0.7, x, verb: 0.2 }); },
+  wood(x) { play('elPlay', { vol: 0.55, rate: 0.85, x, verb: 0.15 }); },
 };
 
+/** A Leader speaks (kind: 'Intro' at the start of a game, 'Win' on victory). Only Leaders with recorded lines; music steps back. */
+export function voice(leaderId, kind) {
+  const g = `elVo${leaderId}${kind}`;
+  if (!manifest || !manifest[g]) return false;
+  duckMusic(0.3, 3.2);
+  play(g, { vol: 0.95, verb: 0.06, vary: 0 });
+  return true;
+}

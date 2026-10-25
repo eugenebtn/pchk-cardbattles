@@ -1,7 +1,7 @@
 // Board renderer: draws a view from one player's perspective, animates events, collects answers.
 import { CARDS } from '../data/cards.js';
 import * as FX from './fx.js';
-import { sfx, playMusic, playAmbient, stopAmbient } from './sound.js';
+import { sfx, playMusic, playAmbient, stopAmbient, voice } from './sound.js';
 import { resultPicture, sharePicture, toggleRecording } from './share.js';
 import { medalHtml } from './achievements.js';
 import { pickLayout } from './layouts.js';
@@ -163,6 +163,7 @@ export class BoardUI {
       <div class="top-btns">
         <button class="icon-btn hidden" id="btn-undo" data-tip="Отменить ход|Вернуть вашу последнюю карту или действие (только против компьютера). Клавиша Z.">↶</button>
         <button class="icon-btn" id="btn-report" data-tip="Ошибка или отзыв|Сообщить разработчику: снимок экрана и ход партии приложатся сами.">${ICON.report}</button>
+        <button class="icon-btn snd-btn" id="btn-vol" data-tip="Звук|Выключить звук или изменить громкость."><img class="ico" src="assets/icons/sound-on.svg" alt="" style="width:58%;height:58%"></button>
         <button class="icon-btn" id="btn-help" data-tip="Как играть|Правила, значки и подсказки.">${ICON.help}</button>
         <button class="icon-btn" id="btn-fast" data-tip="Опережение ⚡|Включить или выключить вопросы «ответить картой с Опережением?».">${ICON.bolt}</button>
         <button class="icon-btn" id="btn-opts" data-tip="Меню|Журнал, скорость, музыка, звук, выход.">${ICON.menu}</button>
@@ -955,6 +956,9 @@ export class BoardUI {
     V.animate([{ transform: 'translate(-50%,-50%) scale(3)', opacity: 0 }, { transform: 'translate(-50%,-50%) scale(.9)', opacity: 1, offset: 0.7 }, { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 }], { duration: d(380), fill: 'forwards', easing: 'cubic-bezier(.5,0,.3,1.4)' });
     await FX.wait(300);
     sfx.explosion(); FX.shake(2);
+    // Both Leaders say their line: yours first, then the opponent's.
+    setTimeout(() => voice(P[me].leader.id, 'Intro'), 500);
+    setTimeout(() => voice(P[1 - me].leader.id, 'Intro'), 3600);
     await FX.wait(1100);
     // Leaders fly to their corners on the board.
     const sr = this.stage.getBoundingClientRect(), sc = this.scale;
@@ -1917,6 +1921,7 @@ ${optHtml}</div></div>
   showGameOver(winner) {
     const win = winner === this.me, draw = winner === 'draw';
     (win || this.spectator ? sfx.win : sfx.lose)();
+    if (!draw) setTimeout(() => voice(this.view.players[winner].leader?.id, 'Win'), 2300);
     setTimeout(() => { stopAmbient(); playMusic(win || this.spectator ? 'musicWin' : 'musicMenu'); }, 1800);
     const L = this.view.players[win ? 1 - this.me : this.me].leader;
     const p = L && this.pointOf(L.uid);

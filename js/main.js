@@ -72,6 +72,29 @@ document.querySelectorAll('[data-vol]').forEach((r) => {
 });
 $('#opt-music').checked = opt.music;
 $('#opt-music').addEventListener('change', (e) => { opt.music = e.target.checked; setMusic(opt.music); store.set('music', opt.music); });
+// Quick sound window (speaker button in the menu bar and in a game): sound and music on/off, three volume sliders.
+function soundBtnState() { document.querySelectorAll('.snd-btn').forEach((b) => b.classList.toggle('muted', !opt.sound)); }
+function openSoundPop(anchor) {
+  document.querySelector('.snd-pop')?.remove();
+  const p = document.createElement('div');
+  p.className = 'snd-pop';
+  const row = (k, label) => `<label><span>${label}</span><input type="range" min="0" max="100" value="${Math.round((vol[k] ?? 1) * 100)}" data-k="${k}"></label>`;
+  p.innerHTML = `<div class="snd-tg"><button class="btn small ${opt.sound ? 'primary' : ''}" data-t="sound">${opt.sound ? '🔊 Звук включён' : '🔇 Звук выключен'}</button>
+    <button class="btn small ${opt.music ? 'primary' : ''}" data-t="music">${opt.music ? '🎵 Музыка вкл.' : '🎵 Музыка выкл.'}</button></div>
+    ${row('music', 'Музыка')}${row('sfx', 'Звуки игры')}${row('ui', 'Кнопки')}`;
+  document.body.appendChild(p);
+  const r = anchor.getBoundingClientRect();
+  p.style.top = Math.min(window.innerHeight - p.offsetHeight - 8, r.bottom + 8) + 'px';
+  p.style.left = Math.max(8, Math.min(window.innerWidth - p.offsetWidth - 8, r.right - p.offsetWidth)) + 'px';
+  p.querySelector('[data-t=sound]').onclick = () => { opt.sound = !opt.sound; setSound(opt.sound); store.set('sound', opt.sound); $('#opt-sound').checked = opt.sound; soundBtnState(); openSoundPop(anchor); };
+  p.querySelector('[data-t=music]').onclick = () => { opt.music = !opt.music; setMusic(opt.music); store.set('music', opt.music); $('#opt-music').checked = opt.music; openSoundPop(anchor); };
+  p.querySelectorAll('input[data-k]').forEach((inp) => {
+    inp.oninput = () => { vol[inp.dataset.k] = inp.value / 100; setVolumes(vol); store.set('vol', vol); document.querySelectorAll(`[data-vol="${inp.dataset.k}"]`).forEach((x) => { x.value = inp.value; }); };
+    inp.onchange = () => { if (inp.dataset.k === 'ui') sfx.click(); if (inp.dataset.k === 'sfx') sfx.hit(3); };
+  });
+  setTimeout(() => document.addEventListener('pointerdown', function off(e) { if (!p.contains(e.target) && e.target !== anchor) { p.remove(); document.removeEventListener('pointerdown', off, true); } }, true), 0);
+}
+document.querySelector('#menu [data-snd]')?.addEventListener('click', (e) => openSoundPop(e.currentTarget));
 // Browsers allow sound only after the first click.
 let audioStarted = false;
 document.addEventListener('pointerdown', () => {
@@ -89,7 +112,8 @@ $('#opt-coach').addEventListener('change', (e) => { opt.coach = e.target.checked
 $('#opt-name').value = opt.name;
 $('#opt-board').value = opt.board;
 $('#opt-board').addEventListener('change', (e) => { opt.board = e.target.value; store.set('board', opt.board); });
-$('#opt-sound').addEventListener('change', (e) => { opt.sound = e.target.checked; setSound(opt.sound); store.set('sound', opt.sound); });
+$('#opt-sound').addEventListener('change', (e) => { opt.sound = e.target.checked; setSound(opt.sound); store.set('sound', opt.sound); soundBtnState(); });
+soundBtnState();
 $('#opt-bonus').addEventListener('change', (e) => { opt.bonus = e.target.checked; store.set('bonus', opt.bonus); });
 $('#opt-autopass').addEventListener('change', (e) => { opt.autopass = e.target.value === 'never' ? true : e.target.value; store.set('autopass', opt.autopass); });
 $('#opt-name').addEventListener('input', (e) => { opt.name = e.target.value.trim(); store.set('name', opt.name); });
@@ -483,6 +507,7 @@ function startBoard(session) {
   };
   const wire = () => {
     const spd = $('#btn-speed'), snd = $('#btn-sound'), fst = $('#btn-fast'), mus = $('#btn-music');
+    const vb = $('#btn-vol'); if (vb) { vb.onclick = () => openSoundPop(vb); soundBtnState(); }
     const ap = () => session.game?.cfg.options.autoPass;
     const drawFast = () => { const m = opt.autopass; fst.style.opacity = m === true ? '.4' : '1'; fst.title = AP_TOAST[m]; fst.classList.toggle('ap-always', m === 'always'); };
     fst.onclick = () => {
@@ -504,7 +529,7 @@ function startBoard(session) {
     mus.onclick = () => { opt.music = !opt.music; setMusic(opt.music); store.set('music', opt.music); musTxt(); $('#opt-music').checked = opt.music; };
     const sndTxt = () => { snd.textContent = `${opt.sound ? '🔊' : '🔇'} Звук: ${opt.sound ? 'вкл' : 'выкл'}`; };
     sndTxt();
-    snd.onclick = () => { opt.sound = !opt.sound; setSound(opt.sound); store.set('sound', opt.sound); sndTxt(); $('#opt-sound').checked = opt.sound; };
+    snd.onclick = () => { opt.sound = !opt.sound; setSound(opt.sound); store.set('sound', opt.sound); sndTxt(); $('#opt-sound').checked = opt.sound; soundBtnState(); };
   };
   wire();
   ui.onRebuild = wire;
