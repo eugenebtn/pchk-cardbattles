@@ -400,7 +400,8 @@ function startBoard(session) {
   preload((session.cfgPlayers || []).flatMap((p) => [p.leader, ...(p.deck || [])]));
   show('game');
   const themes = ['160', '8', '33', '5', '125', '130', '116'];
-  const theme = themes.includes(String(opt.board)) ? String(opt.board) : themes[Math.floor(Math.random() * themes.length)];
+  const urlBoard = new URLSearchParams(location.search).get('board'); // fixed field for screenshots
+  const theme = themes.includes(urlBoard) ? urlBoard : themes.includes(String(opt.board)) ? String(opt.board) : themes[Math.floor(Math.random() * themes.length)];
   const ui = new BoardUI($('#stage'), {
     me: session.me, theme,
     onAnswer: (q, a) => session.answer(q, a),
@@ -1033,6 +1034,7 @@ if (replayParam) {
   jb.classList.remove('hidden');
   jb.innerHTML = `Вам прислали повтор партии! <button class="btn primary" style="margin-left:8px">▶ Смотреть</button>`;
   jb.querySelector('button').addEventListener('click', () => { sfx.click(); jb.classList.add('hidden'); readReplayParam(replayParam).then(startReplay).catch(() => toast('Ссылка на повтор повреждена')); });
+  if (new URLSearchParams(location.search).get('autoplay')) jb.querySelector('button').click(); // for recordings and screenshots
 }
 const roomCode = new URLSearchParams(location.search).get('room'), watchRoom = new URLSearchParams(location.search).get('watchroom');
 if ((roomCode || watchRoom) && /^[a-z0-9]{4,10}$/.test(roomCode || watchRoom)) {
