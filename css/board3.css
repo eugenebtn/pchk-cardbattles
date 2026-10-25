@@ -280,3 +280,12 @@
 #stage .card.legend:has(.ward-bubble) .frame { box-shadow: 0 0 0 2px #160c06, 0 0 0 4.5px #f2cd6b, 0 0 0 6px #0e1a26, 0 0 0 8px #8fd0ff, 0 0 16px rgba(143, 208, 255, .7) !important; }
 /* The frame under a card is a rectangle like the card (it was an old oval): rings and glows (Оборона, Прорыв, Легенда, «под ударом») follow the card's edge */
 #stage .card.ally .frame, #stage .card.small .frame, #stage .card.small.item .frame { border-radius: 10px !important; }
+/* «Запланировать» window: each card says where it goes; a click switches top ⇄ graveyard */
+#game .plan-modal { max-width: min(760px, 94vw) !important; }
+#game .plan-lead { margin: 0 0 12px !important; font-size: 18px; color: #f3e6c8 !important; font-style: normal !important; }
+#game .plan-cards { gap: 18px !important; }
+#game .plan-slot { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; }
+#game .plan-slot .mcard { transition: transform .15s, filter .2s, box-shadow .2s; box-shadow: 0 0 0 3px #57d98a, 0 0 18px rgba(87, 217, 138, .5) !important; }
+#game .plan-slot.to-grave .mcard { filter: grayscale(.85) brightness(.55); transform: rotate(-4deg) scale(.95); box-shadow: 0 0 0 3px #b8281c, 0 0 18px rgba(255, 80, 60, .5) !important; }
+#game .plan-tag { padding: 3px 12px; border-radius: 999px; font: 800 15px var(--k-font); color: #12301a; background: #8fe0a0; }
+#game .plan-slot.to-grave .plan-tag { color: #fff; background: #b8281c; }

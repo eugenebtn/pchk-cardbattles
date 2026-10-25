@@ -880,7 +880,7 @@ export class BoardUI {
         break;
       }
       case 'region': break;
-      case 'multi': this.openCardModal(q); return;
+      case 'multi': if (q.plan) this.openPlan(q); else this.openCardModal(q); return;
       case 'order': this.openOrder(q); return;
       case 'mulligan': this.openMulligan(q); return;
       default: break;
@@ -1535,6 +1535,31 @@ ${optHtml}</div></div>
     return back;
   }
   closeModal() { if (this.modalEl) { this.modalEl.remove(); this.modalEl = null; } }
+  /** «Запланировать»: the top card(s) of my deck; each stays on top (I take it next) or goes to the graveyard — one click switches. */
+  openPlan(q) {
+    const ids = q.options.map((o) => ({ uid: o.id, id: o.cardId ?? this.cardIdOf(o.id) }));
+    const out = new Set();
+    const one = ids.length === 1;
+    const html = `<h3>Запланировать</h3>
+      <p class="plan-lead">${one ? 'Это верхняя карта вашей Скрижали — её вы возьмёте следующей.' : `Это ${ids.length} верхние карты вашей Скрижали — их вы возьмёте следующими.`} Нажмите на карту, если хотите сбросить её на кладбище.</p>
+      <div class="cards plan-cards">${ids.map((c) => `<div class="plan-slot" data-uid="${c.uid}"><div class="mcard" style="background-image:url('${CARDS[c.id]?.img || ''}')"></div><span class="plan-tag"></span></div>`).join('')}</div>
+      <div class="row-btns"><button class="btn primary" data-ok></button></div>`;
+    this.modal(html, (m) => {
+      m.querySelector('.modal').classList.add('plan-modal');
+      const ok = m.querySelector('[data-ok]');
+      const upd = () => {
+        m.querySelectorAll('.plan-slot').forEach((e) => { const g = out.has(Number(e.dataset.uid)); e.classList.toggle('to-grave', g); e.querySelector('.plan-tag').textContent = g ? '💀 На кладбище' : '⬆ Остаётся сверху'; });
+        ok.textContent = out.size ? (one ? 'Сбросить на кладбище' : `Готово: ${out.size} на кладбище, ${ids.length - out.size} сверху`) : (one ? 'Оставить сверху' : 'Оставить все сверху');
+      };
+      m.querySelectorAll('.plan-slot').forEach((e) => {
+        e.addEventListener('click', () => { const u = Number(e.dataset.uid); if (out.has(u)) out.delete(u); else out.add(u); sfx.click(); upd(); });
+        e.addEventListener('mouseenter', () => this.showPreviewId(ids.find((x) => x.uid === Number(e.dataset.uid))?.id, e));
+        e.addEventListener('mouseleave', () => this.hidePreview());
+      });
+      ok.addEventListener('click', () => { sfx.click(); this.hidePreview(); this.answer([...out]); });
+      upd();
+    });
+  }
   /** «In what order?»: the cards are shown, the player clicks them one by one (1, 2, 3…), then «Готово». */
   openOrder(q) {
     const ids = q.options.map((o) => ({ uid: o.id, id: o.cardId ?? this.cardIdOf(o.id) }));
@@ -2074,7 +2099,7 @@ ${optHtml}</div></div>
     const title = document.createElement('div');
     title.className = 'epic-title';
     title.style.top = (cy - ch / 2 - (this.L.name === "port" ? 130 : 100)) + 'px';
-    title.innerHTML = `<span>Легендарная</span>`;
+    title.innerHTML = ''; // no word «Легендарная»: the entrance itself says it
     const nm = document.createElement('div');
     nm.className = 'epic-name';
     nm.style.top = (cy + ch / 2 + 52) + 'px';
