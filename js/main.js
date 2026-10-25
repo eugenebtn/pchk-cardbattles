@@ -1,4 +1,5 @@
 // App shell: menu, deck choice, game sessions (bot, hot-seat, online host/guest), builder, rules.
+import { playIntro, introDone, preloadIntro } from './ui/intro.js';
 import { Game } from './engine/game.js';
 import { botAnswer, randomAnswer } from './engine/bot.js';
 import { checkAchievements } from './ui/achievements.js';
@@ -150,7 +151,13 @@ const LEADER_IDS = [62, 117, 41, 20, 118, 63];
   requestAnimationFrame(frame);
 })();
 // Splash: the first click also turns the sound on.
-$('#splash').addEventListener('click', () => { sfx.confirm(); show('menu'); setTimeout(() => voiceSoon(20, 'Hello'), 900); }); // Lionheart greets the guest
+// Opening clip (for now only with ?intro=studio in the address, until it is approved): plays over the menu while Lionheart greets.
+const INTRO = new URLSearchParams(location.search).get('intro');
+if (INTRO === 'studio') { document.body.classList.add('studio'); preloadIntro('studio'); }
+$('#splash').addEventListener('click', () => {
+  sfx.confirm(); show('menu');
+  if (INTRO) { playIntro(INTRO); setTimeout(() => voiceSoon(20, 'Hello'), 1400); } else setTimeout(() => voiceSoon(20, 'Hello'), 900); // Lionheart greets the guest
+});
 $('#menu [data-act=settings]')?.addEventListener('click', () => { $('#menu-opts').classList.toggle('hidden'); });
 
 /** Copies text to the clipboard. The modern API works only on https; on http (or if it is refused) an old-style copy
@@ -1064,14 +1071,14 @@ function openTutorial() {
 $('#splash').addEventListener('click', () => {
   if (store.get('tutOffered', false) || new URLSearchParams(location.search).get('join')) return;
   store.set('tutOffered', true);
-  setTimeout(() => {
+  introDone().then(() => setTimeout(() => {
     const b = document.createElement('div');
     b.className = 'modal-back'; b.style.cssText = 'position:fixed;inset:0;z-index:400';
     b.innerHTML = `<div class="modal" style="max-width:520px"><h3>Впервые в «Карточных битвах»?</h3><p style="font-size:18px;line-height:1.45">Короткое обучение за 2 минуты покажет, как ходить, сражаться и отвечать «Опережением». Потом можно сыграть учебную партию с подсказками.</p><div class="row-btns"><button class="btn primary" data-y>🎓 Пройти обучение</button><button class="btn" data-n>Я уже умею</button></div></div>`;
     document.body.appendChild(b);
     b.querySelector('[data-y]').onclick = () => { b.remove(); openTutorial(); };
     b.querySelector('[data-n]').onclick = () => b.remove();
-  }, 700);
+  }, 700));
 });
 
 // Test shortcut: ?screen=menu opens a screen directly.
