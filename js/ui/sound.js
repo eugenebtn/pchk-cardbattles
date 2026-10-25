@@ -206,6 +206,24 @@ export function stopMusic(keepWanted = false) {
   }
   musicSrc = null; musicName = null;
 }
+// A quiet looping background under the music (e.g. a dungeon on dark fields); follows the music slider.
+let ambSrc = null, ambName = null;
+export async function playAmbient(name, vol = 0.55) {
+  const c = ac(); if (!c || !enabled || !musicOn) return;
+  if (ambName === name && ambSrc) return;
+  stopAmbient(); ambName = name;
+  await loadAll();
+  const file = manifest?.[name]?.[0]; if (!file) return;
+  const b = await load(file); if (!b || ambName !== name) return;
+  const s = c.createBufferSource(); s.buffer = b; s.loop = true;
+  const g = c.createGain(); g.gain.value = 0.0001; g.gain.exponentialRampToValueAtTime(vol, c.currentTime + 3);
+  s.connect(g); g.connect(musicBus); s.start();
+  ambSrc = { s, g };
+}
+export function stopAmbient() {
+  if (ambSrc && ctx) { const { s, g } = ambSrc; g.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.5); setTimeout(() => { try { s.stop(); } catch { /* stopped */ } }, 2500); }
+  ambSrc = null; ambName = null;
+}
 export function setMusic(on) { musicOn = on; if (!on) stopMusic(true); else if (wantMusic) playMusic(wantMusic); }
 export function musicEnabled() { return musicOn; }
 export function duckMusic(amount = 0.35, seconds = 1.6) {

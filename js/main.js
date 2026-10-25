@@ -11,7 +11,7 @@ import { levelAnswer, LEVEL_RU, adaptiveLevel, adaptiveAfterGame } from './engin
 import { CARDS } from './data/cards.js';
 import { DECKS } from './data/decks.js';
 import { BoardUI, esc } from './ui/board.js';
-import { sfx, setSound, setMusic, playMusic, unlockAudio, setVolumes } from './ui/sound.js';
+import { sfx, setSound, setMusic, playMusic, unlockAudio, setVolumes, playAmbient } from './ui/sound.js';
 import * as FX from './ui/fx.js';
 import { hostRoom, joinRoom } from './net/online.js';
 import { serverOn, newRoomCode, connectRoom, findMatch, connectTour } from './net/server.js';
@@ -41,7 +41,7 @@ function show(id) {
   });
   FX.ambient(id === 'game');
   $('#scene').classList.toggle('off', id === 'game');
-  if (audioStarted) playMusic(id === 'game' ? (Math.random() < 0.5 ? 'musicGame' : 'musicGame2') : 'musicMenu');
+  if (audioStarted) playMusic(id === 'game' ? 'musicGame' : 'musicMenu'); // a game starts calm; board.js raises it to tavern and battle
 }
 function toast(text, ms = 3000) {
   const t = document.createElement('div');
@@ -402,6 +402,8 @@ function startBoard(session) {
   const themes = ['160', '8', '33', '5', '125', '130', '116'];
   const urlBoard = new URLSearchParams(location.search).get('board'); // fixed field for screenshots
   const theme = themes.includes(urlBoard) ? urlBoard : themes.includes(String(opt.board)) ? String(opt.board) : themes[Math.floor(Math.random() * themes.length)];
+  // Dark fields (Подземный тайник, Пороховой склад) get a quiet dungeon background under the music.
+  if (['125', '33'].includes(theme)) setTimeout(() => playAmbient('ambDungeon'), 1500);
   const ui = new BoardUI($('#stage'), {
     me: session.me, theme,
     onAnswer: (q, a) => session.answer(q, a),

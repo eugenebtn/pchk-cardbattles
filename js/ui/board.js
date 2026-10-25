@@ -1,7 +1,7 @@
 // Board renderer: draws a view from one player's perspective, animates events, collects answers.
 import { CARDS } from '../data/cards.js';
 import * as FX from './fx.js';
-import { sfx, playMusic } from './sound.js';
+import { sfx, playMusic, playAmbient, stopAmbient } from './sound.js';
 import { resultPicture, sharePicture, toggleRecording } from './share.js';
 import { medalHtml } from './achievements.js';
 import { pickLayout } from './layouts.js';
@@ -41,6 +41,7 @@ export class BoardUI {
     this.theme = theme;
     this.stage = stage;
     this.board = stage.querySelector('#board');
+    this.bindZoom();
     this.ui = stage.querySelector('#ui-layer');
     this.me = me;
     this.onAnswer = onAnswer;
@@ -58,7 +59,7 @@ export class BoardUI {
     window.addEventListener('resize', this._fit);
     this._ro = new ResizeObserver(this._fit); this._ro.observe(document.documentElement);
   }
-  destroy() { window.removeEventListener('resize', this._fit); if (this._keys) window.removeEventListener('keydown', this._keys); this._ro?.disconnect(); this.board.innerHTML = ''; this.ui.innerHTML = ''; this.closeModal(); this.closePriority(); document.querySelectorAll('#game > .tip-card, #game > .over-screen, #game > .pass-screen').forEach((e) => e.remove()); }
+  destroy() { stopAmbient(); window.removeEventListener('resize', this._fit); if (this._keys) window.removeEventListener('keydown', this._keys); this._ro?.disconnect(); this.board.innerHTML = ''; this.ui.innerHTML = ''; this.closeModal(); this.closePriority(); document.querySelectorAll('#game > .tip-card, #game > .over-screen, #game > .pass-screen').forEach((e) => e.remove()); }
 
   fit() {
     const want = pickLayout();
@@ -552,8 +553,15 @@ export class BoardUI {
   leaderDanger() {
     const v = this.view; if (!v || v.over) return;
     const low = Math.min(...v.players.map((pl) => pl.leader?.hp ?? 99));
-    if (low <= 10 && !this._tense) { this._tense = true; playMusic('musicTense'); }
+    this.musicStep();
     if (low <= 5 && !this._danger) { this._danger = true; sfx.danger(); }
+  }
+  /** Music rises with the game: calm lute → tavern (from round 3 or a Leader at 18 or less) → battle (a Leader at 10 or less). */
+  musicStep() {
+    const v = this.view; if (!v || v.over) return;
+    const low = Math.min(...v.players.map((pl) => pl.leader?.hp ?? 99));
+    const step = low <= 10 ? 3 : (v.round >= 3 || low <= 18) ? 2 : 1;
+    if (step > (this._musicStep || 1)) { this._musicStep = step; playMusic(step === 3 ? 'musicBattle' : 'musicMid'); }
   }
   /** Move clock (online games with a timer): seconds left shown under the end-turn button. */
   setDeadline(ms) {
@@ -568,6 +576,32 @@ export class BoardUI {
       if (left <= 0) clearInterval(this._clock);
     };
     tick(); this._clock = setInterval(tick, 500);
+  }
+  /** Card pictures inside windows (Опережение, choices, history): pointing at one shows it big next to it. */
+  bindZoom() {
+    if (document._cardZoom) return;
+    document._cardZoom = true;
+    const SEL = '.pri-vs-card, .pri-img, .pick-card, .ch-img, .mcard, .lrb-card';
+    let z = null;
+    const hide = () => { z?.remove(); z = null; };
+    document.addEventListener('mouseover', (e) => {
+      const el = e.target.closest?.(SEL);
+      if (!el) { if (z && !e.target.closest?.('.zoom-card')) hide(); return; }
+      const m = (el.style.backgroundImage || getComputedStyle(el).backgroundImage).match(/url\(["']?(.*?)["']?\)/);
+      if (!m) return;
+      hide();
+      z = document.createElement('div');
+      z.className = 'zoom-card';
+      z.style.backgroundImage = `url('${m[1]}')`;
+      document.body.appendChild(z);
+      const r = el.getBoundingClientRect(), H = Math.min(innerHeight * 0.78, 640), W = H * 0.716;
+      const right = r.right + 16 + W < innerWidth;
+      z.style.width = W + 'px'; z.style.height = H + 'px';
+      z.style.left = (right ? r.right + 16 : Math.max(8, r.left - 16 - W)) + 'px';
+      z.style.top = Math.max(8, Math.min(innerHeight - H - 8, r.top + r.height / 2 - H / 2)) + 'px';
+    });
+    document.addEventListener('mouseout', (e) => { if (e.target.closest?.(SEL) && !e.relatedTarget?.closest?.(SEL)) hide(); });
+    document.addEventListener('click', hide, true);
   }
   /** Short name of a side (its Leader), for the spectator view. */
   sideName(i) { const id = this.view?.players?.[i]?.leader?.id; return LEADER_SHORT[id] || CARDS[id]?.name.split(',')[0] || this.view?.players?.[i]?.name || ''; }
@@ -1118,8 +1152,6 @@ ${optHtml}</div></div>
     panel.querySelectorAll('.pri-card').forEach((b) => {
       const o = opts[Number(b.dataset.k)];
       b.addEventListener('click', () => { sfx.click(); this.answer(o.id); });
-      b.addEventListener('mouseenter', () => { const id = o.kind === 'play' ? o.side : this.cardIdOf(o.uid); this.showPreviewId(id, b); });
-      b.addEventListener('mouseleave', () => this.hidePreview());
     });
   }
   closePriority() {
@@ -1584,7 +1616,7 @@ ${optHtml}</div></div>
         else if (ev.player === this.me) { sfx.turn(); await FX.banner('Ваш ход', '', 1150); } else await FX.banner('Ход соперника', 'dim', 850);
         break;
       }
-      case 'round': await W(150); break;
+      case 'round': this.musicStep(); await W(150); break;
       case 'control': {
         const p = this.pointOf(ev.uid);
         if (p) FX.burst(p.x, p.y, { emoji: ['💗', '💖'], shape: 'emoji', count: 12, speed: 5, add: false, size: 12, gravity: -0.05 });
@@ -1868,7 +1900,7 @@ ${optHtml}</div></div>
   showGameOver(winner) {
     const win = winner === this.me, draw = winner === 'draw';
     (win || this.spectator ? sfx.win : sfx.lose)();
-    setTimeout(() => playMusic(win || this.spectator ? 'musicWin' : 'musicMenu'), 1800);
+    setTimeout(() => { stopAmbient(); playMusic(win || this.spectator ? 'musicWin' : 'musicMenu'); }, 1800);
     const L = this.view.players[win ? 1 - this.me : this.me].leader;
     const p = L && this.pointOf(L.uid);
     if (p) FX.burst(p.x, p.y, { color: ['#3a2a1a', '#7a5a3a', '#ffcf6a'], shape: 'shard', count: 50, speed: 10, gravity: 0.3, add: false, size: 12, spin: 0.5, life: 1400 });

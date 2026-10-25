@@ -406,5 +406,14 @@
  ],
  "musicWin": [
   "musicWin_lute.mp3"
+ ],
+ "musicMid": [
+  "musicMid_lute.mp3"
+ ],
+ "musicBattle": [
+  "musicBattle_lute.mp3"
+ ],
+ "ambDungeon": [
+  "ambDungeon_lute.mp3"
  ]
 }
