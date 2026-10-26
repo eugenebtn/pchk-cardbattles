@@ -93,3 +93,22 @@ input[type=checkbox], input[type=radio], input[type=range] { accent-color: var(-
 #stage.port #board .pile .fatigue b { font-size: 20px; }
 #stage.port #board .pile .fatigue small { display: none; }
 #board .pile.deck-empty .count { display: none !important; }
+
+/* ---------- buttons with their own classes, brought into the kit (QA UI note on step 1) ---------- */
+/* feedback window: «Отправить» is the main action (gold), «Отмена» glass */
+.fb-btn { border: none !important; border-radius: 12px !important; color: #3a1206 !important; letter-spacing: .08em; background: var(--t-btn-gold) !important; box-shadow: var(--t-btn-gold-sh) !important; }
+.fb-btn.quiet { color: var(--t-cream) !important; border: 1px solid var(--t-line) !important; background: rgba(255, 255, 255, .05) !important; box-shadow: 0 4px 12px rgba(0, 0, 0, .35) !important; }
+.fb-btn:hover { filter: brightness(1.08); } .fb-btn.quiet:hover { filter: none; border-color: var(--t-line-hi) !important; background: rgba(255, 230, 170, .1) !important; }
+/* end screen: glass buttons, gold «Реванш» */
+.over3 .ov-btn { border: 1px solid var(--t-line) !important; border-radius: 12px !important; background: rgba(255, 255, 255, .05) !important; box-shadow: 0 4px 12px rgba(0, 0, 0, .35) !important; text-shadow: none; }
+.over3 .ov-btn:hover { transform: none; filter: none; border-color: var(--t-line-hi) !important; background: rgba(255, 230, 170, .1) !important; box-shadow: 0 4px 12px rgba(0, 0, 0, .35) !important; }
+.over3 .ov-btn.gold { border: none !important; color: #3a1206 !important; text-shadow: none; background: var(--t-btn-gold) !important; box-shadow: var(--t-btn-gold-sh) !important; }
+.ov4-play { aspect-ratio: auto; height: 60px; border-radius: 14px; background: var(--t-btn-gold) !important; box-shadow: var(--t-btn-gold-sh), 0 0 26px rgba(255, 200, 90, .35); filter: none !important; animation: none !important; }
+.ov4-play span { inset: 0 !important; color: #3a1206 !important; text-shadow: none !important; font-size: 24px !important; }
+.ov4-play:hover { transform: none !important; filter: brightness(1.08) !important; }
+.ov4-ib-c { background: rgba(22, 13, 7, .85) !important; box-shadow: inset 0 0 0 1px var(--t-line), 0 6px 14px rgba(0, 0, 0, .55) !important; color: var(--t-line-hi) !important; }
+.ov4-ib:hover .ov4-ib-c { transform: translateY(-2px); box-shadow: inset 0 0 0 1px var(--t-line-hi), 0 0 18px rgba(255, 210, 110, .35) !important; }
+/* Leader abilities in the game and the emote wheel: glass rows instead of wood */
+.power { background: rgba(22, 13, 7, .88) !important; border-radius: 10px !important; box-shadow: inset 0 0 0 1px var(--t-line), 0 4px 10px rgba(0, 0, 0, .45) !important; }
+.power.ready { box-shadow: inset 0 0 0 1px var(--t-line-hi), 0 0 14px rgba(255, 200, 90, .3) !important; }
+.emote-wheel .em-mute { background: rgba(255, 255, 255, .05) !important; border-color: var(--t-line) !important; color: var(--t-cream) !important; }
