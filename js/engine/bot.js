@@ -71,9 +71,12 @@ export function botAnswer(g, q, rand = Math.random, opts = {}) {
       const p = g.P(me);
       if (!q.options.some((o) => o.id === 'card')) return 'coin';
       // Take what lets me spend the most this turn: coins when the hand already costs more than I have, else cards.
-      const costs = p.hand.map((c) => { const k = defOf(c.id).cost; return typeof k === 'number' ? k : 3; });
+      // Allies only count when there is a free region for them, or a full board would keep taking coins forever.
+      let free = 0; for (let r = 0; r < 5; r++) if (!g.allyAt(me, r)) free++;
+      const usable = p.hand.filter((c) => free > 0 || defOf(c.id).type !== 'ally');
+      const costs = usable.map((c) => { const k = defOf(c.id).cost; return typeof k === 'number' ? k : 3; });
       const need = costs.reduce((x, y) => x + y, 0);
-      if (p.hand.length <= 1) return 'card';
+      if (usable.length <= 1 || p.coins >= 10) return 'card';
       if (need > p.coins + 1 || p.hand.length >= 6) return 'coin';
       return 'card';
     }

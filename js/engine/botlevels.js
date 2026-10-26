@@ -43,6 +43,8 @@ const MAX_OPTIONS = 14;
 
 export const STRONG = { s: 4, h: 1, o: 14 }, MASTER = { s: 8, h: 1, o: 20 };
 export function strongAnswer(g, q, rand, cfg = STRONG) {
+  // «m»: choose the starting hand by playing a few candidate hands out to the end of round m.
+  if (cfg.m && q.type === 'mulligan') return mulliganAnswer(g, q, rand, cfg);
   // «d»: also weigh «card or coin» by playing both out.
   if (!LOOK.has(q.type) && !(cfg.d && q.type === 'draw')) return undefined;
   const me = q.player;
@@ -85,6 +87,40 @@ export function strongAnswer(g, q, rand, cfg = STRONG) {
     const bias = a === 'end' || a === 'pass' || a === null ? 0.3 : 0;
     const total = sum / n + bias + rand() * 0.05;
     if (globalThis.PCHK_DEBUG) globalThis.PCHK_DEBUG.push([a, +(sum / n).toFixed(1)]);
+    if (total > bestScore) { bestScore = total; best = a; }
+  }
+  return best;
+}
+
+/** Starting hand: the rule bot's pick, a «cheap curve» pick, a few random ones and a new hand, each played out. */
+function mulliganAnswer(g, q, rand, cfg) {
+  const me = q.player, cards = q.options.map((o) => g.card(o.id));
+  const cost = (c) => { const k = g.def(c).cost; return typeof k === 'number' ? k : 4; };
+  const key = (ids) => [...ids].sort().join(',');
+  const cands = [botAnswer(g, q, rand)];
+  // a curve: the cheapest allies first, then other cheap cards, at most one card costing 5+
+  const byCurve = [...cards].sort((a, b) => (cost(a) + (g.def(a).type === 'ally' ? -1.5 : 0)) - (cost(b) + (g.def(b).type === 'ally' ? -1.5 : 0)));
+  const curve = []; let big = 0;
+  for (const c of byCurve) { if (curve.length >= q.keep) break; if (cost(c) >= 5) { if (big) continue; big++; } curve.push(c.uid); }
+  for (const c of byCurve) if (curve.length < q.keep && !curve.includes(c.uid)) curve.push(c.uid);
+  cands.push(curve);
+  const cheap = [...cards].sort((a, b) => cost(a) - cost(b)).slice(0, Math.min(cards.length, q.keep + 3));
+  for (let k = 0; k < (cfg.mr ?? 3); k++) cands.push([...cheap].sort(() => rand() - 0.5).slice(0, q.keep).map((c) => c.uid));
+  const seen = new Set(), opts = cands.filter((c) => { const s = key(c); if (seen.has(s)) return false; seen.add(s); return true; });
+  if (q.canMull && cfg.mm !== 0) opts.push('mulligan');
+  if (opts.length < 2) return opts[0];
+  const S = cfg.ms || 6, seeds = Array.from({ length: S }, () => (rand() * 2 ** 31) | 0);
+  let best = opts[0], bestScore = -Infinity;
+  for (const a of opts) {
+    let sum = 0, n = 0;
+    for (const seed of seeds) {
+      const g2 = copyGame(g, seed);
+      if (!g2 || g2.pending?.player !== me || g2.pending.type !== 'mulligan') return undefined;
+      const s = rollout(g2, me, a, seed, { ...cfg, h: cfg.m });
+      if (s != null) { sum += s; n++; }
+    }
+    if (!n) continue;
+    const total = sum / n + (a === cands[0] ? 0.3 : 0);
     if (total > bestScore) { bestScore = total; best = a; }
   }
   return best;

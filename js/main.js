@@ -682,8 +682,13 @@ const LEVEL_HELP = {
 async function startBot() {
   const r = await pickDecks([{ title: 'Ваша колода' }, { title: 'Колода компьютера', allowRandom: true, level: true }]);
   if (!r) return;
-  const [mine, bot] = r;
+  let [mine, bot] = r;
   const adaptive = opt.botLevel === 'auto', level = adaptive ? adaptiveLevel() : opt.botLevel;
+  // «Сильный» always brings a strong build of the chosen Leader, also against a starter deck.
+  if (level === 'strong' && bot.official) {
+    const bs = BOT_DECKS.filter((x) => x.leader === bot.leader);
+    if (bs.length) { const b = bs[Math.floor(Math.random() * bs.length)]; bot = { ...bot, key: b.key, title: b.title, cards: b.cards, official: false }; }
+  }
   const s = new Session({ players: [playerCfg(mine, myName()), playerCfg(bot, `Компьютер · ${LEVEL_RU[level]}`)], controllers: ['human', 'bot'], me: 0 });
   s.botLevel = level; s.adaptive = adaptive;
   startBoard(s);
