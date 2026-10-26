@@ -992,13 +992,21 @@ function drawMenuTop() {
   const u = currentUser(), sub = $('#menu .mv-sub'); if (sub) sub.textContent = u ? 'Профиль сохранён' : 'Профиль';
   $('#mv-wins') && ($('#mv-wins').textContent = wins);
   $('#mv-ach') && ($('#mv-ach').textContent = `${Object.keys(unlocked()).filter((k) => ACH[k]).length}/${Object.keys(ACH).length}`);
+  // The panel rows carry short live notes: my decks, friends online, my league.
+  const dk = $('#mv-decks-sub'); if (dk) { const n = loadCustomDecks(store).length; dk.textContent = `6 стартовых${n ? ` · ${n} ${n % 10 === 1 && n % 100 !== 11 ? 'своя' : 'своих'}` : ' · соберите свою'}`; }
+  const fr = $('#mv-friends-sub');
+  if (fr) {
+    const list = loadFriends();
+    fr.textContent = list.length ? `${list.length} в списке` : 'позвать в партию';
+    if (list.length) friendsStatus().then((st) => { const on = list.filter((f) => st[f.code]?.online).length; fr.textContent = on ? `${on} в сети` : `${list.length} в списке · никого в сети`; }).catch(() => {});
+  }
+  const lg = $('#mv-login');
+  if (lg) { lg.innerHTML = u ? '' : '<button class="mv-login-btn" data-login>Войти, чтобы сохранить профиль</button>'; const b = lg.querySelector('[data-login]'); if (b) b.onclick = () => loginDialog(); }
   const side = $('#mv-side'); if (!side) return;
-  side.innerHTML = `<b>Мировой рейтинг</b><span class="mv-place">Загружаем…</span>${u ? '' : '<button class="btn small" data-login>Войти, чтобы сохранить профиль</button>'}`;
-  side.onclick = (e) => { if (e.target.closest('[data-login]')) { e.stopPropagation(); loginDialog(); } else document.querySelector('#menu [data-act="ranking"]')?.click(); };
   loadLeagues().then((list) => {
-    const p = list.find((x) => x.player_id === playerId()), el = side.querySelector('.mv-place');
-    if (el) el.innerHTML = !p ? `Сыграйте партию — и вы в рейтинге из ${list.length} игроков` : `${emblem(p.league, 26)} <span>${esc(p.league.name)} · ${p.points} очков · <em>${p.place + 1}</em> место из ${list.length}</span>`;
-  }).catch(() => { const el = side.querySelector('.mv-place'); if (el) el.textContent = 'Рейтинг сейчас недоступен'; });
+    const p = list.find((x) => x.player_id === playerId());
+    side.innerHTML = !p ? 'сыграйте партию — и вы в рейтинге' : `${emblem(p.league, 16)} ${esc(p.league.name)} · ${p.points} очков · ${p.place + 1} место`;
+  }).catch(() => { side.textContent = 'лиги игроков'; });
 }
 drawMenuTop();
 document.querySelector('#menu [data-close-opts]')?.addEventListener('click', () => $('#menu-opts').classList.add('hidden'));
