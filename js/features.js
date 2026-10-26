@@ -1,6 +1,6 @@
 // Features that take the game beyond a circle of friends stay off until the game's authors agree.
 // To try them: open the site with ?features=all (remembered in this browser; ?features=off forgets).
-const ON = { community: false, tournaments: false };
+const ON = { community: false, tournaments: false, shop: false }; // shop: draft for real-money decks, needs the authors' OK and payments
 
 function load() {
   try {
@@ -11,4 +11,4 @@ function load() {
   } catch { return false; }
 }
 const all = load();
-export const FEATURES = { community: ON.community || all, tournaments: ON.tournaments || all };
+export const FEATURES = { community: ON.community || all, tournaments: ON.tournaments || all, shop: ON.shop || all };

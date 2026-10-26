@@ -32,6 +32,7 @@ import { submitResult, loadPlayers, playerId, loadLeagues } from './net/ranking.
 import { emblem } from './ui/leagues.js';
 import { openFeedback } from './ui/feedback.js';
 import { renderLegal } from './ui/legal.js';
+import { renderShop } from './ui/shop.js';
 import { showTutorial } from './ui/tutorial.js';
 installTooltips();
 
@@ -962,6 +963,7 @@ window.addEventListener('error', (e) => { if (current?.ui && e.filename && e.fil
 window.addEventListener('unhandledrejection', (e) => { if (current?.ui) autoReport(e.reason, current.ui); });
 
 if (FEATURES.tournaments) document.querySelector('#menu [data-act="tour"]')?.classList.remove('hidden');
+if (FEATURES.shop) document.querySelector('#menu [data-act="shop"]')?.classList.remove('hidden');
 // ---------- Задание дня on the menu ----------
 function drawDaily() {
   const box = $('#menu-daily'); if (!box) return;
@@ -1372,6 +1374,7 @@ document.querySelectorAll('#menu [data-act]').forEach((b) => b.addEventListener(
     show('stats');
   }
   else if (a === 'decks') openBuilder();
+  else if (a === 'shop' && FEATURES.shop) { renderShop($('#shop'), () => show('menu'), { onPlay: () => openPlay(), onDecks: () => openBuilder(), toast }); show('shop'); }
 }));
 window.addEventListener('beforeunload', (e) => { if (current && !current.game?.s.over) { e.preventDefault(); e.returnValue = ''; } });
 
