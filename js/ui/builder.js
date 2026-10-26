@@ -157,7 +157,7 @@ export function renderBuilder(root, store, onBack, opts = {}) {
               ${curve.map((v, i) => `<div class="cc"><div class="bar" style="height:${(v / maxC) * 100}%"><span>${v || ''}</span></div><i>${i === 7 ? '7+' : i}</i></div>`).join('')}
             </div>
             <div class="bld-types">${Object.entries(types).filter(([, v]) => v).map(([k, v]) => `<span>${TYPE_ICO[k]} ${v}</span>`).join('')}</div>
-            <div class="bld-list">${rows.map((c) => `<div class="bld-row" data-row="${c.id}" style="--art:url('${c.img}')"><span class="cost">${c.cost ?? 0}</span><span class="nm">${esc(c.name.split(',')[0])}</span><span class="x">×${by[c.id]}</span></div>`).join('') || `<p class="bld-note">Нажимайте на карты, чтобы добавить их в колоду (до ${MAX_COPIES} копий).</p>`}</div>
+            <div class="bld-list">${rows.map((c) => `<div class="bld-row" data-row="${c.id}" style="${c.img ? `--art:url('${new URL(c.img, location.href).href}')` : ''}"><span class="cost">${c.cost ?? 0}</span><span class="nm">${esc(c.name.split(',')[0])}</span><span class="x">×${by[c.id]}</span></div>`).join('') || `<p class="bld-note">Нажимайте на карты, чтобы добавить их в колоду (до ${MAX_COPIES} копий).</p>`}</div>
             <div class="bld-actions">
               <button class="btn primary" data-save ${ok ? '' : 'disabled'} data-tip="${ok ? 'Сохранить|Колода появится в выборе героя.' : `Ещё ${MIN - n} карт|Колода должна быть не меньше ${MIN} карт.`}">💾 Сохранить</button>
               ${opts.onPlay ? `<button class="btn" data-play ${ok ? '' : 'disabled'}>⚔ Сыграть с компьютером</button>` : ''}
