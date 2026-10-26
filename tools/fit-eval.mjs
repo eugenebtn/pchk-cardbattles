@@ -6,7 +6,9 @@ import { Worker, isMainThread, parentPort, workerData } from 'node:worker_thread
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { Game } from '../js/engine/game.js';
-import { levelAnswer, features, FEAT_NAMES } from '../js/engine/botlevels.js';
+import { levelAnswer, features, featuresX, FEAT_NAMES, FEAT_X_NAMES } from '../js/engine/botlevels.js';
+// FIT_X=1: the finer evaluation (more numbers); FIT_OUT=file: where to write (default js/engine/evalfit.js)
+const FX = !!process.env.FIT_X, feat = FX ? featuresX : features;
 import { botAnswer } from '../js/engine/bot.js';
 import { DECKS } from '../js/data/decks.js';
 
@@ -22,7 +24,7 @@ function collect(from, to, LV) {
     const rand = mulberry(k + 3);
     const rows = []; let round = 0;
     for (let n = 0; n < 6000 && g.pending && !g.s.over; n++) {
-      if (g.s.round !== round) { round = g.s.round; if (round > 1) rows.push([features(g, 0), features(g, 1)]); }
+      if (g.s.round !== round) { round = g.s.round; if (round > 1) rows.push([feat(g, 0), feat(g, 1)]); }
       const q = g.pending;
       // a little noise so that the games cover more kinds of boards
       let a; try { a = rand() < 0.08 ? botAnswer(g, q, rand, { fuzz: 1 }) : levelAnswer(g, q, LV, rand); } catch { a = undefined; }
@@ -57,9 +59,9 @@ let ok = 0, ll = 0;
 for (let i = cut; i < M; i++) { let z = b; for (let j = 0; j < D; j++) z += w[j] * Z[i][j]; const p = 1 / (1 + Math.exp(-z)); if ((p > 0.5) === (Y[i] === 1)) ok++; ll += -Math.log(Y[i] ? p : 1 - p); }
 const raw = w.map((v, j) => v / sd[j]);
 const bias = b - w.reduce((s, v, j) => s + (v * mu[j]) / sd[j], 0);
-const names = [...FEAT_NAMES, 'first'];
+const names = FX ? [...FEAT_NAMES, 'first', ...FEAT_X_NAMES] : [...FEAT_NAMES, 'first'];
 console.log(`positions ${M} from ${N} games; held-out accuracy ${(ok * 100 / (M - cut)).toFixed(1)}%, log-loss ${(ll / (M - cut)).toFixed(3)}`);
 console.log(names.map((n, j) => `${n} ${raw[j].toFixed(3)}`).join(', '));
 const out = [...raw.map((v) => +v.toFixed(4)), +bias.toFixed(4)];
-writeFileSync(new URL('../js/engine/evalfit.js', import.meta.url), `// Fitted by tools/fit-eval.mjs (${new Date().toISOString().slice(0, 10)}, ${N} games, ${M} positions; held-out accuracy ${(ok * 100 / (M - cut)).toFixed(1)}%).\n// Order: ${names.join(', ')}, bias.\nexport const EVAL_FIT = ${JSON.stringify(out)};\n`);
+writeFileSync(process.env.FIT_OUT || new URL('../js/engine/evalfit.js', import.meta.url), `// Fitted by tools/fit-eval.mjs (${new Date().toISOString().slice(0, 10)}, ${N} games, ${M} positions; held-out accuracy ${(ok * 100 / (M - cut)).toFixed(1)}%).\n// Order: ${names.join(', ')}, bias.\nexport const EVAL_FIT = ${JSON.stringify(out)};\n`);
 }

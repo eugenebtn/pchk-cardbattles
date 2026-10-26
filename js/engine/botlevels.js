@@ -9,7 +9,8 @@ import { Game, rng } from './game.js';
 import { botAnswer } from './bot.js';
 import { EVAL_FIT } from './evalfit.js';
 
-export const LEVELS = ['novice', 'normal', 'strong', 'master'];
+// «master» (more copies, two moves deep) is kept for tools/arena.mjs: it measured no stronger than «strong».
+export const LEVELS = ['novice', 'normal', 'strong'];
 export const LEVEL_RU = { novice: 'Новичок', normal: 'Обычный', strong: 'Сильный', master: 'Мастер', auto: 'Подстраиваться' };
 
 /** One answer for the request q at the given level. */
@@ -76,7 +77,8 @@ export function strongAnswer(g, q, rand, cfg = STRONG) {
     for (const seed of seeds) {
       const g2 = copyGame(g, seed);
       if (!g2) return undefined;
-      const s = rollout(g2, me, a, seed, cfg);
+      // «p»: in my turn look two moves deep — this action, then the best next one (a Place before an ally, a buff before a fight…).
+      const s = cfg.p && q.type === 'main' && a !== 'end' ? pairValue(g, g2, me, a, seed, cfg) : rollout(g2, me, a, seed, cfg);
       if (s != null) { sum += s; n++; }
     }
     if (!n) continue;
@@ -86,6 +88,44 @@ export function strongAnswer(g, q, rand, cfg = STRONG) {
     if (total > bestScore) { bestScore = total; best = a; }
   }
   return best;
+}
+
+/** Value of action a followed by my best next action in the same turn (each tried on its own copy). */
+function pairValue(g, g2, me, a, seed, cfg) {
+  const q0 = g2.pending;
+  if (!g2.respond(q0.player, a)) return null;
+  const r = rng(seed ^ 0x2f6b3a1d), round = g2.s.round;
+  // finish this action's own questions (target, region…) with the rule bot, up to my next free choice
+  for (let k = 0; k < 400 && g2.pending && !g2.s.over && g2.s.round === round; k++) {
+    const q = g2.pending;
+    if (q.player === me && q.type === 'main') break;
+    let ans; try { ans = botAnswer(g2, q, r); } catch { ans = undefined; }
+    if (!g2.respond(q.player, ans) && !g2.respond(q.player, q.type === 'priority' ? 'pass' : q.type === 'main' ? 'end' : q.options?.[0]?.id ?? null)) return null;
+  }
+  const q1 = g2.pending;
+  if (!q1 || g2.s.over || q1.player !== me || q1.type !== 'main') return finish(g2, me, seed, cfg);
+  const extra = g2.history.slice(g.history.length);
+  let next = q1.options.map((o) => o.id);
+  if (next.length > cfg.p) { const pick = botAnswer(g2, q1, r); next = ['end', pick, ...next.filter((x) => x !== 'end' && x !== pick).sort(() => r() - 0.5)].slice(0, cfg.p); }
+  let best = null;
+  for (const b of next) {
+    const g3 = copyGame(g, seed);
+    if (!g3) continue;
+    if (extra.some((x) => !g3.pending || !g3.respond(g3.pending.player, x))) continue;
+    const v = rollout(g3, me, b, seed, cfg);
+    if (v != null && (best == null || v > best)) best = v;
+  }
+  return best;
+}
+/** Play on with the rule bot from here to the end of the round and score it. */
+function finish(g2, me, seed, cfg) {
+  const r = rng(seed ^ 0x5bd1e995), round = g2.s.round;
+  for (let k = 0; k < 2000 && g2.pending && !g2.s.over && g2.s.round < round + 1; k++) {
+    const q = g2.pending;
+    let ans; try { ans = botAnswer(g2, q, r); } catch { ans = undefined; }
+    if (!g2.respond(q.player, ans) && !g2.respond(q.player, q.type === 'priority' ? 'pass' : q.type === 'main' ? 'end' : q.options?.[0]?.id ?? null)) return null;
+  }
+  return cfg.fit !== 0 && (cfg.fitw || FIT) && !cfg.w ? evaluateFit(g2, me, cfg.fitw || FIT) : evaluate(g2, me, cfg.w || W);
 }
 
 /** The same game rebuilt from its answers; then hidden things (deck order, dice) are made new. */
@@ -185,6 +225,23 @@ export function features(g, me) {
   const a = side(g, me), b = side(g, 1 - me);
   return [...a.map((x, k) => x - b[k]), g.s.first === me ? 1 : -1];
 }
+/** More numbers for the finer evaluation: the fights region by region and what matters early in the game. */
+export const FEAT_X_NAMES = ['winLane', 'loseLane', 'trade', 'earlyPlaces', 'earlyHand', 'lateAtk', 'myThreat', 'oppThreat'];
+export function featuresX(g, me) {
+  const o = 1 - me, base = features(g, me);
+  let win = 0, lose = 0, trade = 0;
+  for (let r = 0; r < 5; r++) {
+    const a = g.allyAt(me, r), e = g.allyAt(o, r);
+    if (!a || !e) continue;
+    const aA = g.stunned(a) ? 0 : g.atk(a), eA = g.stunned(e) ? 0 : g.atk(e);
+    const kill = aA >= g.hp(e), die = eA >= g.hp(a);
+    if (kill && !die) win++; else if (die && !kill) lose++; else if (kill && die) trade++;
+  }
+  const early = g.s.round <= 4 ? 1 : 0, late = g.s.round >= 7 ? 1 : 0;
+  const open = (p) => { let s = 0; for (let r = 0; r < 5; r++) { const x = g.allyAt(p, r); if (x && !g.allyAt(1 - p, r) && !g.stunned(x)) s += g.atk(x); } return s; };
+  const myHp = g.hp(g.leader(me)), opHp = g.hp(g.leader(o));
+  return [...base, win, lose, trade, early * base[9], early * base[11], late * base[3], open(me) / Math.max(1, opHp), open(o) / Math.max(1, myHp)];
+}
 // Fitted weights (logit of winning). Filled in by tools/fit-eval.mjs; null = use the hand-made evaluate().
 export let FIT = EVAL_FIT;
 export function setFit(w) { FIT = w; }
@@ -192,7 +249,7 @@ export const FITS = {};
 export function registerFit(name, w) { FITS[name] = w; }
 export function evaluateFit(g, me, w = FIT) {
   if (g.s.over) return g.s.winner === me ? 1e5 : g.s.winner === 'draw' ? 0 : -1e5;
-  const f = features(g, me);
+  const f = w.length > FEAT_NAMES.length + 2 ? featuresX(g, me) : features(g, me);
   let z = w[w.length - 1];
   for (let k = 0; k < f.length; k++) z += w[k] * f[k];
   return z * 10;
@@ -200,14 +257,14 @@ export function evaluateFit(g, me, w = FIT) {
 
 // ---------- adaptive level ----------
 const KEY = 'pchk_botlvl';
-/** 0 = novice … 3 = master, kept as a fraction so one game moves it a third of a level. */
+/** 0 = novice … 2 = strong, kept as a fraction so one game moves it a third of a level. */
 export function adaptiveValue() {
-  try { const v = Number(localStorage.getItem(KEY)); return Number.isFinite(v) && localStorage.getItem(KEY) != null ? Math.max(0, Math.min(3, v)) : 1; } catch { return 1; }
+  try { const v = Number(localStorage.getItem(KEY)); return Number.isFinite(v) && localStorage.getItem(KEY) != null ? Math.max(0, Math.min(2, v)) : 1; } catch { return 1; }
 }
 export function adaptiveLevel() { return LEVELS[Math.round(adaptiveValue())]; }
 /** After a game against the computer at the adaptive level. */
 export function adaptiveAfterGame(won) {
-  const v = Math.max(0, Math.min(3, adaptiveValue() + (won ? 0.34 : -0.34)));
+  const v = Math.max(0, Math.min(2, adaptiveValue() + (won ? 0.34 : -0.34)));
   try { localStorage.setItem(KEY, String(v)); } catch { /* private mode */ }
   return LEVELS[Math.round(v)];
 }

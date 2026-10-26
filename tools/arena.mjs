@@ -8,7 +8,9 @@ import { botAnswer, randomAnswer } from '../js/engine/bot.js';
 import { DECKS } from '../js/data/decks.js';
 import { botAnswer as v1Answer } from './bots/bot_v1.mjs';
 // «v1» = the rule bot as it was before the 2026-10-26 upgrade (kept for comparison).
-const answer = (g, q, lv, rand) => (lv === 'v1' ? v1Answer(g, q, rand) : levelAnswer(g, q, lv, rand));
+import { levelAnswer as oldLevel } from './bots/old/botlevels.mjs';
+// «old-strong» / «old-normal» = the levels as they were before the upgrade.
+const answer = (g, q, lv, rand) => (lv === 'v1' ? v1Answer(g, q, rand) : lv.startsWith('old-') ? oldLevel(g, q, lv.slice(4), rand) : levelAnswer(g, q, lv, rand));
 
 const [A = 'strong', B = 'normal', N0 = '60', onlyA, onlyB] = process.argv.slice(2);
 const N = Number(N0);

@@ -67,7 +67,7 @@ function toast(text, ms = 3000) {
 // ---------- settings ----------
 const opt = {
   sound: store.get('sound', true), bonus: store.get('bonus', false), coach: store.get('coach', true), timer: store.get('timer', 0),
-  botLevel: ['auto', 'novice', 'normal', 'strong', 'master'].includes(store.get('botLevel', 'auto')) ? store.get('botLevel', 'auto') : 'auto',
+  botLevel: ['auto', 'novice', 'normal', 'strong'].includes(store.get('botLevel', 'auto')) ? store.get('botLevel', 'auto') : 'auto',
   // Old versions saved true/false; false (the old «ask») becomes the new default «only when aimed at me».
   autopass: (() => { const v = store.get('autopass', 'smart'); return v === true ? true : v === 'always' ? 'always' : 'smart'; })(),
   name: store.get('name', ''), speed: store.get('speed', 1), music: store.get('music', true), board: store.get('board', 'random'),
@@ -308,7 +308,7 @@ function pickDecks(steps) {
           <div class="hs-roster"><div class="hs-medal newdeck" data-new><div class="m">＋</div>Своя колода<div class="tag">собрать</div></div>${list.map((d) => `<div class="hs-medal ${d === sel ? 'sel' : ''} ${d.random ? 'random' : ''}" data-key="${d.key}">
             <div class="m ${d.random ? '' : 'la'}" ${d.random ? '' : `style="background-image:url('${face(d.leader)}')"`}>${d.random ? '🎲' : ''}</div>
             ${esc(d.random ? 'Случайный' : d.title)}${d.build ? '<div class="tag">сборка</div>' : !d.random && !d.official ? '<div class="tag">своя</div>' : ''}</div>`).join('')}</div>
-          ${st.level ? `<div class="hs-level"><span>Сложность:</span>${['auto', 'novice', 'normal', 'strong', 'master'].map((l) => `<button class="hs-lv ${opt.botLevel === l ? 'on' : ''}" data-lv="${l}">${l === 'auto' ? `Подстраиваться <small>сейчас: ${LEVEL_RU[adaptiveLevel()]}</small>` : LEVEL_RU[l]}</button>`).join('')}<div class="hs-lv-help">${esc(LEVEL_HELP[opt.botLevel])}</div></div>` : ''}
+          ${st.level ? `<div class="hs-level"><span>Сложность:</span>${['auto', 'novice', 'normal', 'strong'].map((l) => `<button class="hs-lv ${opt.botLevel === l ? 'on' : ''}" data-lv="${l}">${l === 'auto' ? `Подстраиваться <small>сейчас: ${LEVEL_RU[adaptiveLevel()]}</small>` : LEVEL_RU[l]}</button>`).join('')}<div class="hs-lv-help">${esc(LEVEL_HELP[opt.botLevel])}</div></div>` : ''}
           <div class="hs-bar"><button class="btn" data-back>← Назад</button><button class="btn hs-go" data-go>${esc(step === steps.length - 1 ? (st.goLabel || 'В бой!') : 'Далее')}</button></div>
         </div>`;
         root.querySelectorAll('.hs-medal').forEach((m) => m.addEventListener('click', () => {
@@ -674,8 +674,7 @@ const LEVEL_HELP = {
   auto: 'Компьютер становится сильнее после ваших побед и слабее после поражений.',
   novice: 'Играет просто, часто ошибается и не отвечает Опережением. Для первых партий.',
   normal: 'Играет по правилам здравого смысла, иногда отвечает на ваши ходы.',
-  strong: 'Перед каждым ходом просчитывает варианты до конца раунда и выбирает лучший.',
-  master: 'Самый сильный: думает дольше, взвешивает каждый ход и каждый ответ. Для опытных игроков.',
+  strong: 'Просчитывает каждый ход до конца раунда и оценивает позицию так, как научился на тысячах партий.',
 };
 async function startBot() {
   const r = await pickDecks([{ title: 'Ваша колода' }, { title: 'Колода компьютера', allowRandom: true, level: true }]);

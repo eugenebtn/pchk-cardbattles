@@ -1,0 +1,7 @@
+  62/value it 25: win 48% miss 0.80 [43 s]
+  62/value it 50: win 49% miss 0.20 [76 s]
+  62/value it 75: win 57% miss 0.10 [104 s]
+  62/value it 100: win 49% miss 0.10 [134 s]
+  62/value it 125: win 49% miss 0.00 [158 s]
+  62/value it 150: win 48% miss 0.00 [180 s]
+62 value: win vs starters 45.0% (fresh deals), style miss 0.00
