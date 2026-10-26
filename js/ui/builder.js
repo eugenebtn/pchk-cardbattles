@@ -10,8 +10,9 @@ import { FEATURES } from '../features.js';
 import { encodeDeck, decodeDeck, deckLink } from '../net/deckcode.js';
 import { BOT_DECKS } from '../data/botdecks.js';
 import { THEME_DECKS } from '../data/themedecks.js';
-// «Готовые сборки»: themed decks (built around one idea) first, then the strong decks the computer uses.
-const READY = [...THEME_DECKS, ...BOT_DECKS];
+// «Готовые сборки» (shown after the starter decks): grouped by Leader in the starter order; per Leader the themed decks, then the strong decks the computer uses.
+const LEADER_ORDER = Object.values(DECKS).map((d) => d.leader);
+const READY = [...THEME_DECKS, ...BOT_DECKS].map((d, k) => [d, k]).sort(([a, i], [b, j]) => LEADER_ORDER.indexOf(a.leader) - LEADER_ORDER.indexOf(b.leader) || i - j).map(([d]) => d);
 import { loadGames } from './stats.js';
 
 const TYPE_RU = { ally: 'Союзники', place: 'Места', action: 'Действия', item: 'Предметы', companion: 'Напарники' };
@@ -69,9 +70,9 @@ export function renderBuilder(root, store, onBack, opts = {}) {
           <b>${esc(d.name)}</b><small>${esc((CARDS[d.leader]?.name || '').split(',')[0])} · ${d.cards.length} карт ${d.cards.length >= MIN ? '✔' : '⚠'}</small></div>`).join('')}
       </div>
       ${FEATURES.community ? '<h3 class="bld-h3">Колоды сообщества</h3><div class="bld-gal small bld-comm"><p class="bld-note">Загружаем…</p></div>' : ''}
-      ${READY.length ? `<h3 class="bld-h3">Готовые сборки</h3><div class="bld-gal small">${READY.map((d, k) => `<div class="bld-tile" data-build="${k}" data-tip="${esc(d.title)}|${esc(d.desc)}"><div class="face" style="${leaderPic(d.leader)}"></div><b>${esc(d.title)}</b><small>${d.style === 'theme' ? `${esc((CARDS[d.leader]?.name || '').split(',')[0])} · своя тема` : 'сильная сборка'} · скопировать</small></div>`).join('')}</div>` : ''}
       <h3 class="bld-h3">Начать со стартовой скрижали</h3>
       <div class="bld-gal small">${Object.values(DECKS).map((d) => `<div class="bld-tile" data-copy="${d.key}"><div class="face" style="${leaderPic(d.leader)}"></div><b>${esc(d.title)}</b><small>скопировать и изменить${(() => { const r = WR?.decks.get(d.title); return r && r.games >= MIN_GAMES ? ` · побед ${Math.round((r.wins / r.games) * 100)}% из ${r.games}` : ''; })()}</small></div>`).join('')}</div>
+      ${READY.length ? `<h3 class="bld-h3">Готовые сборки</h3><div class="bld-gal small">${READY.map((d, k) => `<div class="bld-tile" data-build="${k}" data-tip="${esc(d.title)}|${esc(d.desc)}"><div class="face" style="${leaderPic(d.leader)}"></div><b>${esc(d.title)}</b><small>${d.style === 'theme' ? `${esc((CARDS[d.leader]?.name || '').split(',')[0])} · своя тема` : 'сильная сборка'} · скопировать</small></div>`).join('')}</div>` : ''}
     </div>`;
     root.querySelector('[data-back]').onclick = () => { sfx.click(); onBack(); };
     root.querySelector('[data-new]').onclick = () => { sfx.select(); pickLeader(); };
