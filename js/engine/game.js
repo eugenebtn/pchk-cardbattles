@@ -60,7 +60,7 @@ export class Game {
         i, name: pc.name || `Игрок ${i + 1}`, coins: 5, deck: [], hand: [], grave: [], exile: [],
         regions: Array.from({ length: REGIONS }, () => ({ ally: null, place: null })),
         support: [], leader: null, usedThisTurn: 0, usedThisPhase: 0, freeFastPhase: -1,
-        openHand: false, flags: {},
+        openHand: false, flags: {}, fatigue: 0,
       };
       s.players.push(p);
       p.leader = this.newInst(pc.leader, i, 'leader');
@@ -440,6 +440,11 @@ export class Game {
     this.expire((u) => u.turnOf === i);
     yield* this.checkDeaths();
     this.emit('turnStart', { player: i, log: `Ход: ${p.name}.` });
+    // Fatigue (house rule, 2026-10-26): an empty deck at the start of your turn costs your Leader 1, then 2, 3…
+    if (!p.deck.length) {
+      const n = ++p.fatigue;
+      yield* this.damage(null, p.leader, n, { fx: 'fatigue', log: `Колода пуста: «${this.name(p.leader)}» теряет ${n} здоровья.` });
+    }
     yield* this.window(1 - i, 'turnStart');
     // «В начале вашего хода…» — snapshot so that cards arriving now wait until next turn.
     const starters = this.field().filter((c) => this.script(c).on?.turnStart);
@@ -1188,7 +1193,7 @@ export class Game {
       if (src && this.hp(tgt) <= 0) tgt.x.killer = src.uid;
     }
     const ev = { src, tgt, amount: dealt, combat: !!opts.combat, fight: !!opts.fight, srcCtrl: src?.ctrl, tgtCtrl: tgt.ctrl };
-    this.emit('damage', { src: src?.uid, tgt: tgt.uid, amount: dealt, combat: !!opts.combat, fxName: opts.fx, log: `${src ? `«${this.name(src)}»` : 'Эффект'} наносит ${dealt} ран «${this.name(tgt)}».` });
+    this.emit('damage', { src: src?.uid, tgt: tgt.uid, amount: dealt, combat: !!opts.combat, fxName: opts.fx, log: opts.log || `${src ? `«${this.name(src)}»` : 'Эффект'} наносит ${dealt} ран «${this.name(tgt)}».` });
     // Deathtouch (only from combat/fight damage of an ally with the keyword).
     if (src && dealt > 0 && type !== 'leader' && (opts.combat || opts.fight) && this.has(src, 'deathtouch') && !this.has(tgt, 'indestructible')) tgt.x.deathMark = true;
     if (opts.defer) opts.defer.push(ev);
@@ -1602,7 +1607,7 @@ export class Game {
       players: s.players.map((p) => {
         const hide = viewer != null && viewer !== p.i && !p.openHand && !this.field(1 - p.i).some((c) => c.id === 146);
         return {
-          i: p.i, name: p.name, coins: p.coins, deckCount: p.deck.length,
+          i: p.i, name: p.name, coins: p.coins, deckCount: p.deck.length, fatigue: p.fatigue,
           hand: p.hand.map((c) => ci(c, hide)), handCount: p.hand.length,
           grave: p.grave.map((c) => ci(c)), exileCount: p.exile.length,
           leader: ci(p.leader), support: p.support.map((c) => ci(c)),

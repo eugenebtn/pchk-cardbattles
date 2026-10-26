@@ -16,8 +16,17 @@ export function playerId() {
   } catch { return '00000000-0000-4000-8000-000000000000'; }
 }
 
+/** A local copy of the site: localhost, 127.0.0.1, a *.localhost name or a file opened from disk. `?rank=1` sends anyway. */
+export function isLocal(loc = globalThis.location) {
+  if (!loc) return false;
+  if (/[?&]rank=1\b/.test(loc.search || '')) return false;
+  return loc.protocol === 'file:' || /^(localhost|127\.0\.0\.1|\[::1\])$|\.localhost$/.test(loc.hostname || '');
+}
+
 /** Send one finished game. Never throws: the ranking must not break the game. */
 export async function submitResult(r) {
+  // Test runs on this computer (local copy of the site, headless screenshots) must not land in the world ranking.
+  if (isLocal()) return false;
   try {
     const row = {
       player_id: playerId(), player_name: String(r.name || 'Игрок').slice(0, 24), deck: String(r.deck || '').slice(0, 40), leader: r.leader ?? null,
