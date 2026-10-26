@@ -443,7 +443,7 @@ export class Game {
     // Fatigue (house rule, 2026-10-26): an empty deck at the start of your turn costs your Leader 1, then 2, 3…
     if (!p.deck.length) {
       const n = ++p.fatigue;
-      yield* this.damage(null, p.leader, n, { fx: 'fatigue', log: `Колода пуста: «${this.name(p.leader)}» теряет ${n} здоровья.` });
+      yield* this.damage(null, p.leader, n, { fx: 'fatigue', log: (dealt) => `Колода пуста: «${this.name(p.leader)}» теряет ${dealt} здоровья.` });
     }
     yield* this.window(1 - i, 'turnStart');
     // «В начале вашего хода…» — snapshot so that cards arriving now wait until next turn.
@@ -1193,7 +1193,7 @@ export class Game {
       if (src && this.hp(tgt) <= 0) tgt.x.killer = src.uid;
     }
     const ev = { src, tgt, amount: dealt, combat: !!opts.combat, fight: !!opts.fight, srcCtrl: src?.ctrl, tgtCtrl: tgt.ctrl };
-    this.emit('damage', { src: src?.uid, tgt: tgt.uid, amount: dealt, combat: !!opts.combat, fxName: opts.fx, log: opts.log || `${src ? `«${this.name(src)}»` : 'Эффект'} наносит ${dealt} ран «${this.name(tgt)}».` });
+    this.emit('damage', { src: src?.uid, tgt: tgt.uid, amount: dealt, combat: !!opts.combat, fxName: opts.fx, log: opts.log ? opts.log(dealt) : `${src ? `«${this.name(src)}»` : 'Эффект'} наносит ${dealt} ран «${this.name(tgt)}».` });
     // Deathtouch (only from combat/fight damage of an ally with the keyword).
     if (src && dealt > 0 && type !== 'leader' && (opts.combat || opts.fight) && this.has(src, 'deathtouch') && !this.has(tgt, 'indestructible')) tgt.x.deathMark = true;
     if (opts.defer) opts.defer.push(ev);

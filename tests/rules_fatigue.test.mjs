@@ -59,6 +59,13 @@ test('Усталость: Лидер на 1 здоровье — партия з
   eq(g.s.winner, 1);
 });
 
+test('Усталость: в журнале реальный урон, а не запрошенный', () => {
+  const g = makeGame({ p0: { leader: 117, deck: [] }, p1: { leader: 117 } });
+  g.P(0).fatigue = 2; g.P(0).leader.hpNow = 2;
+  runUntil(g, () => g.s.over);
+  ok(fatigueLines(g)[0].includes('теряет 2 здоровья'), fatigueLines(g)[0]);
+});
+
 test('Усталость: бесконечная партия seed 97856 (зеркало theme_hell) теперь заканчивается', () => {
   if (!existsSync('tools/qa/invariants.mjs')) { console.log('       (нет tools/qa/invariants.mjs — пропуск)'); return; }
   const out = execFileSync(process.execPath, ['tools/qa/invariants.mjs', '3', 'novice,normal,fuzz', '95000'], {
