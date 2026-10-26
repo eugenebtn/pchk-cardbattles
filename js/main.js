@@ -281,9 +281,10 @@ function pickDecks(steps) {
     const root = $('#heroes');
     const draw = () => {
       const st = steps[step];
-      // The computer's step also offers the strong builds made for it.
-      const builds = st.level ? BOT_DECKS.map((d) => ({ key: d.key, title: d.title, leader: d.leader, cards: d.cards, official: false, build: true, desc: d.desc })) : [];
-      const list = st.allowRandom ? [{ key: 'random', title: 'Случайный', leader: null, cards: [], random: true }, ...decks, ...builds] : [...decks, ...builds];
+      // The computer's step shows only the Leaders (and «Случайный»); against my own deck it brings a strong build of that Leader.
+      const pool = st.level ? decks.filter((x) => x.official) : decks;
+      const list = st.allowRandom ? [{ key: 'random', title: 'Случайный', leader: null, cards: [], random: true }, ...pool] : pool;
+      const vsOwn = st.level && chosen[0] && !chosen[0].official && BOT_DECKS.length;
       // The opponent's step starts on «Случайный» (not on the deck you just took); each step remembers its own pick.
       draw.byStep = draw.byStep || {};
       let sel = list.find((d) => d.key === draw.byStep[step]) || (st.allowRandom ? list[0] : list.find((d) => d.key === (draw.last || '')) || list[0]);
@@ -297,7 +298,7 @@ function pickDecks(steps) {
             <div class="hs-portrait art la" style="background-image:url('${art(L ? sel.leader : 63)}')${sel.random ? ';filter:brightness(.35) blur(2px)' : `;background-position:${artFocus(sel.leader)}`}">${L ? `<div class="hs-port-name">${esc(L.name.split(',')[0])}</div>` : ''}${sel.random ? '<div style="position:absolute;inset:0;display:grid;place-items:center;font-size:120px;filter:none">🎲</div>' : ''}</div>
             <div class="hs-info">
               <div class="hs-name">${esc(sel.random ? 'Случайный соперник' : L.name)}</div>
-              <div class="hs-sub">${sel.random ? (st.level && chosen[0] && !chosen[0].official && BOT_DECKS.length ? 'У вас своя колода — компьютер возьмёт одну из своих сильных сборок' : 'Компьютер возьмёт любую стартовую колоду') : `${esc(sel.title)} · ${sel.official ? 'стартовая скрижаль' : sel.build ? 'сильная сборка компьютера' : 'своя колода'} · ${sel.cards.length} карт`}</div>
+              <div class="hs-sub">${sel.random ? (vsOwn ? 'У вас своя колода — компьютер возьмёт любого Лидера с сильной сборкой' : 'Компьютер возьмёт любую стартовую колоду') : vsOwn && sel.official ? `${esc(L.name.split(',')[0])} · у вас своя колода — компьютер соберёт сильную колоду этого Лидера` : `${esc(sel.title)} · ${sel.official ? 'стартовая скрижаль' : 'своя колода'} · ${sel.cards.length} карт`}</div>
               ${L ? `<div class="hs-row"><div class="hs-hp" data-tip="Здоровье Лидера|Если упадёт до 0 — поражение.">❤️ ${L.hp}</div>${LEADER_PLAIN[sel.leader] ? `<div class="hs-diff d${LEADER_PLAIN[sel.leader].d}">${DIFF_RU[LEADER_PLAIN[sel.leader].d]}</div>` : ''}</div>
               <div class="hs-style">${esc(sel.desc || DECK_STYLE[sel.deckKey] || 'Ваша собственная скрижаль.')}</div>
               ${LEADER_PLAIN[sel.leader] ? `<ul class="hs-plain">${LEADER_PLAIN[sel.leader].t.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
@@ -307,7 +308,7 @@ function pickDecks(steps) {
           </div>
           <div class="hs-roster"><div class="hs-medal newdeck" data-new><div class="m">＋</div>Своя колода<div class="tag">собрать</div></div>${list.map((d) => `<div class="hs-medal ${d === sel ? 'sel' : ''} ${d.random ? 'random' : ''}" data-key="${d.key}">
             <div class="m ${d.random ? '' : 'la'}" ${d.random ? '' : `style="background-image:url('${face(d.leader)}')"`}>${d.random ? '🎲' : ''}</div>
-            ${esc(d.random ? 'Случайный' : d.title)}${d.build ? '<div class="tag">сборка</div>' : !d.random && !d.official ? '<div class="tag">своя</div>' : ''}</div>`).join('')}</div>
+            ${esc(d.random ? 'Случайный' : d.title)}${!d.random && !d.official ? '<div class="tag">своя</div>' : ''}</div>`).join('')}</div>
           ${st.level ? `<div class="hs-level"><span>Сложность:</span>${['auto', 'novice', 'normal', 'strong'].map((l) => `<button class="hs-lv ${opt.botLevel === l ? 'on' : ''}" data-lv="${l}">${l === 'auto' ? `Подстраиваться <small>сейчас: ${LEVEL_RU[adaptiveLevel()]}</small>` : LEVEL_RU[l]}</button>`).join('')}<div class="hs-lv-help">${esc(LEVEL_HELP[opt.botLevel])}</div></div>` : ''}
           <div class="hs-bar"><button class="btn" data-back>← Назад</button><button class="btn hs-go" data-go>${esc(step === steps.length - 1 ? (st.goLabel || 'В бой!') : 'Далее')}</button></div>
         </div>`;
@@ -325,10 +326,11 @@ function pickDecks(steps) {
         root.querySelector('[data-go]').onclick = () => {
           sfx.confirm();
           let d = sel;
-          if (d.random) {
-            // Against a player's own deck the computer brings one of its own builds too.
-            const pool = st.level && chosen[0] && !chosen[0].official && builds.length ? builds : decks.filter((x) => x.official);
-            d = pool[Math.floor(Math.random() * pool.length)];
+          if (d.random) { const off = decks.filter((x) => x.official); d = off[Math.floor(Math.random() * off.length)]; }
+          // Against a player's own deck: a strong build of the chosen Leader instead of the starter deck.
+          if (vsOwn && d.official) {
+            const bs = BOT_DECKS.filter((x) => x.leader === d.leader);
+            if (bs.length) { const b = bs[Math.floor(Math.random() * bs.length)]; d = { ...d, key: b.key, title: b.title, cards: b.cards, official: false }; }
           }
           chosen.push(d);
           step++;
