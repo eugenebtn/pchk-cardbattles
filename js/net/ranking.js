@@ -57,6 +57,12 @@ export async function loadPlayers(mode) {
   rows = rows.filter((r) => r.player_name && !/^Игрок( \d)?$/.test(String(r.player_name).trim()));
   return rows.sort((a, b) => b.wins - a.wins || b.winrate - a.winrate || a.games - b.games);
 }
+/** Everyone with league points and league (see js/ui/leagues.js), best first. */
+export async function loadLeagues() {
+  const { rankPlayers } = await import('../ui/leagues.js');
+  const rows = (await get('leaderboard?select=*&limit=3000')).filter((r) => r.player_name && !/^Игрок( \d)?$/.test(String(r.player_name).trim()));
+  return rankPlayers(rows);
+}
 /** Decks of one mode: games, wins and leader, counted from the latest results. */
 export async function loadDecks(mode) {
   const rows = await get(`results?select=deck,leader,won${mode === 'all' ? '' : `&mode=eq.${encodeURIComponent(mode)}`}&order=created_at.desc&limit=1000`);

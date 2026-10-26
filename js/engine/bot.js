@@ -43,6 +43,19 @@ function value(g, c) {
   return (d.cost || 0) + 1;
 }
 
+/** How good it is to put an ally with this attack/health (pv) into region r. */
+function laneScore(g, me, r, pv) {
+  const e = g.allyAt(1 - me, r);
+  const A = pv?.atk ?? 2, H = pv?.hp ?? 2;
+  if (!e) return A * 1.2 + 1;
+  const eA = g.stunned(e) ? 0 : g.atk(e), eH = g.hp(e);
+  const kill = A >= eH && !g.has(e, 'indestructible'), die = eA >= H;
+  let s = 0;
+  if (kill) s += value(g, e) + 2;
+  if (die) s -= A + H + 2; else s += eA * 1.2; // it stops that enemy from hitting my Leader
+  return s;
+}
+
 export function botAnswer(g, q, rand = Math.random, opts = {}) {
   const me = q.player;
   const fuzz = opts.fuzz || 0; // 0..1: chance to pick a random valid answer (for tests)
@@ -57,9 +70,12 @@ export function botAnswer(g, q, rand = Math.random, opts = {}) {
     case 'draw': {
       const p = g.P(me);
       if (!q.options.some((o) => o.id === 'card')) return 'coin';
-      if (p.hand.length <= 2) return 'card';
-      if (p.coins <= 3) return 'coin';
-      return rand() < 0.5 ? 'card' : 'coin';
+      // Take what lets me spend the most this turn: coins when the hand already costs more than I have, else cards.
+      const costs = p.hand.map((c) => { const k = defOf(c.id).cost; return typeof k === 'number' ? k : 3; });
+      const need = costs.reduce((x, y) => x + y, 0);
+      if (p.hand.length <= 1) return 'card';
+      if (need > p.coins + 1 || p.hand.length >= 6) return 'coin';
+      return 'card';
     }
     case 'main': {
       const p = g.P(me);
@@ -97,17 +113,18 @@ export function botAnswer(g, q, rand = Math.random, opts = {}) {
         const c = g.card(x.uid); const ab = g.script(c).abilities?.[x.ab];
         return !ab || useful(g, me, ab.targets, c.id);
       });
-      if (!o.length || rand() < (threatened ? 0.4 : 0.9)) return 'pass';
+      if (!o.length || rand() < (threatened ? 0.2 : 0.5)) return 'pass';
       return o[Math.floor(rand() * o.length)].id;
     }
     case 'region': {
       const ids = q.options.map((o) => o.id);
       if (q.row === 'ally') {
-        // Prefer a region facing an empty or weaker enemy.
+        // Score the fight in each region: kill the enemy and survive, block a strong enemy, or hit the Leader.
+        const c = q.uid != null ? g.card(q.uid) : null;
         let best = ids[0], bs = -1e9;
         for (const r of ids) {
-          const e = g.allyAt(1 - me, r);
-          const s = (e ? -value(g, e) : 5) + rand();
+          const pv = c ? g.previewAlly(me, c, c.id, r) : null;
+          const s = laneScore(g, me, r, pv) + rand() * 0.3;
           if (s > bs) { bs = s; best = r; }
         }
         return best;

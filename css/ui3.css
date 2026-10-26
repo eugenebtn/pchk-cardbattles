@@ -251,3 +251,19 @@ body.studio #splash .fan-sub, body.studio #splash .splash-legal { z-index: 2; an
 .invite-pop .ic-btns { display: flex; gap: 8px; }
 @keyframes invPop { from { opacity: 0; transform: translate(-50%, -16px); } }
 @media (max-width: 760px) { .invite-pop { flex-direction: column; width: calc(100vw - 32px); box-sizing: border-box; text-align: center; } }
+
+/* leagues: five emblems to pick from, a tag in the table, the profile card with progress */
+.lg-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 8px 0 14px; }
+.lg-pick { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 6px; border: none; border-radius: 12px; cursor: pointer; color: #f3e6c8; font: inherit;
+  background: linear-gradient(rgba(255, 220, 160, .06), rgba(0, 0, 0, .3)); box-shadow: inset 0 0 0 1.5px rgba(217, 196, 138, .35); transition: transform .15s, box-shadow .15s; }
+.lg-pick:hover { transform: translateY(-2px); box-shadow: inset 0 0 0 1.5px #d9c48a, 0 0 18px rgba(255, 200, 90, .25); }
+.lg-pick.on { box-shadow: inset 0 0 0 2px #f2cd6b, 0 0 22px rgba(255, 200, 90, .4); background: linear-gradient(rgba(242, 205, 107, .16), rgba(0, 0, 0, .3)); }
+.lg-pick b { font-size: 16px; } .lg-pick small { font-size: 12px; color: #c9b081; } .lg-pick i { font-style: normal; font-size: 12px; color: #9fe0a6; }
+.lg-pick .lg-emb { filter: drop-shadow(0 3px 6px rgba(0, 0, 0, .6)); }
+.lg-tag { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; } .lg-tag b { font-weight: 800; }
+.lg-bronze b { color: #e0a070; } .lg-silver b { color: #dfe4ee; } .lg-gold b { color: #f2cd6b; } .lg-platinum b { color: #7fe3d0; } .lg-challenger b { color: #e2a2ff; }
+.pf-league { display: flex; align-items: center; gap: 10px; } .pf-league small { display: block; color: #c9b081; }
+.lg-prog { width: 220px; max-width: 100%; height: 7px; margin: 4px 0 2px; border-radius: 4px; background: rgba(0, 0, 0, .5); overflow: hidden; } .lg-prog i { display: block; height: 100%; background: linear-gradient(90deg, #f2cd6b, #ffe9a8); }
+@media (max-width: 760px) { .lg-row { grid-template-columns: repeat(3, 1fr); } }
+
+#mv-side .mv-place { display: flex; align-items: center; gap: 8px; } /* the league emblem in the menu panel */

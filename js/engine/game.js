@@ -190,6 +190,7 @@ export class Game {
   }
   log(text) { this.emit('log', { log: text }); }
   fx(name, src, tgt, extra = {}) {
+    if (this.skipped(tgt)) return;
     this.emit('fx', { fx: name, src: src?.uid ?? src, tgt: Array.isArray(tgt) ? tgt.map((t) => t?.uid ?? t) : (tgt?.uid ?? tgt), ...extra });
   }
 
@@ -832,14 +833,20 @@ export class Game {
   /** Re-check that a stack item can still legally resolve. */
   legal(item) {
     const { ctx } = item;
+    // With several targets only the ones that became illegal (gone, got Оберег…) are skipped; the rest still get the effect.
+    // With one target — or when none is left — the whole card or ability does not work.
+    const bad = [];
     for (let k = 0; k < ctx.targets.length; k++) {
       const t = this.card(ctx.targets[k]); const spec = ctx.specs[k];
-      if (!t || !this.onField(t) && spec?.zone !== 'grave' && spec?.zone !== 'hand') return false;
-      if (spec?.zone === 'grave' && t.zone !== 'grave') return false;
-      if (spec?.uidZone && t.zone !== spec.uidZone) return false;
-      if (t.ctrl !== item.player && this.has(t, 'ward') && spec?.zone == null) return false;
-      if (spec && spec.kind && this.onField(t) && !this.targetCandidates(item.player, { ...spec, filter: spec.filter }).includes(t)) return false;
+      const ok = !(!t || !this.onField(t) && spec?.zone !== 'grave' && spec?.zone !== 'hand')
+        && !(spec?.zone === 'grave' && t.zone !== 'grave')
+        && !(spec?.uidZone && t.zone !== spec.uidZone)
+        && !(t.ctrl !== item.player && this.has(t, 'ward') && spec?.zone == null)
+        && !(spec && spec.kind && this.onField(t) && !this.targetCandidates(item.player, { ...spec, filter: spec.filter }).includes(t));
+      if (!ok) bad.push(ctx.targets[k]);
     }
+    item.skip = bad;
+    if (bad.length && (ctx.targets.length < 2 || bad.length === ctx.targets.length)) return false;
     if (item.kind === 'card') {
       const d = this.def(item.inst);
       if (d.type === 'ally') {
@@ -860,6 +867,15 @@ export class Game {
       if (item.kind === 'card') yield* this.toGrave(item.inst);
       return;
     }
+    for (const u of item.skip || []) { const t = this.card(u); if (t) this.emit('fizzle', { uid: u, log: `«${item.label}»: по «${this.name(t)}» не срабатывает — цель больше недоступна${this.has(t, 'ward') ? ' (Оберег)' : ''}.` }); }
+    const prevSkip = this.skip;
+    this.skip = new Set(item.skip || []);
+    try { yield* this.resolveItemBody(item); } finally { this.skip = prevSkip; }
+  }
+  /** Is this card a target the resolving effect must leave alone? */
+  skipped(c) { return !!(c && this.skip && this.skip.has(c.uid)); }
+  *resolveItemBody(item) {
+    const { ctx } = item;
     if (item.kind === 'ability') {
       const ab = this.script(item.inst).abilities[item.ab];
       for (let t = 0; t < (item.times || 1); t++) {
@@ -991,6 +1007,7 @@ export class Game {
     this.emit('toGrave', { uid: c.uid, player: c.owner, from });
   }
   *exile(c) {
+    if (this.skipped(c)) return;
     if (this.onField(c)) yield* this.leaveField(c, 'exile');
     else this.removeFromZone(c);
     this.resetInst(c);
@@ -999,6 +1016,7 @@ export class Game {
     this.emit('exiled', { uid: c.uid, log: `«${this.name(c)}» убран(а) из игры.` });
   }
   *toHand(c) {
+    if (this.skipped(c)) return;
     if (this.onField(c)) yield* this.leaveField(c, 'hand');
     else this.removeFromZone(c);
     if (c.created) { this.resetInst(c); c.zone = 'exile'; this.emit('exiled', { uid: c.uid }); return; }
@@ -1134,7 +1152,7 @@ export class Game {
   }
   /** «Уничтожьте…» — blocked by Нерушимость. */
   *destroy(c, src = null, { cost = false } = {}) {
-    if (!this.onField(c)) return false;
+    if (!this.onField(c) || this.skipped(c)) return false;
     if (this.cardType(c) === 'leader') return false;
     if (!cost && this.has(c, 'indestructible')) { this.emit('blocked', { uid: c.uid, log: `«${this.name(c)}» не может быть уничтожен(а).` }); return false; }
     if (src) this.fx('destroy', src, c);
@@ -1157,7 +1175,7 @@ export class Game {
    * opts: { combat, fight, defer:[] } — with defer, 'damage' triggers are queued for the battle sequence.
    */
   *damage(src, tgt, amount, opts = {}) {
-    if (!tgt || !this.onField(tgt) || amount <= 0) return 0;
+    if (!tgt || !this.onField(tgt) || amount <= 0 || this.skipped(tgt)) return 0;
     const type = this.cardType(tgt);
     if (!['ally', 'companion', 'leader'].includes(type)) return 0;
     let dealt;
@@ -1182,7 +1200,7 @@ export class Game {
     return dealt;
   }
   *heal(tgt, n, src = null) {
-    if (!tgt || !this.onField(tgt) || n <= 0) return 0;
+    if (!tgt || !this.onField(tgt) || n <= 0 || this.skipped(tgt)) return 0;
     let healed;
     if (this.cardType(tgt) === 'leader') {
       const max = this.def(tgt).hp;
@@ -1200,18 +1218,18 @@ export class Game {
   }
   /** +X/+Y. until: 'perm' | 'phase' | 'nextTurn' | 'battle' */
   *buff(tgt, atk, hp, until = 'perm', src = null) {
-    if (!tgt || !this.onField(tgt)) return;
+    if (!tgt || !this.onField(tgt) || this.skipped(tgt)) return;
     tgt.mods.push({ atk, hp, until: this.untilTag(until, src || tgt), src: src?.uid });
     this.emit('buff', { uid: tgt.uid, atk, hp, src: src?.uid, log: `«${this.name(tgt)}» получает ${atk >= 0 ? '+' : ''}${atk}/${hp >= 0 ? '+' : ''}${hp}.` });
     yield* this.checkDeaths();
   }
   grant(tgt, kw, until = 'phase', src = null) {
-    if (!tgt || !this.onField(tgt)) return;
+    if (!tgt || !this.onField(tgt) || this.skipped(tgt)) return;
     tgt.kws.push({ kw, until: this.untilTag(until, src || tgt) });
     this.emit('grant', { uid: tgt.uid, kw, log: `«${this.name(tgt)}» получает ${KW_RU[kw] || kw}.` });
   }
   stun(tgt, src = null) {
-    if (!tgt || !this.onField(tgt)) return;
+    if (!tgt || !this.onField(tgt) || this.skipped(tgt)) return;
     const s = this.s;
     let until;
     if (!s.inBattle) until = s.battleNo + 1 + s.skipBattles * 0;

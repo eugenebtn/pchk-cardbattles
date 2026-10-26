@@ -127,4 +127,18 @@ test('Торговые ряды: 2 ряда = 4 монеты', () => {
   eq(g.P(0).coins, 5 + 4 + 2);
 });
 
+test('Некротическая молния: если одна из трёх целей получила Оберег в ответ, раны получают две другие', () => {
+  const g = makeGame();
+  const sh = put(g, 0, 17); sh.tok.goods = 5;
+  const a = put(g, 1, 9, 0), b = put(g, 1, 9, 1), c = put(g, 1, 9, 2);
+  toMain(g);
+  const k = g.script(sh).abilities.findIndex((x) => x.name === 'Некротическая молния');
+  ans(g, `ab:${sh.uid}:${k}`); ans(g, a.uid); ans(g, b.uid); ans(g, c.uid);
+  // the opponent answers by giving the first target Оберег
+  ok(g.pending?.type === 'priority' && g.pending.player === 1, 'the opponent may answer');
+  g.grant(a, 'ward', 'phase');
+  passPriority(g);
+  eq(g.hp(a), g.maxHp(a), 'Оберег: no wounds'); ok(g.hp(b) < g.maxHp(b) || b.zone !== 'field', 'second target hit'); ok(g.hp(c) < g.maxHp(c) || c.zone !== 'field', 'third target hit');
+});
+
 done();

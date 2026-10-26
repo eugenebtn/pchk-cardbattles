@@ -226,3 +226,6 @@
 .lk-back.on i { box-shadow: 0 0 0 3px #160c06, 0 0 0 6px #f2cd6b, 0 0 22px rgba(255, 210, 110, .8); }
 .lk-back.on span { color: #fff3cf; }
 .lk-note { color: #b9a67f; font-size: 14px; margin: 10px 0 0; }
+/* Hero select: «Назад / В бой» always in sight at the bottom, the page scrolls under it */
+#heroes .hs-bar { position: sticky !important; bottom: 0; z-index: 6; margin: 10px -16px 0 !important; padding: 14px 16px calc(14px + env(safe-area-inset-bottom)) !important;
+  background: linear-gradient(rgba(8, 4, 2, 0), rgba(8, 4, 2, .92) 35%, rgba(8, 4, 2, .97)) !important; }

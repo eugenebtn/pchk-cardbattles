@@ -7,6 +7,8 @@ import { linkTerms } from './glossary.js';
 import { sfx } from './sound.js';
 import { loadCardStats, loadDecks, loadCommunityDecks, publishDeck } from '../net/ranking.js';
 import { FEATURES } from '../features.js';
+import { encodeDeck, decodeDeck, deckLink } from '../net/deckcode.js';
+import { BOT_DECKS } from '../data/botdecks.js';
 import { loadGames } from './stats.js';
 
 const TYPE_RU = { ally: 'Союзники', place: 'Места', action: 'Действия', item: 'Предметы', companion: 'Напарники' };
@@ -59,15 +61,26 @@ export function renderBuilder(root, store, onBack, opts = {}) {
       <div class="bld-top"><button class="btn" data-back>← Назад</button><h2>Мои колоды</h2><span></span></div>
       <div class="bld-gal">
         <div class="bld-tile new" data-new><div class="plus">＋</div><b>Новая колода</b><small>Выберите Лидера и соберите 40+ карт</small></div>
+        <div class="bld-tile new" data-paste><div class="plus">🔗</div><b>Колода по коду</b><small>Вставьте код или ссылку, которую вам прислали</small></div>
         ${decks.map((d, k) => `<div class="bld-tile" data-edit="${k}"><div class="face" style="${leaderPic(d.leader)}"></div>
           <b>${esc(d.name)}</b><small>${esc((CARDS[d.leader]?.name || '').split(',')[0])} · ${d.cards.length} карт ${d.cards.length >= MIN ? '✔' : '⚠'}</small></div>`).join('')}
       </div>
       ${FEATURES.community ? '<h3 class="bld-h3">Колоды сообщества</h3><div class="bld-gal small bld-comm"><p class="bld-note">Загружаем…</p></div>' : ''}
+      ${BOT_DECKS.length ? `<h3 class="bld-h3">Готовые сборки</h3><div class="bld-gal small">${BOT_DECKS.map((d, k) => `<div class="bld-tile" data-build="${k}" data-tip="${esc(d.title)}|${esc(d.desc)}"><div class="face" style="${leaderPic(d.leader)}"></div><b>${esc(d.title)}</b><small>сильная сборка · скопировать</small></div>`).join('')}</div>` : ''}
       <h3 class="bld-h3">Начать со стартовой скрижали</h3>
       <div class="bld-gal small">${Object.values(DECKS).map((d) => `<div class="bld-tile" data-copy="${d.key}"><div class="face" style="${leaderPic(d.leader)}"></div><b>${esc(d.title)}</b><small>скопировать и изменить${(() => { const r = WR?.decks.get(d.title); return r && r.games >= MIN_GAMES ? ` · побед ${Math.round((r.wins / r.games) * 100)}% из ${r.games}` : ''; })()}</small></div>`).join('')}</div>
     </div>`;
     root.querySelector('[data-back]').onclick = () => { sfx.click(); onBack(); };
     root.querySelector('[data-new]').onclick = () => { sfx.select(); pickLeader(); };
+    root.querySelector('[data-paste]').onclick = () => {
+      sfx.select();
+      const v = prompt('Вставьте код колоды или ссылку на неё');
+      if (v == null) return;
+      const d = decodeDeck(v);
+      if (!d) { flashMsg('Код не подошёл — проверьте, что он скопирован целиком'); return; }
+      const nm = (() => { try { return decodeURIComponent((v.match(/[?&]dn=([^&]*)/) || [])[1] || ''); } catch { return ''; } })();
+      editor({ name: nm || 'Колода от друга', leader: d.leader, cards: d.cards }, -1);
+    };
     root.querySelectorAll('[data-edit]').forEach((e) => { e.onclick = () => { sfx.select(); const k = Number(e.dataset.edit); editor({ ...decks[k], cards: [...decks[k].cards] }, k); }; });
     if (FEATURES.community) {
       loadCommunityDecks().then((list) => {
@@ -77,6 +90,7 @@ export function renderBuilder(root, store, onBack, opts = {}) {
         box.querySelectorAll('[data-comm]').forEach((e) => { e.onclick = () => { sfx.select(); const d = list[Number(e.dataset.comm)]; editor({ name: d.name + ' — копия', leader: d.leader, cards: [...d.cards].filter((id) => CARDS[id]) }, -1); }; });
       }).catch(() => { const box = root.querySelector('.bld-comm'); if (box) box.innerHTML = '<p class="bld-note">Колоды сообщества сейчас недоступны.</p>'; });
     }
+    root.querySelectorAll('[data-build]').forEach((e) => { e.onclick = () => { sfx.select(); const d = BOT_DECKS[Number(e.dataset.build)]; editor({ name: d.title, leader: d.leader, cards: [...d.cards] }, -1); }; });
     root.querySelectorAll('[data-copy]').forEach((e) => { e.onclick = () => { sfx.select(); const d = DECKS[e.dataset.copy]; editor({ name: d.title + ' — моя', leader: d.leader, cards: [...d.main] }, -1); }; });
   }
 
@@ -145,6 +159,7 @@ export function renderBuilder(root, store, onBack, opts = {}) {
               <button class="btn primary" data-save ${ok ? '' : 'disabled'} data-tip="${ok ? 'Сохранить|Колода появится в выборе героя.' : `Ещё ${MIN - n} карт|Колода должна быть не меньше ${MIN} карт.`}">💾 Сохранить</button>
               ${opts.onPlay ? `<button class="btn" data-play ${ok ? '' : 'disabled'}>⚔ Сыграть с компьютером</button>` : ''}
               ${FEATURES.community ? `<button class="btn small" data-publish ${ok ? '' : 'disabled'} data-tip="Опубликовать|Колода появится в «Колодах сообщества», и её смогут скопировать другие игроки.">🌐 Опубликовать</button>` : ''}
+              <button class="btn small" data-share ${n ? '' : 'disabled'} data-tip="Поделиться|Ссылка и код колоды: отправьте их другу, он откроет колоду у себя и сохранит.">🔗 Поделиться</button>
               <button class="btn small" data-clear>Очистить</button>
               ${editIndex >= 0 ? '<button class="btn small danger" data-del>Удалить колоду</button>' : ''}
             </div>
@@ -182,6 +197,8 @@ export function renderBuilder(root, store, onBack, opts = {}) {
       if (pl) pl.onclick = () => { sfx.confirm(); opts.onPlay({ name: cur.name, leader: cur.leader, cards: [...cur.cards] }); };
       const pub = root.querySelector('[data-publish]');
       if (pub) pub.onclick = async () => { pub.disabled = true; const okp = await publishDeck({ name: cur.name, leader: cur.leader, cards: cur.cards }, opts.author?.() || ''); flash(okp ? 'Колода опубликована в «Колодах сообщества»' : 'Не получилось опубликовать — попробуйте позже'); pub.disabled = false; };
+      const sh = root.querySelector('[data-share]');
+      if (sh) sh.onclick = () => { sfx.click(); shareBox({ name: cur.name, leader: cur.leader, cards: [...cur.cards] }); };
       root.querySelector('[data-clear]').onclick = () => { if (!cur.cards.length || confirm('Убрать все карты из колоды?')) { cur.cards = []; draw(); } };
       const del = root.querySelector('[data-del]');
       if (del) del.onclick = () => { if (confirm('Удалить эту колоду?')) { decks.splice(editIndex, 1); save(); gallery(); } };
@@ -191,7 +208,31 @@ export function renderBuilder(root, store, onBack, opts = {}) {
     draw();
   }
 
-  if (opts.startNew) pickLeader(); else gallery();
+  if (opts.importDeck) editor({ name: opts.importDeck.name || 'Колода от друга', leader: opts.importDeck.leader, cards: [...opts.importDeck.cards] }, -1);
+  else if (opts.startNew) pickLeader(); else gallery();
+}
+
+function flashMsg(text) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = text; document.body.appendChild(t); setTimeout(() => t.remove(), 2600); }
+async function copy(text, msg) {
+  try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); flashMsg(msg); return; } } catch { /* fall through */ }
+  const ta = document.createElement('textarea'); ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+  document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); flashMsg(msg); } catch { flashMsg('Скопируйте вручную'); } ta.remove();
+}
+/** «Поделиться колодой»: a link and a short code to send to a friend. */
+function shareBox(d) {
+  const link = deckLink(d), code = encodeDeck(d);
+  const b = document.createElement('div');
+  b.className = 'modal-back'; b.style.cssText = 'position:fixed;inset:0;z-index:400';
+  b.innerHTML = `<div class="modal share-deck" style="max-width:560px;width:94vw"><h3>Поделиться колодой</h3>
+    <p style="margin:0 0 10px">Отправьте другу ссылку — колода «${esc(d.name || 'Моя колода')}» откроется у него в редакторе, и он сможет её сохранить. Или продиктуйте код: его вставляют в «Мои колоды» → «Колода по коду».</p>
+    <div class="link"><input readonly value="${esc(link)}"><button class="btn small primary" data-cl>Копировать ссылку</button></div>
+    <div class="link" style="margin-top:8px"><input readonly value="${esc(code)}"><button class="btn small" data-cc>Копировать код</button></div>
+    <div class="row-btns"><button class="btn" data-x>Закрыть</button></div></div>`;
+  document.body.appendChild(b);
+  b.querySelector('[data-cl]').onclick = () => copy(link, 'Ссылка на колоду скопирована');
+  b.querySelector('[data-cc]').onclick = () => copy(code, 'Код колоды скопирован');
+  b.querySelector('[data-x]').onclick = () => b.remove();
+  b.onclick = (e) => { if (e.target === b) b.remove(); };
 }
 
 /** Card text for tooltips in the builder grid. */

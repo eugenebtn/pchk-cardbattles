@@ -25,8 +25,11 @@ import { unlocked, ACH } from './ui/achievements.js';
 import { currentUser } from './net/account.js';
 import { myAvatar, avatarFile, myLooks, cleanLooks } from './ui/cosmetics.js';
 window.addEventListener('pchk-looks', () => drawMenuTop());
+import { decodeDeck } from './net/deckcode.js';
+import { BOT_DECKS } from './data/botdecks.js';
 import { myFriendCode, loadFriends, addFriend, removeFriend, startPresence, setPresenceRoom, friendsStatus, sendInvite } from './net/friends.js';
-import { submitResult, loadPlayers, playerId } from './net/ranking.js';
+import { submitResult, loadPlayers, playerId, loadLeagues } from './net/ranking.js';
+import { emblem } from './ui/leagues.js';
 import { openFeedback } from './ui/feedback.js';
 import { renderLegal } from './ui/legal.js';
 import { showTutorial } from './ui/tutorial.js';
@@ -64,7 +67,7 @@ function toast(text, ms = 3000) {
 // ---------- settings ----------
 const opt = {
   sound: store.get('sound', true), bonus: store.get('bonus', false), coach: store.get('coach', true), timer: store.get('timer', 0),
-  botLevel: ['auto', 'novice', 'normal', 'strong'].includes(store.get('botLevel', 'auto')) ? store.get('botLevel', 'auto') : 'auto',
+  botLevel: ['auto', 'novice', 'normal', 'strong', 'master'].includes(store.get('botLevel', 'auto')) ? store.get('botLevel', 'auto') : 'auto',
   // Old versions saved true/false; false (the old «ask») becomes the new default «only when aimed at me».
   autopass: (() => { const v = store.get('autopass', 'smart'); return v === true ? true : v === 'always' ? 'always' : 'smart'; })(),
   name: store.get('name', ''), speed: store.get('speed', 1), music: store.get('music', true), board: store.get('board', 'random'),
@@ -278,7 +281,9 @@ function pickDecks(steps) {
     const root = $('#heroes');
     const draw = () => {
       const st = steps[step];
-      const list = st.allowRandom ? [{ key: 'random', title: 'Случайный', leader: null, cards: [], random: true }, ...decks] : decks;
+      // The computer's step also offers the strong builds made for it.
+      const builds = st.level ? BOT_DECKS.map((d) => ({ key: d.key, title: d.title, leader: d.leader, cards: d.cards, official: false, build: true, desc: d.desc })) : [];
+      const list = st.allowRandom ? [{ key: 'random', title: 'Случайный', leader: null, cards: [], random: true }, ...decks, ...builds] : [...decks, ...builds];
       // The opponent's step starts on «Случайный» (not on the deck you just took); each step remembers its own pick.
       draw.byStep = draw.byStep || {};
       let sel = list.find((d) => d.key === draw.byStep[step]) || (st.allowRandom ? list[0] : list.find((d) => d.key === (draw.last || '')) || list[0]);
@@ -292,9 +297,9 @@ function pickDecks(steps) {
             <div class="hs-portrait art la" style="background-image:url('${art(L ? sel.leader : 63)}')${sel.random ? ';filter:brightness(.35) blur(2px)' : `;background-position:${artFocus(sel.leader)}`}">${L ? `<div class="hs-port-name">${esc(L.name.split(',')[0])}</div>` : ''}${sel.random ? '<div style="position:absolute;inset:0;display:grid;place-items:center;font-size:120px;filter:none">🎲</div>' : ''}</div>
             <div class="hs-info">
               <div class="hs-name">${esc(sel.random ? 'Случайный соперник' : L.name)}</div>
-              <div class="hs-sub">${sel.random ? 'Компьютер возьмёт любую стартовую колоду' : `${esc(sel.title)} · ${sel.official ? 'стартовая скрижаль' : 'своя колода'} · ${sel.cards.length} карт`}</div>
+              <div class="hs-sub">${sel.random ? (st.level && chosen[0] && !chosen[0].official && BOT_DECKS.length ? 'У вас своя колода — компьютер возьмёт одну из своих сильных сборок' : 'Компьютер возьмёт любую стартовую колоду') : `${esc(sel.title)} · ${sel.official ? 'стартовая скрижаль' : sel.build ? 'сильная сборка компьютера' : 'своя колода'} · ${sel.cards.length} карт`}</div>
               ${L ? `<div class="hs-row"><div class="hs-hp" data-tip="Здоровье Лидера|Если упадёт до 0 — поражение.">❤️ ${L.hp}</div>${LEADER_PLAIN[sel.leader] ? `<div class="hs-diff d${LEADER_PLAIN[sel.leader].d}">${DIFF_RU[LEADER_PLAIN[sel.leader].d]}</div>` : ''}</div>
-              <div class="hs-style">${esc(DECK_STYLE[sel.deckKey] || 'Ваша собственная скрижаль.')}</div>
+              <div class="hs-style">${esc(sel.desc || DECK_STYLE[sel.deckKey] || 'Ваша собственная скрижаль.')}</div>
               ${LEADER_PLAIN[sel.leader] ? `<ul class="hs-plain">${LEADER_PLAIN[sel.leader].t.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
               ${(() => { const key = [...new Set(sel.cards)].map((id) => CARDS[id]).filter((c) => c && c.img && typeof c.cost === 'number').sort((a, b) => b.cost - a.cost).slice(0, 4); return key.length ? `<div class="hs-keys"><span>Сильные карты колоды:</span>${key.map((c) => `<i style="background-image:url('${c.img}')" data-tip="${esc(c.name)}|${esc((c.text || '').split('\n').slice(0, 2).join(' '))}"></i>`).join('')}</div>` : ''; })()}
               <details class="hs-more"><summary>Подробнее: точный текст карты</summary><div class="hs-ability">${linkTerms(esc(L.text)).replace(/\n/g, '<br>')}</div></details>` : ''}
@@ -302,8 +307,8 @@ function pickDecks(steps) {
           </div>
           <div class="hs-roster"><div class="hs-medal newdeck" data-new><div class="m">＋</div>Своя колода<div class="tag">собрать</div></div>${list.map((d) => `<div class="hs-medal ${d === sel ? 'sel' : ''} ${d.random ? 'random' : ''}" data-key="${d.key}">
             <div class="m ${d.random ? '' : 'la'}" ${d.random ? '' : `style="background-image:url('${face(d.leader)}')"`}>${d.random ? '🎲' : ''}</div>
-            ${esc(d.random ? 'Случайный' : d.title)}${!d.random && !d.official ? '<div class="tag">своя</div>' : ''}</div>`).join('')}</div>
-          ${st.level ? `<div class="hs-level"><span>Сложность:</span>${['auto', 'novice', 'normal', 'strong'].map((l) => `<button class="hs-lv ${opt.botLevel === l ? 'on' : ''}" data-lv="${l}">${l === 'auto' ? `Подстраиваться <small>сейчас: ${LEVEL_RU[adaptiveLevel()]}</small>` : LEVEL_RU[l]}</button>`).join('')}<div class="hs-lv-help">${esc(LEVEL_HELP[opt.botLevel])}</div></div>` : ''}
+            ${esc(d.random ? 'Случайный' : d.title)}${d.build ? '<div class="tag">сборка</div>' : !d.random && !d.official ? '<div class="tag">своя</div>' : ''}</div>`).join('')}</div>
+          ${st.level ? `<div class="hs-level"><span>Сложность:</span>${['auto', 'novice', 'normal', 'strong', 'master'].map((l) => `<button class="hs-lv ${opt.botLevel === l ? 'on' : ''}" data-lv="${l}">${l === 'auto' ? `Подстраиваться <small>сейчас: ${LEVEL_RU[adaptiveLevel()]}</small>` : LEVEL_RU[l]}</button>`).join('')}<div class="hs-lv-help">${esc(LEVEL_HELP[opt.botLevel])}</div></div>` : ''}
           <div class="hs-bar"><button class="btn" data-back>← Назад</button><button class="btn hs-go" data-go>${esc(step === steps.length - 1 ? (st.goLabel || 'В бой!') : 'Далее')}</button></div>
         </div>`;
         root.querySelectorAll('.hs-medal').forEach((m) => m.addEventListener('click', () => {
@@ -320,7 +325,11 @@ function pickDecks(steps) {
         root.querySelector('[data-go]').onclick = () => {
           sfx.confirm();
           let d = sel;
-          if (d.random) { const off = decks.filter((x) => x.official); d = off[Math.floor(Math.random() * off.length)]; }
+          if (d.random) {
+            // Against a player's own deck the computer brings one of its own builds too.
+            const pool = st.level && chosen[0] && !chosen[0].official && builds.length ? builds : decks.filter((x) => x.official);
+            d = pool[Math.floor(Math.random() * pool.length)];
+          }
           chosen.push(d);
           step++;
           if (step >= steps.length) { resolve(chosen); return; }
@@ -337,6 +346,26 @@ function pickDecks(steps) {
     show('heroes');
     draw();
   });
+}
+
+// ---------- the computer's thinking off the screen's thread ----------
+let botWorker = null, botAsk = 0;
+const botWaits = new Map();
+function thinkAside(g, q, level) {
+  if (!['strong', 'master'].includes(level) || !['main', 'priority', 'target', 'region', 'pick'].includes(q.type)) return Promise.resolve(null);
+  try {
+    if (!botWorker) {
+      botWorker = new Worker(new URL('./engine/botworker.js', import.meta.url), { type: 'module' });
+      botWorker.onmessage = (e) => { const w = botWaits.get(e.data.id); if (w) { botWaits.delete(e.data.id); w(e.data); } };
+      botWorker.onerror = () => { for (const w of botWaits.values()) w(null); botWaits.clear(); botWorker = null; };
+    }
+    const id = ++botAsk;
+    return new Promise((res) => {
+      botWaits.set(id, res);
+      setTimeout(() => { if (botWaits.delete(id)) res(null); }, 12000); // too long: answer on the spot instead
+      botWorker.postMessage({ id, cfg: { ...g.cfg, seed: g.seedUsed, options: { ...g.cfg.options, previews: false } }, history: g.history, level, seed: (Math.random() * 2 ** 31) | 0, type: q.type, player: q.player });
+    });
+  } catch { return Promise.resolve(null); }
 }
 
 // ---------- local session (bot / hot-seat) and online host ----------
@@ -416,8 +445,10 @@ class Session {
         if (who === 'bot') {
           const fast = q.type === 'priority' || q.type === 'draw';
           this.ui.setPending(q);
-          await FX.wait(fast ? 250 : 650);
-          this.botRespond(g, q);
+          // Strong levels think in a worker while the pause plays, so the board never freezes.
+          const [pre] = await Promise.all([thinkAside(g, q, this.botLevel || 'normal'), FX.wait(fast ? 250 : 650)]);
+          if (g.pending !== q) continue;
+          this.botRespond(g, q, pre);
           continue;
         }
         // While the friend chooses a starting hand, I choose mine at the same time.
@@ -436,13 +467,13 @@ class Session {
     } finally { this.busy = false; }
   }
   /** The computer's answer. Never gets stuck: on an error or an invalid answer it tries simpler answers. */
-  botRespond(g, q) {
+  botRespond(g, q, pre) {
     // The same request over and over in one phase means a loop (play → cancel → play …): take the way out.
     const key = `${q.player}|${q.type}|${q.prompt}|${g.s.phaseId}`;
     this.loopN = this.loopKey === key ? (this.loopN || 0) + 1 : 0; this.loopKey = key;
     const out = () => (q.type === 'priority' ? 'pass' : q.type === 'main' ? 'end' : null);
     if (this.loopN > 12) { for (const a of [out(), q.options?.[0]?.id]) if (g.pending === q && g.respond(q.player, a)) return; }
-    const tries = [() => levelAnswer(g, q, this.botLevel || 'normal'), () => botAnswer(g, q), () => randomAnswer(g, q), () => (q.type === 'priority' ? 'pass' : q.type === 'main' ? 'end' : null), () => q.options?.[0]?.id];
+    const tries = [...(pre && pre.ok ? [() => pre.answer] : []), () => levelAnswer(g, q, this.botLevel || 'normal'), () => botAnswer(g, q), () => randomAnswer(g, q), () => (q.type === 'priority' ? 'pass' : q.type === 'main' ? 'end' : null), () => q.options?.[0]?.id];
     for (const t of tries) {
       let a;
       try { a = t(); } catch (e) { console.warn('bot', e); continue; }
@@ -590,18 +621,19 @@ function startBoard(session) {
     if (session.server && session.rated === false) { ui.setRankInfo('<span class="ov-wait">Обычная партия — в мировой рейтинг не идёт.</span>'); return; }
     const titleOf = (i) => session.cfgPlayers?.[i]?.title || Object.values(DECKS).find((d) => d.leader === P[i].leader.id)?.title || CARDS[P[i].leader.id]?.name;
     const mode = session.remote || session.conn ? 'online' : 'bot';
-    const mine = (list) => { const k = (list || []).findIndex((x) => x.player_id === playerId()); return k < 0 ? null : { place: k + 1, wins: list[k].wins, games: list[k].games, winrate: list[k].winrate, total: list.length }; };
+    // The league card: points before and after, and a step into the next league.
+    const mine = (list) => { const p = (list || []).find((x) => x.player_id === playerId()); return p ? { ...p, total: list.length } : null; };
     (async () => {
-      let before = null; try { before = mine(await loadPlayers(mode)); } catch { /* offline */ }
+      let before = null; try { before = mine(await loadLeagues()); } catch { /* offline */ }
       if (!session.server && !opt.name) { ui.setRankInfo('<span class="ov-wait">Без имени партия не идёт в мировой рейтинг. Укажите имя в «Профиле».</span>'); return; }
       // Games on the server are recorded by the server itself (honest ranking); here we only wait for it.
       const ok = session.server ? await new Promise((r) => setTimeout(() => r(true), 2500))
         : await submitResult({ name: myName(), deck: titleOf(me), leader: P[me].leader.id, oppName: P[1 - me].name, oppDeck: titleOf(1 - me), mode, won: winner === me, rounds: view.round, cards: session.cfgPlayers?.[me]?.deck });
-      let after = null; if (ok) { try { after = mine(await loadPlayers(mode)); } catch { /* offline */ } }
-      const where = mode === 'online' ? 'с друзьями' : 'против компьютера';
+      let after = null; if (ok) { try { after = mine(await loadLeagues()); } catch { /* offline */ } }
       if (!ok || !after) { ui.setRankInfo('<span class="ov-wait">Мировой рейтинг сейчас недоступен — результат сохранён в вашей статистике.</span>'); return; }
-      const move = !before ? `вы вошли в рейтинг на <b>${after.place}-е место</b>` : after.place < before.place ? `вы поднялись с ${before.place}-го на <b>${after.place}-е место</b> ▲` : after.place > before.place ? `вы опустились с ${before.place}-го на <b>${after.place}-е место</b> ▼` : `вы на <b>${after.place}-м месте</b>`;
-      ui.setRankInfo(`<div class="ov-rank-in"><span class="ov-rank-place">${after.place}</span><div><b>Мировой рейтинг ${where}</b><br>${move} из ${after.total}. Побед ${after.wins}${winner === me ? ' (+1)' : ''} из ${after.games}, ${after.winrate}%.</div></div>`);
+      const delta = after.points - (before ? before.points : 1000);
+      const step = before && before.league !== after.league ? (after.points > before.points ? `<br>🎉 Новая лига: <b>${esc(after.league.name)}</b>!` : `<br>Лига сменилась на «${esc(after.league.name)}».`) : '';
+      ui.setRankInfo(`<div class="ov-rank-in">${emblem(after.league, 44)}<div><b>${esc(after.league.name)} · ${after.points} очков</b> (${delta >= 0 ? '+' : ''}${delta})<br>${after.place + 1} место из ${after.total} в мировом рейтинге${step}</div></div>`);
     })();
   };
   const wire = () => {
@@ -643,6 +675,7 @@ const LEVEL_HELP = {
   novice: 'Играет просто, часто ошибается и не отвечает Опережением. Для первых партий.',
   normal: 'Играет по правилам здравого смысла, иногда отвечает на ваши ходы.',
   strong: 'Перед каждым ходом просчитывает варианты до конца раунда и выбирает лучший.',
+  master: 'Самый сильный: думает дольше, взвешивает каждый ход и каждый ответ. Для опытных игроков.',
 };
 async function startBot() {
   const r = await pickDecks([{ title: 'Ваша колода' }, { title: 'Колода компьютера', allowRandom: true, level: true }]);
@@ -961,9 +994,9 @@ function drawMenuTop() {
   const side = $('#mv-side'); if (!side) return;
   side.innerHTML = `<b>Мировой рейтинг</b><span class="mv-place">Загружаем…</span>${u ? '' : '<button class="btn small" data-login>Войти, чтобы сохранить профиль</button>'}`;
   side.onclick = (e) => { if (e.target.closest('[data-login]')) { e.stopPropagation(); loginDialog(); } else document.querySelector('#menu [data-act="ranking"]')?.click(); };
-  loadPlayers('all').then((list) => {
-    const k = list.findIndex((x) => x.player_id === playerId()), el = side.querySelector('.mv-place');
-    if (el) el.innerHTML = k < 0 ? `Сыграйте партию — и вы в рейтинге из ${list.length} игроков` : `Вы на <em>${k + 1}</em> месте из ${list.length}`;
+  loadLeagues().then((list) => {
+    const p = list.find((x) => x.player_id === playerId()), el = side.querySelector('.mv-place');
+    if (el) el.innerHTML = !p ? `Сыграйте партию — и вы в рейтинге из ${list.length} игроков` : `${emblem(p.league, 26)} <span>${esc(p.league.name)} · ${p.points} очков · <em>${p.place + 1}</em> место из ${list.length}</span>`;
   }).catch(() => { const el = side.querySelector('.mv-place'); if (el) el.textContent = 'Рейтинг сейчас недоступен'; });
 }
 drawMenuTop();
@@ -1142,13 +1175,17 @@ async function startTour(code = null) {
 }
 
 // ---------- deck builder ----------
-function openBuilder({ startNew = false, back = () => show('menu') } = {}) {
+function openBuilder({ startNew = false, back = () => show('menu'), importDeck = null } = {}) {
   renderBuilder($('#builder'), store, back, {
-    startNew, author: () => myName(),
+    startNew, importDeck, author: () => myName(),
     onPlay: (deck) => {
-      const bots = Object.values(DECKS);
+      // My own deck → the computer brings one of its strong builds (or a starter deck if there are none).
+      const bots = BOT_DECKS.length ? BOT_DECKS.map((d) => ({ leader: d.leader, main: d.cards, title: d.title })) : Object.values(DECKS);
       const bot = bots[Math.floor(Math.random() * bots.length)];
-      startBoard(new Session({ players: [playerCfg(deck, myName()), playerCfg({ leader: bot.leader, cards: bot.main }, `Компьютер (${bot.title})`)], controllers: ['human', 'bot'], me: 0 }));
+      const adaptive = opt.botLevel === 'auto', level = adaptive ? adaptiveLevel() : opt.botLevel;
+      const s = new Session({ players: [playerCfg(deck, myName()), playerCfg({ leader: bot.leader, cards: bot.main }, `Компьютер · ${LEVEL_RU[level]} (${bot.title})`)], controllers: ['human', 'bot'], me: 0 });
+      s.botLevel = level; s.adaptive = adaptive;
+      startBoard(s);
     },
   });
   show('builder');
@@ -1284,6 +1321,18 @@ if (friendParam && /^[0-9a-f]{10}$/.test(friendParam)) {
     const ok = await addFriend(friendParam, fname, myName());
     jb.innerHTML = ok ? `${esc(fname)} теперь у вас в друзьях — смотрите в «Друзья».` : 'Это ваша собственная ссылка.';
     history.replaceState(null, '', location.pathname); setTimeout(() => jb.classList.add('hidden'), 4000);
+  });
+}
+// A shared deck: ?deck=<code>&dn=<name> opens it in the deck editor, where it can be saved.
+const sharedDeck = decodeDeck(new URLSearchParams(location.search).get('deck') || '');
+if (sharedDeck) {
+  const dn = (new URLSearchParams(location.search).get('dn') || 'Колода от друга').slice(0, 40);
+  const jb = $('#join-banner');
+  jb.classList.remove('hidden');
+  jb.innerHTML = `Вам прислали колоду «${esc(dn)}» <button class="btn primary" style="margin-left:8px">🃏 Открыть</button>`;
+  jb.querySelector('button').addEventListener('click', () => {
+    sfx.click(); jb.classList.add('hidden'); history.replaceState(null, '', location.pathname);
+    openBuilder({ importDeck: { ...sharedDeck, name: dn } });
   });
 }
 const joinCode = new URLSearchParams(location.search).get('join');
