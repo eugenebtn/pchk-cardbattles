@@ -562,10 +562,26 @@ export class BoardUI {
     el.style.visibility = 'hidden';
   }
 
+  /** Empty deck: a skull with «−N» on the deck spot — the health the Leader loses at the start of the next turn (fatigue). */
+  fatigueSign(pile, p) {
+    const empty = p.deckCount === 0, next = (p.fatigue || 0) + 1;
+    pile.classList.toggle('deck-empty', empty);
+    let s = pile.querySelector('.fatigue');
+    if (!empty) { s?.remove(); pile.removeAttribute('data-tip'); return; }
+    if (!s) {
+      s = document.createElement('div'); s.className = 'fatigue';
+      s.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a8 8 0 0 0-5 14.2V20h10v-2.8A8 8 0 0 0 12 3z"/><circle cx="9" cy="11" r="1.6"/><circle cx="15" cy="11" r="1.6"/><path d="M10 20v-2M14 20v-2"/></svg><b></b><small>усталость</small>';
+      pile.appendChild(s);
+    }
+    s.querySelector('b').textContent = `−${next}`;
+    pile.setAttribute('data-tip', `Колода пуста|В начале хода вместо карты Лидер теряет ${next} ${plural(next, 'здоровье', 'здоровья', 'здоровья')}, и каждый раз на 1 больше.`);
+  }
+
   renderSide(view) {
     const me = this.me, op = 1 - me, P = view.players;
     const setCount = (pile, n) => { pile.querySelector('.count').textContent = n; };
     setCount(this.piles.myDeck, P[me].deckCount); setCount(this.piles.oppDeck, P[op].deckCount);
+    this.fatigueSign(this.piles.myDeck, P[me]); this.fatigueSign(this.piles.oppDeck, P[op]);
     for (const [pile, p] of [[this.piles.myGrave, P[me]], [this.piles.oppGrave, P[op]]]) {
       setCount(pile, p.grave.length);
       const top = p.grave[p.grave.length - 1];
@@ -1846,6 +1862,12 @@ ${optHtml}</div></div>
       case 'damage': {
         const p = this.pointOf(ev.tgt);
         if (!p) break;
+        if (ev.fxName === 'fatigue') {
+          const pile = this.view?.players[this.me]?.leader?.uid === ev.tgt ? this.piles.myDeck : this.piles.oppDeck;
+          pile.classList.remove('fatigue-hit'); void pile.offsetWidth; pile.classList.add('fatigue-hit');
+          const r = pile.getBoundingClientRect(), st = this.stage.getBoundingClientRect(), k = st.width / this.L.W;
+          FX.burst((r.left + r.width / 2 - st.left) / k, (r.top + r.height / 2 - st.top) / k, { color: ['#ff9a84', '#c8402f', '#3a0a06'], shape: 'spark', count: 18, speed: 8 });
+        }
         const el = this.els.get(ev.tgt);
         const isLeader = el?.classList.contains('leader');
         el?.classList.add(isLeader ? 'hurt-flash' : 'hit-flash'); setTimeout(() => el?.classList.remove('hit-flash', 'hurt-flash'), 520);
