@@ -268,6 +268,12 @@ export class BoardUI {
     const r = el.getBoundingClientRect(), sr = this.stage.getBoundingClientRect();
     return { x: (r.left + r.width / 2 - sr.left) / this.scale, y: (r.top + r.height / 2 - sr.top) / this.scale };
   }
+  /** Where a card will stand once it stops moving: a new card still slides from the middle of the field to its slot. */
+  restPoint(el) {
+    const p = this.stagePoint(el), cs = getComputedStyle(el);
+    const dx = parseFloat(el.style.left) - parseFloat(cs.left), dy = parseFloat(el.style.top) - parseFloat(cs.top);
+    return { x: p.x + (dx || 0), y: p.y + (dy || 0) };
+  }
   pointOf(uid) {
     const el = this.els.get(uid);
     if (el && el.isConnected) return this.stagePoint(el);
@@ -1967,7 +1973,7 @@ ${optHtml}</div></div>
         this._spawnFrom = null;
         if (!el) break;
         const d = CARDS[ev.id];
-        const p = this.stagePoint(el);
+        const p = this.restPoint(el); // not stagePoint: the card is still flying in, its quote and dust belong at its slot
         const big = (d.cost ?? 0) >= 6 || d.legend;
         const type = d.type;
         // Places with a theme get their own entrance (a boat sails in, a building rises…); the rest are put down on the table.
