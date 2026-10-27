@@ -812,7 +812,7 @@ export class BoardUI {
     const tags = [g];
     const tag = (pt, cls, html) => { const t = document.createElement('div'); t.className = cls; t.style.left = pt.x + 'px'; t.style.top = pt.y + 'px'; t.innerHTML = html; this.board.appendChild(t); tags.push(t); return t; };
     const port = this.L.name === 'port', toEl = this.els.get(q.to);
-    if (to && amount) tag(port ? { x: to.x + (toEl?.offsetWidth || 120) / 2 + 40, y: to.y } : { x: to.x, y: to.y - (toEl?.offsetHeight || 160) / 2 - 18 }, 'dg-tag dg-blow-tag', `−${amount}`);
+    if (to && amount) tag(port ? { x: to.x + (toEl?.offsetWidth || 120) / 2 + 40, y: to.y - (toEl?.offsetHeight || 120) / 2 } : { x: to.x, y: to.y - (toEl?.offsetHeight || 160) / 2 - 18 }, 'dg-tag dg-blow-tag', `−${amount}`);
     for (const o of q.options) {
       const el = this.els.get(o.id), c = this.findCard(o.id), pt = this.pointOf(o.id);
       if (!el || !c || !pt) continue;
