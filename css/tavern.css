@@ -127,3 +127,17 @@ input[type=checkbox], input[type=radio], input[type=range] { accent-color: var(-
 .ov4-fighter.won .ov4-plate { box-shadow: inset 0 0 0 1.5px var(--t-line-hi), 0 0 22px rgba(255, 200, 90, .35) !important; }
 .link { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; } .link input { flex: 1 1 180px; min-width: 0; width: auto; }
 #stage.port #board .pile.opp-pile .fatigue { top: 150%; }
+
+/* ---------- Оборона (canvas «Оборона А»): blow arrow, result on each defender, gold arrow and shield on hover ---------- */
+#board .def-guide { position: absolute; left: 0; top: 0; z-index: 40; pointer-events: none; overflow: visible; }
+#board .def-guide .dg-blow { fill: none; stroke: #ff5a3a; stroke-width: 6; stroke-dasharray: 14 10; opacity: .7; animation: dg-march 1s linear infinite; }
+#board .def-guide .dg-save { fill: none; stroke: #f2cd6b; stroke-width: 7; filter: drop-shadow(0 0 6px rgba(255, 200, 90, .8)); }
+@keyframes dg-march { to { stroke-dashoffset: -24; } }
+#board .dg-tag { position: absolute; z-index: 41; transform: translate(-50%, -50%); pointer-events: none; white-space: nowrap; padding: 3px 12px; border-radius: 999px; font: 900 20px var(--k-font); }
+#board .dg-blow-tag { color: #fff; background: radial-gradient(circle at 40% 30%, #ff8a7a, #c22f20 60%, #6a0c06); box-shadow: 0 0 0 2px #160c06, 0 0 16px rgba(255, 80, 50, .7); }
+#board .dg-res { color: #fff0b0; background: rgba(22, 13, 7, .92); box-shadow: inset 0 0 0 1px var(--t-line-hi), 0 4px 10px rgba(0, 0, 0, .6); }
+#board .dg-res.dies { color: #ffb09a; box-shadow: inset 0 0 0 1px #c8402f, 0 4px 10px rgba(0, 0, 0, .6); }
+#board .dg-shield { position: absolute; z-index: 42; width: 54px; height: 60px; transform: translate(-50%, -50%); pointer-events: none; animation: dg-pop .25s ease-out; }
+#board .dg-shield svg { width: 100%; height: 100%; fill: #f2cd6b; stroke: #160c06; stroke-width: 1.4; filter: drop-shadow(0 0 10px rgba(255, 200, 90, .8)); }
+@keyframes dg-pop { from { transform: translate(-50%, -30%) scale(.5); opacity: 0; } }
+#board .card.dg-pick { box-shadow: 0 0 0 4px #f2cd6b, 0 0 30px rgba(255, 200, 90, .8) !important; }

@@ -811,14 +811,15 @@ export class BoardUI {
     this.board.appendChild(g);
     const tags = [g];
     const tag = (pt, cls, html) => { const t = document.createElement('div'); t.className = cls; t.style.left = pt.x + 'px'; t.style.top = pt.y + 'px'; t.innerHTML = html; this.board.appendChild(t); tags.push(t); return t; };
-    if (to && amount) tag(to, 'dg-tag dg-blow-tag', `−${amount}`);
+    if (to && amount) tag({ x: to.x, y: to.y - (this.els.get(q.to)?.offsetHeight || 160) / 2 - 18 }, 'dg-tag dg-blow-tag', `−${amount}`);
     for (const o of q.options) {
       const el = this.els.get(o.id), c = this.findCard(o.id), pt = this.pointOf(o.id);
       if (!el || !c || !pt) continue;
       const hp = c.hp ?? 0, left = Math.max(0, hp - amount);
-      tag({ x: pt.x, y: pt.y + 70 }, 'dg-tag dg-res' + (left === 0 ? ' dies' : ''), left === 0 ? `${hp} → погибнет` : `${hp} → ${left}`);
+      const h2 = (el.offsetHeight || 180) / 2;
+      tag({ x: pt.x, y: pt.y + h2 + 20 }, 'dg-tag dg-res' + (left === 0 ? ' dies' : ''), left === 0 ? `${hp} → погибнет` : `${hp} → ${left}`);
       let gold = null, sh = null;
-      const on = () => { if (from) gold = arc(from, pt, 'dg-save'); sh = tag({ x: pt.x, y: pt.y - 80 }, 'dg-shield', '<svg viewBox="0 0 24 26"><path d="M12 1l10 4v7c0 6.5-4.3 11-10 13C6.3 23 2 18.5 2 12V5z"/></svg>'); el.classList.add('dg-pick'); };
+      const on = () => { if (from) gold = arc(from, pt, 'dg-save'); sh = tag({ x: pt.x, y: pt.y - h2 * 0.35 }, 'dg-shield', '<svg viewBox="0 0 24 26"><path d="M12 1l10 4v7c0 6.5-4.3 11-10 13C6.3 23 2 18.5 2 12V5z"/></svg>'); el.classList.add('dg-pick'); };
       const off = () => { gold?.remove(); sh?.remove(); el.classList.remove('dg-pick'); };
       el.addEventListener('mouseenter', on); el.addEventListener('mouseleave', off);
       tags.push({ remove: () => { off(); el.removeEventListener('mouseenter', on); el.removeEventListener('mouseleave', off); } });
