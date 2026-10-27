@@ -368,7 +368,7 @@ export default {
         const t = yield* g.pickCard(p, cands, 'Хлебный мякиш: создать копию вашего Предмета или Места (тип Хлеб)?', 'buff', { optional: true });
         if (!t) return;
         g.fx('breadCopy', self, t);
-        yield* g.createCopy(p, t, ['ХЛЕБ']);
+        yield* g.createCopy(p, t, ['ХЛЕБ'], self);
       },
     },
     // Покидая поле, уничтожает все ваши карты Хлеба.

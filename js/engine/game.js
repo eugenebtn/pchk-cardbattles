@@ -1041,7 +1041,7 @@ export class Game {
   }
 
   /** Put a card onto the battlefield (played, put, created). */
-  *putOnField(c, i, region, { fromHand = false, ctx = null, created = false, silent = false } = {}) {
+  *putOnField(c, i, region, { fromHand = false, ctx = null, created = false, silent = false, log = null } = {}) {
     const d = this.def(c), p = this.P(i);
     if (c.zone !== 'stack') this.removeFromZone(c);
     c.ctrl = i;
@@ -1057,7 +1057,7 @@ export class Game {
       p.support.push(c);
     }
     if (created) c.created = true;
-    this.emit('enter', { uid: c.uid, id: c.id, player: i, region: c.region, created, fromHand, log: silent ? undefined : `«${d.name}» появляется на поле.` });
+    this.emit('enter', { uid: c.uid, id: c.id, player: i, region: c.region, created, fromHand, log: silent ? undefined : log || `«${d.name}» появляется на поле.` });
     // Legend rule.
     if (this.isLegend(c)) {
       const same = this.field(i).filter((x) => x !== c && this.def(x).name === d.name);
@@ -1098,7 +1098,7 @@ export class Game {
     return this.onField(c) ? c : null;
   }
   /** Copy of a card on the battlefield (Ворон Барон). */
-  *createCopy(i, orig, extraTypes = []) {
+  *createCopy(i, orig, extraTypes = [], src = null) {
     const d = this.def(orig);
     const c = this.newInst(orig.id, i, 'limbo');
     c.created = true; c.extraTypes = [...extraTypes];
@@ -1113,7 +1113,11 @@ export class Game {
       if (!regs.length) return null;
       region = yield* this.pickRegion(i, regs, `Куда положить копию «${d.name}»?`);
     }
-    yield* this.putOnField(c, i, region, { created: true });
+    // Say who made the copy: otherwise it looks like a 4th or 5th copy of the card was played from the hand.
+    const by = src ? this.def(src).name : null;
+    const tag = extraTypes.length ? ` (тип ${extraTypes.map((t) => t[0] + t.slice(1).toLowerCase()).join(', ')})` : '';
+    c.copy = true;
+    yield* this.putOnField(c, i, region, { created: true, log: by ? `«${by}» создаёт копию «${d.name}»${tag}.` : `Создана копия «${d.name}»${tag}.` });
     this.fx('copy', orig, c);
     return c;
   }
@@ -1589,7 +1593,7 @@ export class Game {
         Object.assign(o, {
           atk: d.type === 'ally' ? this.atk(c) : null, hp: ['ally', 'companion', 'leader'].includes(d.type) ? this.hp(c) : null,
           maxHp: ['ally', 'companion'].includes(d.type) ? this.maxHp(c) : d.type === 'leader' ? d.hp : null,
-          baseAtk: d.atk, baseHp: d.hp, dmg: c.dmg, tok: { ...c.tok }, stunned: this.stunned(c), created: c.created,
+          baseAtk: d.atk, baseHp: d.hp, dmg: c.dmg, tok: { ...c.tok }, stunned: this.stunned(c), created: c.created, copy: !!c.copy,
           kws: Object.keys(KW_RU).filter((k) => this.has(c, k)), equip: c.equip, region: c.region,
           abilities: d.type === 'leader' ? (this.script(c).abilities || []).map((ab) => ({ name: ab.name, cost: this.abilityCost(c, ab), fast: !!ab.fast })) : undefined,
           extraTypes: c.extraTypes,

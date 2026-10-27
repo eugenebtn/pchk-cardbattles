@@ -434,7 +434,7 @@ export class BoardUI {
   fillCard(el, w) {
     const c = w.c;
     const d = c.hidden ? null : CARDS[c.id];
-    const key = JSON.stringify([w.mode, c.id, c.atk, c.hp, c.maxHp, c.tok, c.kws, c.stunned, c.equip, c.cost, c.hidden, c.created, c.extraTypes]);
+    const key = JSON.stringify([w.mode, c.id, c.atk, c.hp, c.maxHp, c.tok, c.kws, c.stunned, c.equip, c.cost, c.hidden, c.created, c.copy, c.extraTypes]);
     if (el.dataset.key === key) return;
     const prev = el.dataset.key ? JSON.parse(el.dataset.key) : null;
     el.dataset.key = key;
@@ -497,6 +497,8 @@ export class BoardUI {
     let kwIcons = kws.filter((k) => KW_ICON[k] && k !== 'defense' && k !== 'ward').map((k) => `<div class="kw" data-tip="${KW_NAME[k]}|${KW_HELP[k]}">${KW_SVG[k] || KW_ICON[k]}</div>`).join('');
     // States that matter in the next battle, as clear badges on the card itself.
     if (c.stunned) kwIcons = `<div class="kw state stun" data-tip="Оглушена|В следующем Сражении не нанесёт ран.">💫</div>` + kwIcons;
+    // A copy made by another card's ability (Ворон Барон's «Хлеб»): it is not a 4th copy from the deck.
+    if (c.copy) { const bread = (c.extraTypes || []).includes('ХЛЕБ'); kwIcons = `<div class="kw state copy" style="background:radial-gradient(circle at 35% 30%,#fff4dc,#d8a868 60%,#7a4a1c)" data-tip="Копия|Создана свойством другой карты${bread ? ' (тип Хлеб: исчезнет, когда уйдёт Ворон Барон)' : ''}. Это не карта из колоды — лимит 3 копий на неё не действует.">${bread ? '🍞' : '⧉'}</div>` + kwIcons; }
     if (kws.includes('ward')) kwIcons = `<div class="kw state ward" data-tip="${KW_NAME.ward || 'Оберег'}|${KW_HELP.ward || 'Её нельзя выбрать целью.'}">✨</div>` + kwIcons;
     const toks = Object.entries(c.tok || {}).filter(([, n]) => n > 0).map(([t, n]) => `<div class="tok ${t}" data-tip="${TOK_TIP[t] || 'Фишки'}|${n} шт. Тратятся на свойства этой карты.">${TOK_SVG[t] || TOK_ICON[t] || t}<b>${n}</b></div>`).join('');
     const showName = mode !== 'small';
@@ -1737,6 +1739,7 @@ ${optHtml}</div></div>
     if (c.maxHp != null && d.hp != null && c.maxHp !== d.hp) now.push(`❤️ здоровье до ${c.maxHp} (на карте ${d.hp})`);
     if (c.hp != null && c.maxHp != null && c.hp < c.maxHp) now.push(`🩸 ранена: ${c.maxHp - c.hp}`);
     if (c.stunned) now.push('💫 оглушена — не атакует');
+    if (c.copy) now.push(`${(c.extraTypes || []).includes('ХЛЕБ') ? '🍞' : '⧉'} копия — создана свойством другой карты, не из колоды`);
     if (c.tmpHp > 0 || c.tmpAtk > 0) {
       const dies = c.tmpHp > 0 && c.hp != null && c.hp - c.tmpHp <= 0;
       now.push(`⏳ временно ${c.tmpAtk ? `+${c.tmpAtk} атаки ` : ''}${c.tmpHp ? `+${c.tmpHp} здоровья` : ''}${dies ? ' — когда усиление кончится, раны останутся и карта погибнет' : ''}`);
