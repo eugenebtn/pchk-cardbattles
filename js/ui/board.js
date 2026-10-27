@@ -498,7 +498,7 @@ export class BoardUI {
     // States that matter in the next battle, as clear badges on the card itself.
     if (c.stunned) kwIcons = `<div class="kw state stun" data-tip="Оглушена|В следующем Сражении не нанесёт ран.">💫</div>` + kwIcons;
     // A copy made by another card's ability (Ворон Барон's «Хлеб»): it is not a 4th copy from the deck.
-    if (c.copy) { const bread = (c.extraTypes || []).includes('ХЛЕБ'); kwIcons = `<div class="kw state copy" style="background:radial-gradient(circle at 35% 30%,#fff4dc,#d8a868 60%,#7a4a1c)" data-tip="Копия|Создана свойством другой карты${bread ? ' (тип Хлеб: исчезнет, когда уйдёт Ворон Барон)' : ''}. Это не карта из колоды — лимит 3 копий на неё не действует.">${bread ? '🍞' : '⧉'}</div>` + kwIcons; }
+    if (c.copy) { const bread = (c.extraTypes || []).includes('ХЛЕБ'); kwIcons = `<div class="kw state copy" style="background:radial-gradient(circle at 35% 30%,#fff4dc,#d8a868 60%,#7a4a1c)" data-tip="Копия|Создана свойством другой карты${bread ? ' (тип Хлеб: исчезнет, когда уйдёт Ворон Барон)' : ''}. Это не карта из колоды — лимит 3 копий на неё не действует.">⧉</div>` + kwIcons; }
     if (kws.includes('ward')) kwIcons = `<div class="kw state ward" data-tip="${KW_NAME.ward || 'Оберег'}|${KW_HELP.ward || 'Её нельзя выбрать целью.'}">✨</div>` + kwIcons;
     const toks = Object.entries(c.tok || {}).filter(([, n]) => n > 0).map(([t, n]) => `<div class="tok ${t}" data-tip="${TOK_TIP[t] || 'Фишки'}|${n} шт. Тратятся на свойства этой карты.">${TOK_SVG[t] || TOK_ICON[t] || t}<b>${n}</b></div>`).join('');
     const showName = mode !== 'small';
@@ -795,9 +795,41 @@ export class BoardUI {
     const tick = () => { if (!el.isConnected) { clearInterval(this._mclock); return; } const s = Math.max(0, Math.ceil((this._deadline - Date.now()) / 1000)); el.textContent = `⏳ Осталось ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; el.classList.toggle('low', s <= 10); };
     tick(); this._mclock = setInterval(tick, 250);
   }
+  /** Оборона (canvas «Оборона А»): a red dashed arrow shows where the blow was going and how many wounds; each defender shows
+   *  what will be left of it; pointing at one draws a gold arrow to it with a shield over the card. */
+  defenseGuide(q) {
+    const amount = q.amount ?? +((/(\d+)/.exec(q.prompt || '') || [])[1] || 0);
+    const from = q.from != null ? this.pointOf(q.from) : null, to = q.to != null ? this.pointOf(q.to) : null;
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const g = document.createElementNS(svgNS, 'svg');
+    g.setAttribute('class', 'def-guide'); g.setAttribute('width', this.L.W); g.setAttribute('height', this.L.H);
+    const arc = (a, b, cls) => {
+      const p = document.createElementNS(svgNS, 'path'), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2 - Math.abs(a.x - b.x) * 0.18 - 30;
+      p.setAttribute('d', `M${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}`); p.setAttribute('class', cls); g.appendChild(p); return p;
+    };
+    if (from && to) arc(from, to, 'dg-blow');
+    this.board.appendChild(g);
+    const tags = [g];
+    const tag = (pt, cls, html) => { const t = document.createElement('div'); t.className = cls; t.style.left = pt.x + 'px'; t.style.top = pt.y + 'px'; t.innerHTML = html; this.board.appendChild(t); tags.push(t); return t; };
+    if (to && amount) tag(to, 'dg-tag dg-blow-tag', `−${amount}`);
+    for (const o of q.options) {
+      const el = this.els.get(o.id), c = this.findCard(o.id), pt = this.pointOf(o.id);
+      if (!el || !c || !pt) continue;
+      const hp = c.hp ?? 0, left = Math.max(0, hp - amount);
+      tag({ x: pt.x, y: pt.y + 70 }, 'dg-tag dg-res' + (left === 0 ? ' dies' : ''), left === 0 ? `${hp} → погибнет` : `${hp} → ${left}`);
+      let gold = null, sh = null;
+      const on = () => { if (from) gold = arc(from, pt, 'dg-save'); sh = tag({ x: pt.x, y: pt.y - 80 }, 'dg-shield', '<svg viewBox="0 0 24 26"><path d="M12 1l10 4v7c0 6.5-4.3 11-10 13C6.3 23 2 18.5 2 12V5z"/></svg>'); el.classList.add('dg-pick'); };
+      const off = () => { gold?.remove(); sh?.remove(); el.classList.remove('dg-pick'); };
+      el.addEventListener('mouseenter', on); el.addEventListener('mouseleave', off);
+      tags.push({ remove: () => { off(); el.removeEventListener('mouseenter', on); el.removeEventListener('mouseleave', off); } });
+    }
+    this._defGuide = tags;
+  }
+  clearDefenseGuide() { for (const t of this._defGuide || []) t.remove(); this._defGuide = null; }
   myOptions() { return this.q && this.q.player === this.me ? this.q.options : []; }
   applyInteractivity() {
     for (const el of this.els.values()) el.classList.remove('selectable', 'harm', 'playable', 'fastable', 'usable', 'chosen');
+    this.clearDefenseGuide();
     for (const row of ['ally', 'place']) for (const side of [0, 1]) for (const s of this.slots[row][side]) s.classList.remove('selectable');
     const q = this.q;
     const mine = q && q.player === this.me;
@@ -827,6 +859,7 @@ export class BoardUI {
         const el = this.els.get(o.id);
         if (el) { el.classList.add('selectable'); if (harm) el.classList.add('harm'); }
       }
+      if (q.hint === 'defense' && q.player === this.me) this.defenseGuide(q);
     }
     if (q.type === 'region') {
       const side = q.side ?? this.me;
@@ -1739,7 +1772,7 @@ ${optHtml}</div></div>
     if (c.maxHp != null && d.hp != null && c.maxHp !== d.hp) now.push(`❤️ здоровье до ${c.maxHp} (на карте ${d.hp})`);
     if (c.hp != null && c.maxHp != null && c.hp < c.maxHp) now.push(`🩸 ранена: ${c.maxHp - c.hp}`);
     if (c.stunned) now.push('💫 оглушена — не атакует');
-    if (c.copy) now.push(`${(c.extraTypes || []).includes('ХЛЕБ') ? '🍞' : '⧉'} копия — создана свойством другой карты, не из колоды`);
+    if (c.copy) now.push(`⧉ копия — создана свойством другой карты${(c.extraTypes || []).includes('ХЛЕБ') ? ' (Хлеб)' : ''}, не из колоды`);
     if (c.tmpHp > 0 || c.tmpAtk > 0) {
       const dies = c.tmpHp > 0 && c.hp != null && c.hp - c.tmpHp <= 0;
       now.push(`⏳ временно ${c.tmpAtk ? `+${c.tmpAtk} атаки ` : ''}${c.tmpHp ? `+${c.tmpHp} здоровья` : ''}${dies ? ' — когда усиление кончится, раны останутся и карта погибнет' : ''}`);
