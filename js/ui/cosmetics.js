@@ -35,11 +35,12 @@ export const cleanLooks = (o) => ({ avatar: AVATARS.includes(o?.avatar) ? o.avat
 /** The «Внешний вид» part of the profile: avatar grid and card backs; onChange after a pick. */
 export function looksHtml() {
   const a = myAvatar(), b = myBack();
-  return `<div class="pf-looks"><h3>Аватарка</h3><div class="lk-avas">${AVATARS.map((k) => `<button class="lk-ava ${k === a ? 'on' : ''}" data-ava="${k}" data-tip="${avatarName(k)}" style="background-image:url('${avatarFile(k)}')"></button>`).join('')}</div>
+  // Canvas «Статистика и профиль»: the avatars are folded — the current one and «Сменить», the full set opens on demand.
+  return `<div class="pf-looks"><details class="lk-fold"><summary><h3>Аватарка</h3><span class="lk-cur" style="background-image:url('${avatarFile(a) || ''}')"></span><span class="lk-open">Сменить · ${AVATARS.length}</span></summary><div class="lk-avas">${AVATARS.map((k) => `<button class="lk-ava ${k === a ? 'on' : ''}" data-ava="${k}" data-tip="${avatarName(k)}" aria-label="${avatarName(k)}" style="background-image:url('${avatarFile(k)}')"></button>`).join('')}</div></details>
     <h3>Рубашка карт</h3><div class="lk-backs">${BACKS.map((x) => `<button class="lk-back ${x.id === b ? 'on' : ''}" data-cback="${x.id}"><i style="background-image:url('${x.file}')"></i><span>${x.name}</span></button>`).join('')}</div>
     <p class="lk-note">Рубашку видно на вашей колоде, а в партии с живым соперником — и ему. Аватарка видна в меню и сопернику онлайн.</p></div>`;
 }
 export function bindLooks(root, onChange) {
-  root.querySelectorAll('[data-ava]').forEach((x) => { x.onclick = () => { setAvatar(x.dataset.ava); root.querySelectorAll('[data-ava]').forEach((y) => y.classList.toggle('on', y === x)); onChange?.(); }; });
+  root.querySelectorAll('[data-ava]').forEach((x) => { x.onclick = () => { setAvatar(x.dataset.ava); root.querySelectorAll('[data-ava]').forEach((y) => y.classList.toggle('on', y === x)); const cur = root.querySelector('.lk-cur'); if (cur) cur.style.backgroundImage = x.style.backgroundImage; onChange?.(); }; });
   root.querySelectorAll('[data-cback]').forEach((x) => { x.onclick = () => { setBack(x.dataset.cback); root.querySelectorAll('[data-cback]').forEach((y) => y.classList.toggle('on', y === x)); onChange?.(); }; });
 }

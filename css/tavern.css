@@ -255,3 +255,19 @@ html body #game .prompt .btn.small.cancel { color: var(--t-cream) !important; te
 .share-deck .sd-code { display: flex; gap: 10px; align-items: stretch; }
 .share-deck .sd-code b { flex: 1; min-width: 0; min-height: 48px; display: flex; align-items: center; padding: 0 14px; border-radius: 10px; border: 1px dashed rgba(217, 196, 138, .5); background: rgba(0, 0, 0, .35);
   font: 700 14px var(--k-font); letter-spacing: .06em; color: #fff3cf; overflow-wrap: anywhere; user-select: all; }
+/* «Статистика и профиль» (canvas): tabs as pills that scroll sideways on phones; avatars folded */
+.st-tabs { display: flex !important; flex-wrap: nowrap !important; gap: 6px; overflow-x: auto; scrollbar-width: none; justify-content: safe center; padding: 2px 2px 6px; scroll-snap-type: x proximity; }
+.st-tabs::-webkit-scrollbar { display: none; }
+.st-tabs .btn { flex: none; border-radius: 999px !important; scroll-snap-align: start; white-space: nowrap; }
+.pf-looks .lk-fold summary { display: flex; align-items: center; gap: 12px; cursor: pointer; list-style: none; }
+.pf-looks .lk-fold summary::-webkit-details-marker { display: none; }
+.pf-looks .lk-fold summary h3 { margin: 0 !important; }
+.pf-looks .lk-cur { width: 44px; height: 44px; border-radius: 50%; background: #2a1c12 center 30% / cover; border: 2px solid var(--t-line-hi); }
+.pf-looks .lk-open { padding: 6px 14px; border-radius: 999px; border: 1px solid var(--t-line); font: 700 15px var(--k-font); color: var(--t-cream); }
+.pf-looks .lk-fold[open] .lk-open { border-color: var(--t-line-hi); }
+.pf-looks .lk-fold .lk-avas { margin-top: 10px; }
+@media (max-width: 760px) {
+  .st-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  .pf-head { display: grid !important; grid-template-columns: 88px minmax(0, 1fr); gap: 12px; align-items: start; } .pf-name { display: flex; flex-wrap: wrap; gap: 6px; } .pf-name input { min-width: 0; flex: 1 1 120px; }
+  .pf-ava { width: 88px !important; height: 88px !important; }
+}
