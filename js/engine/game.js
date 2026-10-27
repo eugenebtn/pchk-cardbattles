@@ -1562,7 +1562,7 @@ export class Game {
     for (;;) {
       const defenders = this.characters(side).filter((c) => c !== target && this.cardType(c) !== 'leader' && this.has(c, 'defense') && this.onField(c) && !used.has(c.uid) && this.hp(c) > 0);
       if (!defenders.length || left <= 0) break;
-      const d = yield* this.ask(side, { type: 'target', prompt: `Оборона: перенаправить ${left} ран(ы) с «${this.name(target)}»?`, hint: 'defense', options: defenders.map((c) => ({ id: c.uid })), cancel: true, auto: false, defense: true });
+      const d = yield* this.ask(side, { type: 'target', prompt: `Оборона: перенаправить ${left} ран(ы) с «${this.name(target)}»?`, hint: 'defense', options: defenders.map((c) => ({ id: c.uid })), cancel: true, auto: false, defense: true, from: a.uid, to: target.uid, amount: left });
       if (d == null) break;
       const dc = this.card(d);
       used.add(dc.uid);
