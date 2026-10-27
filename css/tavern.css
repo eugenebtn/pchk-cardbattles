@@ -284,3 +284,29 @@ html body #game .prompt .btn.small.cancel { color: var(--t-cream) !important; te
 .k-dlg-btns { display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap; }
 .k-dlg-btns .btn { min-height: 50px; padding: 0 24px !important; font-size: 17px !important; }
 @media (max-width: 760px) { .k-dlg-btns .btn { flex: 1 1 auto; } }
+
+/* ---------- step 4: newcomer tips at the edge of the board (canvas «Подсказка новичку»), never over the cards ---------- */
+#game > .tip-card.tip-edge { position: fixed; left: 50%; top: 7vh; transform: translateX(-50%); width: min(560px, 44vw); z-index: 320; display: flex; flex-direction: column; gap: 6px; padding: 12px 14px;
+  border-radius: 14px; background: rgba(22, 13, 7, .95) !important; border: 1px solid var(--t-line-hi); box-shadow: 0 0 24px rgba(255, 200, 90, .28), 0 10px 24px rgba(0, 0, 0, .6) !important;
+  font-family: var(--k-font); color: var(--t-cream); animation: tip-in .35s cubic-bezier(.2, .8, .3, 1); transition: opacity .3s, transform .3s; }
+#game > .tip-card.tip-edge.out { opacity: 0; transform: translate(-50%, -12px); }
+@keyframes tip-in { from { opacity: 0; transform: translate(-50%, -16px); } }
+.tip-edge .tip-top { display: flex; align-items: center; gap: 10px; }
+.tip-edge .tip-n { width: 28px; height: 28px; flex: none; border-radius: 50%; display: grid; place-items: center; background: var(--t-line-hi); color: #3a1206; font-weight: 900; font-size: 15px; }
+.tip-edge .tip-top b { font-size: 18px; color: #fff3cf; }
+.tip-edge p { margin: 0; font-size: 15px; line-height: 1.35; }
+.tip-edge .tip-btns { display: flex; justify-content: space-between; align-items: center; margin: 0; }
+.tip-edge .tip-link { border: none; background: none; padding: 4px 0; cursor: pointer; color: #d9c48a; font: 700 15px var(--k-font); text-decoration: underline; text-underline-offset: 3px; }
+.tip-edge .tip-off { position: absolute; right: 14px; top: 12px; font-size: 13px; color: var(--t-sub); }
+.tip-edge .tip-of { font-size: 13px; color: var(--t-sub); }
+@media (max-width: 760px) {
+  #game > .tip-card.tip-edge { left: 8px; right: 8px; top: calc(54px + env(safe-area-inset-top)); bottom: auto; width: auto; transform: none; padding: 10px 12px; }
+  #game > .tip-card.tip-edge.out { transform: translateY(-12px); }
+  .tip-edge .tip-off { position: static; }
+  .tip-edge p { font-size: 14px; }
+}
+@media (max-width: 760px) { @keyframes tip-in-m { from { opacity: 0; transform: translateY(-12px); } } #game > .tip-card.tip-edge { animation-name: tip-in-m; } }
+/* the game menu opens over the field, not over «Завершить ход» and the log in the right column (QA note) */
+#stage.land .opts-pop { right: 330px; top: 60px; background: rgba(22, 13, 7, .96) !important; border: 1px solid var(--t-line) !important; border-radius: 16px !important; grid-template-columns: 1fr 1fr; width: 560px; }
+#stage.land .opts-pop .btn { font-size: 16px !important; padding: 10px 14px !important; }
+#stage.land .opts-pop #btn-menu { grid-column: 1 / -1; }

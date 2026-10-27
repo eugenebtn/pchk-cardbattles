@@ -644,7 +644,7 @@ function startBoard(session) {
     const spd = $('#btn-speed'), snd = $('#btn-sound'), fst = $('#btn-fast'), mus = $('#btn-music');
     const vb = $('#btn-vol'); if (vb) { vb.onclick = () => openSoundPop(vb); soundBtnState(); }
     const ap = () => session.game?.cfg.options.autoPass;
-    const drawFast = () => { const m = opt.autopass; fst.style.opacity = m === true ? '.4' : '1'; fst.title = AP_TOAST[m]; fst.classList.toggle('ap-always', m === 'always'); };
+    const drawFast = () => { const m = opt.autopass; fst.title = AP_TOAST[m]; fst.classList.toggle('ap-always', m === 'always'); fst.textContent = `⚡ Ответ в чужой ход: ${m === true ? 'никогда' : m === 'always' ? 'всегда' : 'когда целятся'}`; };
     fst.onclick = () => {
       opt.autopass = AP_NEXT[opt.autopass]; store.set('autopass', opt.autopass); $('#opt-autopass').value = opt.autopass === true ? 'never' : opt.autopass;
       drawFast(); toast(AP_TOAST[opt.autopass], 2200);

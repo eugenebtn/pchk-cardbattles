@@ -201,16 +201,16 @@ export class BoardUI {
       <div class="hint-bar" id="hint" style="left:${L.hint.x}px;top:${L.hint.y}px;width:${L.hint.w}px"></div>
       ${L.log ? `<div class="log-panel" id="log" style="left:${L.log.x}px;top:${L.log.y}px;width:${L.log.w}px;height:${L.log.h}px"></div>` : '<div class="log-panel hidden" id="log"></div>'}
       <div class="stack-panel" id="stack"></div>
-      <div class="top-btns">
+      <div class="top-btns"><!-- canvas «Сама партия»: three buttons on top (Отменить ход when possible, Как играть, Меню); sound, feedback and Опережение live in the menu -->
         <button class="icon-btn hidden" id="btn-undo" data-tip="Отменить ход|Вернуть вашу последнюю карту или действие (только против компьютера). Клавиша Z.">↶</button>
-        <button class="icon-btn" id="btn-report" data-tip="Ошибка или отзыв|Сообщить разработчику: снимок экрана и ход партии приложатся сами.">${ICON.report}</button>
-        <button class="icon-btn snd-btn" id="btn-vol" data-tip="Звук|Выключить звук или изменить громкость."><img class="ico" src="assets/icons/sound-on.svg" alt="" style="width:58%;height:58%"></button>
+        <button class="icon-btn hidden" id="btn-report" data-tip="Ошибка или отзыв|Сообщить разработчику: снимок экрана и ход партии приложатся сами.">${ICON.report}</button>
+        <button class="icon-btn snd-btn hidden" id="btn-vol" data-tip="Звук|Выключить звук или изменить громкость."><img class="ico" src="assets/icons/sound-on.svg" alt="" style="width:58%;height:58%"></button>
         <button class="icon-btn" id="btn-help" data-tip="Как играть|Правила, значки и подсказки.">${ICON.help}</button>
-        <button class="icon-btn" id="btn-fast" data-tip="Опережение ⚡|Включить или выключить вопросы «ответить картой с Опережением?».">${ICON.bolt}</button>
         <button class="icon-btn" id="btn-opts" data-tip="Меню|Журнал, скорость, музыка, звук, выход.">${ICON.menu}</button>
       </div>
       <div class="opts-pop hidden" id="opts-pop">
         <button class="btn" id="btn-log">📜 Журнал</button>
+        <button class="btn" id="btn-fast" data-tip="Ответ в чужой ход|Когда спрашивать «ответить картой с Опережением?»: когда целятся в ваши карты, всегда или никогда.">⚡ Ответ в чужой ход</button>
         <button class="btn hidden" id="btn-watch">👁 Позвать зрителей</button>
         <button class="btn" id="btn-rec">⏺ Записать видео</button>
         <button class="btn" id="btn-bug">✉ Сообщить об ошибке</button>
@@ -957,6 +957,7 @@ export class BoardUI {
     if (!this.q) return;
     const q = this.q;
     this.q = null;
+    if (this._tipEl) { const t = this._tipEl; this._tipEl = null; t.classList.add('out'); setTimeout(() => t.remove(), 300); }
     this.applyInteractivity();
     this.promptEl.innerHTML = '';
     this.closeModal();
@@ -1547,12 +1548,17 @@ ${optHtml}</div></div>
     tipStore.mark(key);
     this.showTip(tip);
   }
+  // Canvas «Подсказка новичку»: a narrow plate at the left edge of the board, not over the cards; it goes away by itself after the next action.
   showTip(tip) {
+    this._tipEl?.remove();
+    const keys = Object.keys(TIPS), n = keys.findIndex((k) => TIPS[k] === tip) + 1;
     const el = document.createElement('div');
-    el.className = 'tip-card';
-    el.innerHTML = `<div class="tip-ico">${tip.icon}</div><div class="tip-body"><b>${tip.title}</b><p>${tip.text}</p>
-      <div class="tip-btns"><button class="btn primary small" data-ok>Понятно</button><button class="btn small" data-off>Больше не показывать</button></div></div>`;
+    el.className = 'tip-card tip-edge';
+    el.innerHTML = `<div class="tip-top"><span class="tip-n">${n}</span><b>${tip.title}</b></div><p>${tip.text}</p>
+      <div class="tip-btns"><button class="tip-link" data-ok>Понятно</button><span class="tip-of">${n} из ${keys.length}</span></div>
+      <button class="tip-link tip-off" data-off>Больше не показывать подсказки</button>`;
     this.overlay().appendChild(el);
+    this._tipEl = el;
     el.querySelector('[data-ok]').addEventListener('click', () => el.remove());
     el.querySelector('[data-off]').addEventListener('click', () => { tipStore.off(); el.remove(); });
   }
