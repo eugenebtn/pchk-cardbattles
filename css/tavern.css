@@ -147,3 +147,42 @@ html body #game .prompt .btn.small.cancel { color: var(--t-cream) !important; te
 /* phones: the «−N» sits beside the Leader (not on the round plate above it); the result sits on the card's lower edge, not on the Place under it */
 #stage.port #board .dg-blow-tag { font-size: 30px; }
 #stage.port #board .dg-res { font-size: 22px; padding: 2px 8px; }
+
+/* ---------- Выбор соперника, вариант Б (canvas «Соперник Б»): difficulty inside the opponent card, «В бой» centred, «Назад» in the corner; fits 1280×720 without scrolling ---------- */
+#heroes .hero-select .hs-info .hs-level { justify-content: flex-start; margin: 12px 0 0; max-width: none; flex-direction: column; align-items: stretch; gap: 6px; }
+#heroes .hs-info .hs-level > span { font: 800 13px var(--k-font); letter-spacing: .14em; text-transform: uppercase; color: #d9c48a; }
+#heroes .hs-info .hs-level { display: grid; grid-template-columns: repeat(4, 1fr); padding: 4px; gap: 4px; border-radius: 12px; background: rgba(0, 0, 0, .35); border: 1px solid rgba(217, 196, 138, .25); }
+#heroes .hs-info .hs-level > span { grid-column: 1 / -1; padding: 2px 4px 0; }
+#heroes .hs-info .hs-lv { border-radius: 9px; padding: 8px 6px; line-height: 1.1; }
+#heroes .hs-info .hs-lv small { display: block; font-size: 12px; }
+#heroes .hero-select.with-level .hs-main { min-height: 0 !important; padding-top: 22px; padding-bottom: 22px; }
+#heroes .hs-bar { position: static !important; background: none !important; justify-content: center !important; margin: 10px 0 0 !important; padding: 0 0 calc(10px + env(safe-area-inset-bottom)) !important; }
+#heroes .hs-bar [data-back] { position: fixed; left: 18px; top: calc(14px + env(safe-area-inset-top)); z-index: 7; height: 44px; padding: 0 16px !important; font-size: 16px !important; }
+#heroes .hs-bar .hs-go { min-width: 300px; height: 60px; font-size: 24px !important; }
+@media (max-height: 960px) {
+  #heroes .hero-select { padding-top: 8px !important; }
+  #heroes .hs-title { font-size: 28px !important; margin: 2px 0 !important; }
+  #heroes .hero-select .hs-main { padding-top: 12px !important; padding-bottom: 12px !important; }
+  #heroes .hero-select .hs-chosen { margin: 2px 0 6px !important; }
+  #heroes .hs-roster { margin-top: 8px !important; gap: 6px 18px !important; }
+  #heroes .hs-medal .m { width: 56px !important; height: 56px !important; }
+  #heroes .hs-bar { margin-top: 6px !important; }
+  #heroes .hs-bar .hs-go { height: 52px; font-size: 22px !important; }
+  #heroes .hero-select .hs-name { font-size: 30px !important; }
+  #heroes .hero-select.with-level .hs-keys, #heroes .hero-select .hs-more { display: none !important; }
+  #heroes .hero-select .hs-style { font-size: 16px !important; margin: 4px 0 !important; }
+  #heroes .hero-select .hs-plain { margin: 4px 0 !important; font-size: 16px !important; }
+  #heroes .hero-select .hs-row { margin: 6px 0 !important; }
+#heroes .hero-select .hs-main { min-height: 0 !important; }
+  #heroes .hs-medal .m { width: 64px !important; height: 64px !important; }
+}
+@media (max-width: 760px) {
+  #heroes .hs-info .hs-level { grid-template-columns: repeat(2, 1fr); }
+  #heroes .hs-bar { position: sticky !important; bottom: 0; background: linear-gradient(transparent, rgba(8, 4, 2, .95) 40%) !important; padding-top: 14px !important; }
+  #heroes .hs-bar .hs-go { min-width: 0; flex: 1; max-width: 340px; }
+  #heroes .hero-select.with-level .hs-portrait { width: 100% !important; height: 170px !important; aspect-ratio: auto !important; background-size: cover !important; }
+  #heroes .hero-select { padding-top: 58px !important; }
+  #heroes .hero-select.with-level .hs-port-name { display: none; }
+}
+#heroes .hs-info .hs-lv-help { grid-column: 1 / -1; text-align: left; margin: 2px 4px 2px; font: 600 14px var(--k-font); color: #c2ae86; }
+

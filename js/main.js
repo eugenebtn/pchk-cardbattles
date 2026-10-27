@@ -291,7 +291,7 @@ function pickDecks(steps) {
       let sel = list.find((d) => d.key === draw.byStep[step]) || (st.allowRandom ? list[0] : list.find((d) => d.key === (draw.last || '')) || list[0]);
       const paint = () => {
         const L = sel.random ? null : CARDS[sel.leader];
-        root.innerHTML = `<div class="hero-select">
+        root.innerHTML = `<div class="hero-select${st.level ? ' with-level' : ''}">
           ${steps.length > 1 ? `<div class="hs-step s${step}">Шаг ${step + 1} из ${steps.length}</div>` : ''}
           <div class="hs-title">${esc(st.title)}</div>
           ${chosen.length ? `<div class="hs-chosen">${chosen.map((c, k) => `<span><i class="la" style="background-image:url('${face(c.leader)}')"></i>${k === 0 ? 'Ваш выбор' : 'Выбор ' + (k + 1)}: <b>${esc(c.title)}</b> ✓</span>`).join('')}</div>` : ''}
@@ -305,12 +305,12 @@ function pickDecks(steps) {
               ${LEADER_PLAIN[sel.leader] ? `<ul class="hs-plain">${LEADER_PLAIN[sel.leader].t.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
               ${(() => { const key = [...new Set(sel.cards)].map((id) => CARDS[id]).filter((c) => c && c.img && typeof c.cost === 'number').sort((a, b) => b.cost - a.cost).slice(0, 4); return key.length ? `<div class="hs-keys"><span>Сильные карты колоды:</span>${key.map((c) => `<i style="background-image:url('${c.img}')" data-tip="${esc(c.name)}|${esc((c.text || '').split('\n').slice(0, 2).join(' '))}"></i>`).join('')}</div>` : ''; })()}
               <details class="hs-more"><summary>Подробнее: точный текст карты</summary><div class="hs-ability">${linkTerms(esc(L.text)).replace(/\n/g, '<br>')}</div></details>` : ''}
+              ${st.level ? `<div class="hs-level"><span>Насколько сильно играет</span>${['auto', 'novice', 'normal', 'strong'].map((l) => `<button class="hs-lv ${opt.botLevel === l ? 'on' : ''}" data-lv="${l}">${l === 'auto' ? `Подстраиваться <small>сейчас: ${LEVEL_RU[adaptiveLevel()]}</small>` : LEVEL_RU[l]}</button>`).join('')}<div class="hs-lv-help">${esc(LEVEL_HELP[opt.botLevel])}</div></div>` : ''}
             </div>
           </div>
           <div class="hs-roster"><div class="hs-medal newdeck" data-new><div class="m">＋</div>Своя колода<div class="tag">собрать</div></div>${list.map((d) => `<div class="hs-medal ${d === sel ? 'sel' : ''} ${d.random ? 'random' : ''}" data-key="${d.key}">
             <div class="m ${d.random ? '' : 'la'}" ${d.random ? '' : `style="background-image:url('${face(d.leader)}')"`}>${d.random ? '🎲' : ''}</div>
             ${esc(d.random ? 'Случайный' : d.title)}${!d.random && !d.official ? '<div class="tag">своя</div>' : ''}</div>`).join('')}</div>
-          ${st.level ? `<div class="hs-level"><span>Сложность:</span>${['auto', 'novice', 'normal', 'strong'].map((l) => `<button class="hs-lv ${opt.botLevel === l ? 'on' : ''}" data-lv="${l}">${l === 'auto' ? `Подстраиваться <small>сейчас: ${LEVEL_RU[adaptiveLevel()]}</small>` : LEVEL_RU[l]}</button>`).join('')}<div class="hs-lv-help">${esc(LEVEL_HELP[opt.botLevel])}</div></div>` : ''}
           <div class="hs-bar"><button class="btn" data-back>← Назад</button><button class="btn hs-go" data-go>${esc(step === steps.length - 1 ? (st.goLabel || 'В бой!') : 'Далее')}</button></div>
         </div>`;
         root.querySelectorAll('.hs-medal').forEach((m) => m.addEventListener('click', () => {
