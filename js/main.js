@@ -17,6 +17,7 @@ import * as FX from './ui/fx.js';
 import { hostRoom, joinRoom } from './net/online.js';
 import { serverOn, newRoomCode, connectRoom, findMatch, connectTour, roomStatus, hasSeat } from './net/server.js';
 import { FEATURES } from './features.js';
+import { askConfirm, askText, FLAG_ICON } from './ui/dialog.js';
 import { renderRules } from './ui/rules.js';
 import { renderBuilder, loadCustomDecks } from './ui/builder.js';
 import { installTooltips, linkTerms } from './ui/glossary.js';
@@ -146,8 +147,8 @@ async function checkLive() {
   jb.classList.remove('hidden'); jb.classList.add('invite-card');
   jb.innerHTML = `<b>У вас не закончена партия</b><div class="ic-btns"><button class="btn primary" data-yes>⚔ Вернуться в партию</button><button class="btn" data-no>Сдаться</button></div>`;
   jb.querySelector('[data-yes]').onclick = () => { sfx.click(); jb.classList.add('hidden'); startServerJoin(live.code); };
-  jb.querySelector('[data-no]').onclick = () => {
-    if (!confirm('Сдаться в этой партии? Соперник получит победу.')) return;
+  jb.querySelector('[data-no]').onclick = async () => {
+    if (!(await askConfirm({ title: 'Сдаться?', text: 'Партия закончится вашим поражением, соперник получит победу.', yes: 'Сдаться', no: 'Играть дальше', danger: true, icon: FLAG_ICON }))) return;
     sfx.click(); jb.classList.add('hidden'); markDone(live.code); store.set('live', null);
     const c = connectRoom(live.code, { name: myName() }, { onMessage: (m) => { if (m.t === 'seat' || m.t === 'sync') { c.send({ t: 'answer', a: { concede: true } }); setTimeout(() => c.close(), 800); } } });
   };
@@ -235,7 +236,7 @@ async function copyText(text, msg = 'Ссылка скопирована') {
     const ok = document.execCommand('copy'); ta.remove();
     if (ok) { toast(msg); return true; }
   } catch { /* fall through */ }
-  window.prompt('Скопируйте ссылку:', text);
+  askText({ title: 'Скопируйте ссылку', text: 'Выделите и скопируйте вручную.', value: text, readonly: true });
   return false;
 }
 // ---------- decks ----------
@@ -557,10 +558,10 @@ function startBoard(session) {
   const ui = new BoardUI($('#stage'), {
     me: session.me, theme,
     onAnswer: (q, a) => session.answer(q, a),
-    onMenu: (force) => {
+    onMenu: async (force) => {
       const live = !session.watch && !ui.view?.over && ui.view?.players;
       const online = !!(session.remote || session.conn);
-      if (!(force || session.watch || confirm(online && live ? 'Выйти из партии? Это засчитается как поражение.' : 'Выйти в меню? Партия будет потеряна.'))) return;
+      if (!(force || session.watch || (await askConfirm(online && live ? { title: 'Выйти из партии?', text: 'Это засчитается как поражение.', yes: 'Выйти', no: 'Остаться', danger: true, icon: FLAG_ICON } : { title: 'Выйти в меню?', text: 'Партия будет потеряна.', yes: 'Выйти', no: 'Остаться', danger: true })))) return;
       const leave = () => { session.close(); ui.chat?.destroy(); ui.coach?.destroy(); ui.destroy(); current = null; if (session.remote || session.conn) $('#join-banner')?.classList.add('hidden'); show('menu'); };
       // Online: the opponent is told at once (a win for them) instead of waiting for a game that will not go on.
       if (online && live && !force) { session.concede?.(); setTimeout(leave, 400); } else leave();

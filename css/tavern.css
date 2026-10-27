@@ -271,3 +271,16 @@ html body #game .prompt .btn.small.cancel { color: var(--t-cream) !important; te
   .pf-head { display: grid !important; grid-template-columns: 88px minmax(0, 1fr); gap: 12px; align-items: start; } .pf-name { display: flex; flex-wrap: wrap; gap: 6px; } .pf-name input { min-width: 0; flex: 1 1 120px; }
   .pf-ava { width: 88px !important; height: 88px !important; }
 }
+
+/* ---------- step 2: our own confirm / prompt windows (js/ui/dialog.js, canvas «Подтверждение «Сдаться?»») ---------- */
+.k-dialog { display: grid; place-items: center; background: rgba(6, 3, 1, .62) !important; backdrop-filter: blur(3px); animation: fadein .15s; }
+.k-dialog .modal { margin: 0; text-align: left; }
+.k-dlg-head { display: flex; align-items: center; gap: 16px; }
+.k-dlg-head h3 { margin: 0 !important; font-size: 28px !important; }
+.k-dlg-ico { width: 56px; height: 56px; flex: none; border-radius: 50%; display: grid; place-items: center; background: rgba(157, 42, 28, .25); border: 1px solid rgba(232, 120, 100, .5); }
+.k-dlg-ico svg { width: 26px; height: 26px; fill: none; stroke: #f3e6c8; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.k-dlg-text { margin: 0; font: 600 17px/1.45 var(--k-font); color: var(--t-cream); }
+.k-dlg-input { width: 100%; box-sizing: border-box; min-height: 48px; }
+.k-dlg-btns { display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap; }
+.k-dlg-btns .btn { min-height: 50px; padding: 0 24px !important; font-size: 17px !important; }
+@media (max-width: 760px) { .k-dlg-btns .btn { flex: 1 1 auto; } }

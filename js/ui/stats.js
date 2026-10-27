@@ -11,6 +11,7 @@ import { unlocked, ACH, medalHtml } from './achievements.js';
 import { dailyState } from './daily.js';
 import { currentUser, signIn, signUp, signOut } from '../net/account.js';
 import { looksHtml, bindLooks, myAvatar, avatarFile } from './cosmetics.js';
+import { askConfirm } from './dialog.js';
 
 const KEY = 'pchk_stats';
 const MODE_RU = { bot: 'с компьютером', online: 'с другом онлайн', hotseat: 'за одним экраном' };
@@ -204,7 +205,7 @@ export function renderStats(root, onBack, { tab: startTab = 'world', name = () =
     root.querySelectorAll('[data-rp]').forEach((b) => { b.onclick = () => onReplay?.(reps[Number(b.dataset.rp)]); });
     root.querySelectorAll('[data-rs]').forEach((b) => { b.onclick = () => onShareReplay?.(reps[Number(b.dataset.rs)]); });
     const clr = root.querySelector('[data-clear]');
-    if (clr) clr.onclick = () => { if (confirm('Удалить всю вашу статистику в этом браузере?')) { clearGames(); draw(); } };
+    if (clr) clr.onclick = async () => { if (await askConfirm({ title: 'Удалить статистику?', text: 'Все ваши партии в этом браузере пропадут. Это нельзя отменить.', yes: 'Удалить', no: 'Оставить', danger: true })) { clearGames(); draw(); } };
   };
   draw();
 }

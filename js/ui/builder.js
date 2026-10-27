@@ -10,6 +10,7 @@ import { FEATURES } from '../features.js';
 import { encodeDeck, decodeDeck, deckLink } from '../net/deckcode.js';
 import { BOT_DECKS } from '../data/botdecks.js';
 import { THEME_DECKS } from '../data/themedecks.js';
+import { askConfirm, askText } from './dialog.js';
 // «Готовые сборки» (shown after the starter decks): grouped by Leader in the starter order; per Leader the themed decks, then the strong decks the computer uses.
 const LEADER_ORDER = Object.values(DECKS).map((d) => d.leader);
 const READY = [...THEME_DECKS, ...BOT_DECKS].map((d, k) => [d, k]).sort(([a, i], [b, j]) => LEADER_ORDER.indexOf(a.leader) - LEADER_ORDER.indexOf(b.leader) || i - j).map(([d]) => d);
@@ -76,9 +77,9 @@ export function renderBuilder(root, store, onBack, opts = {}) {
     </div>`;
     root.querySelector('[data-back]').onclick = () => { sfx.click(); onBack(); };
     root.querySelector('[data-new]').onclick = () => { sfx.select(); pickLeader(); };
-    root.querySelector('[data-paste]').onclick = () => {
+    root.querySelector('[data-paste]').onclick = async () => {
       sfx.select();
-      const v = prompt('Вставьте код колоды или ссылку на неё');
+      const v = await askText({ title: 'Колода по коду', text: 'Вставьте код колоды или ссылку на неё.', placeholder: 'Код или ссылка', yes: 'Открыть' });
       if (v == null) return;
       const d = decodeDeck(v);
       if (!d) { flashMsg('Код не подошёл — проверьте, что он скопирован целиком'); return; }
@@ -203,9 +204,9 @@ export function renderBuilder(root, store, onBack, opts = {}) {
       if (pub) pub.onclick = async () => { pub.disabled = true; const okp = await publishDeck({ name: cur.name, leader: cur.leader, cards: cur.cards }, opts.author?.() || ''); flash(okp ? 'Колода опубликована в «Колодах сообщества»' : 'Не получилось опубликовать — попробуйте позже'); pub.disabled = false; };
       const sh = root.querySelector('[data-share]');
       if (sh) sh.onclick = () => { sfx.click(); shareBox({ name: cur.name, leader: cur.leader, cards: [...cur.cards] }); };
-      root.querySelector('[data-clear]').onclick = () => { if (!cur.cards.length || confirm('Убрать все карты из колоды?')) { cur.cards = []; draw(); } };
+      root.querySelector('[data-clear]').onclick = async () => { if (!cur.cards.length || (await askConfirm({ title: 'Убрать все карты?', text: 'Колода станет пустой, Лидер останется.', yes: 'Убрать', no: 'Оставить', danger: true }))) { cur.cards = []; draw(); } };
       const del = root.querySelector('[data-del]');
-      if (del) del.onclick = () => { if (confirm('Удалить эту колоду?')) { decks.splice(editIndex, 1); save(); gallery(); } };
+      if (del) del.onclick = async () => { if (await askConfirm({ title: 'Удалить колоду?', text: `Колода «${cur.name || 'Моя колода'}» пропадёт из списка. Это нельзя отменить.`, yes: 'Удалить', no: 'Оставить', danger: true })) { decks.splice(editIndex, 1); save(); gallery(); } };
     };
     const remove = (id) => { const ix = cur.cards.indexOf(id); if (ix >= 0) { cur.cards.splice(ix, 1); sfx.click(); draw(); } };
     const flash = (text) => { const t = document.createElement('div'); t.className = 'toast'; t.textContent = text; document.body.appendChild(t); setTimeout(() => t.remove(), 2200); };

@@ -8,6 +8,7 @@ import { pickLayout } from './layouts.js';
 import { linkTerms } from './glossary.js';
 import { backCss, myBack, avatarFile } from './cosmetics.js';
 import { ICON, KW_SVG, TOK_SVG } from './icons.js';
+import { askConfirm, FLAG_ICON } from './dialog.js';
 
 const LEADER_ART = new Set([20, 41, 62, 63, 117, 118]);
 const KW_ICON = { breakthrough: '💥', defense: '🛡️', maneuver: '🏃', ward: '✨', fast: '⚡', deathtouch: '☠️', bloodsucker: '🩸', indestructible: '🪨', advantage: '🎯' };
@@ -251,7 +252,7 @@ export class BoardUI {
     this.powersEl = u.querySelector('#powers');
     u.querySelector('#btn-emote').addEventListener('click', (e) => { e.stopPropagation(); this.openEmotes(); });
     u.querySelector('#btn-undo2').addEventListener('click', () => { u.querySelector('#opts-pop').classList.add('hidden'); this.onUndo?.(); });
-    u.querySelector('#btn-concede').addEventListener('click', () => { u.querySelector('#opts-pop').classList.add('hidden'); if (this.onConcede && !this.view?.over && confirm('Сдаться? Партия закончится вашим поражением.')) this.onConcede(); });
+    u.querySelector('#btn-concede').addEventListener('click', () => { u.querySelector('#opts-pop').classList.add('hidden'); if (this.onConcede && !this.view?.over) askConfirm({ title: 'Сдаться?', text: 'Партия закончится вашим поражением.', yes: 'Сдаться', no: 'Играть дальше', danger: true, icon: FLAG_ICON }).then((ok) => { if (ok && !this.view?.over) this.onConcede();  }); });
     u.querySelector('#btn-log').addEventListener('click', () => { this.showLog(); u.querySelector('#opts-pop').classList.add('hidden'); });
     u.querySelector('#btn-bug').addEventListener('click', () => { u.querySelector('#opts-pop').classList.add('hidden'); this.onFeedback?.(); });
     u.querySelector('#btn-rec').addEventListener('click', () => { u.querySelector('#opts-pop').classList.add('hidden'); toggleRecording(this.toast); });
