@@ -37,16 +37,7 @@
 .plq.gold { color: #3a1206 !important; border: none !important; background: var(--t-btn-gold) !important; box-shadow: var(--t-btn-gold-sh) !important; }
 .plq.gold:hover { filter: brightness(1.08) !important; box-shadow: var(--t-btn-gold-sh), 0 0 22px rgba(255, 200, 90, .45) !important; }
 
-/* the gold plaque picture with blue gems in «Как сыграем?» becomes a plain gold button */
-.pl-go { aspect-ratio: auto !important; height: 50px; width: 100% !important; border-radius: 12px !important; background: var(--t-btn-gold) !important; box-shadow: var(--t-btn-gold-sh); filter: none !important; }
-.pl-go span { inset: 0 !important; color: #3a1206 !important; text-shadow: none !important; font-size: 18px !important; }
-.pl-tile:hover .pl-go { transform: none !important; filter: brightness(1.08) !important; box-shadow: var(--t-btn-gold-sh), 0 0 22px rgba(255, 200, 90, .45); }
-.pl-go[disabled] { opacity: .45; filter: none !important; }
-
-/* segmented choice: dark strip, the chosen one gold */
-.pl-seg { border-radius: 10px !important; background: rgba(0, 0, 0, .35) !important; box-shadow: none !important; border: 1px solid rgba(217, 196, 138, .25); padding: 3px; gap: 3px; }
-.pl-seg button { border: none !important; border-radius: 8px; text-shadow: none !important; color: #d8c8a2; }
-.pl-seg button.on { color: #3a1206 !important; background: linear-gradient(#fff0b0, #e9b24e) !important; box-shadow: none !important; }
+/* «Как сыграем?»: the gold plaque with the ornate frame (.pl-go) and the divided difficulty strip (.pl-seg) stay as in ui3 — Eugene prefers them (2026-10-27). */
 
 /* ---------- windows: dark warm glass with a thin gold line ---------- */
 .modal, #game > .modal-back .modal, .fb-win, #menu.mv .menu-opts, .snd-pop {
