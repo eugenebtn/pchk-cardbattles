@@ -969,6 +969,8 @@ window.addEventListener('unhandledrejection', (e) => { if (current?.ui) autoRepo
 
 if (FEATURES.tournaments) document.querySelector('#menu [data-act="tour"]')?.classList.remove('hidden');
 if (FEATURES.shop) document.querySelector('#menu [data-act="shop"]')?.classList.remove('hidden');
+// «Для проверки» (test rules) is for the developer only: shown with ?features=all, hidden from players (canvas «Настройки»).
+document.querySelector('#menu-opts .mo-test')?.classList.toggle('hidden', !FEATURES.shop && !FEATURES.tournaments);
 // ---------- Задание дня on the menu ----------
 function drawDaily() {
   const box = $('#menu-daily'); if (!box) return;
@@ -1405,15 +1407,24 @@ async function openFriends({ watch = false } = {}) {
   const link = `${location.origin}${location.pathname}?friend=${code}&fn=${encodeURIComponent(myName())}`;
   const b = document.createElement('div');
   b.className = 'modal-back'; b.style.cssText = 'position:fixed;inset:0;z-index:400';
-  b.innerHTML = `<div class="modal friends-box ${watch ? 'watch-only' : ''}" style="max-width:560px;width:94vw"><h3>${watch ? 'Смотреть друзей' : 'Друзья'}</h3>
+  // Canvas «Друзья»: title and ✕, the list first, then «Добавить друга»: send the invitation (main) or type a friend's code.
+  b.innerHTML = `<div class="modal friends-box win-k ${watch ? 'watch-only' : ''}" style="max-width:600px;width:94vw">
+    <div class="win-head"><h3>${watch ? 'Смотреть друзей' : 'Друзья'}</h3><button class="win-x" data-close aria-label="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
     ${watch ? '<p style="margin:0 0 8px">Партии ваших друзей, которые идут прямо сейчас. Нажмите «Смотреть» — карты в руках скрыты, можно писать комментарии.</p>' : ''}
-    <p class="fr-intro" style="margin:0 0 8px">Отправьте другу ссылку — когда он её откроет, вы появитесь друг у друга в списке. Тогда видно, кто сейчас в игре, и его партию можно смотреть.</p>
-    <div class="link"><input readonly value="${esc(link)}"><button class="btn small" data-copy>Копировать</button></div>
-    <div class="fr-add"><span>Ваш код: <b>${code}</b></span><input type="text" maxlength="10" placeholder="Код друга" data-code><button class="btn small primary" data-add>Добавить</button></div>
+    <div class="k-sec" data-count>${watch ? 'Сейчас играют' : 'В списке'}</div>
     <div class="fr-list" data-list><p class="ov-wait">Загружаем…</p></div>
-    <div class="row-btns"><button class="btn" data-close>Закрыть</button></div></div>`;
+    <div class="fr-addbox">
+      <div class="k-sec">Добавить друга</div>
+      <div class="fr-btns"><button class="btn primary" data-copy>Отправить приглашение</button><button class="btn" data-entercode>Ввести код</button></div>
+      <div class="fr-code hidden" data-codebox><input type="text" maxlength="10" placeholder="Код друга, 10 символов" data-code><button class="btn primary" data-add>Добавить</button></div>
+      <p class="st-note">Приглашение — это ссылка: отправьте её в мессенджер, друг откроет и появится в списке. Ваш код для друга: <b class="fr-mycode">${code}</b></p>
+    </div></div>`;
   document.body.appendChild(b);
-  b.querySelector('[data-copy]').onclick = () => copyText(link, 'Ссылка для друга скопирована');
+  b.querySelector('[data-copy]').onclick = async () => {
+    if (navigator.share) { try { await navigator.share({ title: 'Карточные битвы', text: 'Давай сыграем в «Карточные битвы»!', url: link }); return; } catch { /* closed or not allowed: copy instead */ } }
+    copyText(link, 'Ссылка-приглашение скопирована: отправьте её другу');
+  };
+  b.querySelector('[data-entercode]').onclick = () => { b.querySelector('[data-codebox]').classList.remove('hidden'); b.querySelector('[data-code]').focus(); };
   b.querySelector('[data-add]').onclick = async () => {
     const v = b.querySelector('[data-code]').value.trim().toLowerCase();
     if (!/^[0-9a-f]{10}$/.test(v)) { toast('Код — это 10 символов, его видно у друга в окне «Друзья»', 3500); return; }
@@ -1422,7 +1433,8 @@ async function openFriends({ watch = false } = {}) {
   b.querySelector('[data-close]').onclick = () => { clearInterval(t); b.remove(); };
   const draw = async () => {
     const list = loadFriends(), box = b.querySelector('[data-list]');
-    if (!list.length) { box.innerHTML = '<p class="ov-wait">Пока никого. Отправьте ссылку выше.</p>'; return; }
+    b.querySelector('[data-count]').textContent = `${watch ? 'Сейчас играют' : 'В списке'} · ${list.length}`;
+    if (!list.length) { box.innerHTML = '<p class="ov-wait">Пока никого. Отправьте приглашение ниже.</p>'; return; }
     const st = await friendsStatus();
     const shown = watch ? list.filter((f) => st[f.code]?.room) : list;
     if (watch && !shown.length) { box.innerHTML = '<p class="ov-wait">Сейчас никто из друзей не играет. Окно обновляется само — оставьте его открытым или загляните позже.</p>'; return; }

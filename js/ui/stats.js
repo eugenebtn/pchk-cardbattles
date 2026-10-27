@@ -213,15 +213,20 @@ export function renderStats(root, onBack, { tab: startTab = 'world', name = () =
 export function loginDialog() {
   const b = document.createElement('div');
   b.className = 'modal-back'; b.style.cssText = 'position:fixed;inset:0;z-index:400';
-  b.innerHTML = `<div class="modal login-box" style="max-width:460px"><h3>Вход в профиль</h3>
-    <p class="st-note">Почта и пароль. Партии, колоды и награды из этого браузера добавятся в профиль.</p>
-    <label>Почта<input type="email" autocomplete="email" data-em></label>
-    <label>Пароль (не меньше 6 символов)<input type="password" autocomplete="current-password" data-pw></label>
+  // Canvas «Вход в профиль»: title and ✕, two tabs (Войти / Создать профиль), one gold button that follows the tab.
+  b.innerHTML = `<div class="modal login-box win-k" style="max-width:440px">
+    <div class="win-head"><h3>Профиль</h3><button class="win-x" data-close aria-label="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="k-tabs"><button class="on" data-tab="in">Войти</button><button data-tab="up">Создать профиль</button></div>
+    <p class="st-note">Колоды, награды и партии из этого браузера сохранятся и появятся на любом устройстве.</p>
+    <label>Почта<input type="email" autocomplete="email" placeholder="name@mail.ru" data-em></label>
+    <label>Пароль<input type="password" autocomplete="current-password" placeholder="не меньше 6 символов" data-pw></label>
     <p class="login-msg" data-msg></p>
-    <div class="row-btns"><button class="btn primary" data-in>Войти</button><button class="btn" data-up>Зарегистрироваться</button><button class="btn small" data-close>Отмена</button></div></div>`;
+    <button class="btn primary k-wide" data-go>Войти</button></div>`;
   document.body.appendChild(b);
   const $ = (s) => b.querySelector(s), msg = $('[data-msg]');
-  const go = async (fn) => {
+  let mode = 'in';
+  const go = async () => {
+    const fn = mode === 'in' ? signIn : signUp;
     const em = $('[data-em]').value.trim(), pw = $('[data-pw]').value;
     if (!/^\S+@\S+\.\S+$/.test(em)) { msg.textContent = 'Проверьте адрес почты.'; return; }
     if (pw.length < 6) { msg.textContent = 'Пароль слишком короткий: нужно не меньше 6 символов.'; return; }
@@ -233,9 +238,13 @@ export function loginDialog() {
       msg.textContent = 'Готово!'; setTimeout(() => location.reload(), 400);
     } catch (e) { msg.textContent = e.message; b.querySelectorAll('button').forEach((x) => { x.disabled = false; }); }
   };
-  $('[data-in]').onclick = () => go(signIn);
-  $('[data-up]').onclick = () => go(signUp);
-  $('[data-pw]').onkeydown = (e) => { if (e.key === 'Enter') go(signIn); };
+  b.querySelectorAll('[data-tab]').forEach((t) => { t.onclick = () => {
+    mode = t.dataset.tab; b.querySelectorAll('[data-tab]').forEach((x) => x.classList.toggle('on', x === t));
+    $('[data-go]').textContent = mode === 'in' ? 'Войти' : 'Создать профиль';
+    $('[data-pw]').autocomplete = mode === 'in' ? 'current-password' : 'new-password'; msg.textContent = '';
+  }; });
+  $('[data-go]').onclick = go;
+  $('[data-pw]').onkeydown = (e) => { if (e.key === 'Enter') go(); };
   $('[data-close]').onclick = () => b.remove();
   $('[data-em]').focus();
 }

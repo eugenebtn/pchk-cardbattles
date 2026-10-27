@@ -6,6 +6,9 @@ import { playerId } from '../net/ranking.js';
 const URL = 'https://fwwiwazpivgzfyqhgtsp.supabase.co/rest/v1/feedback';
 const KEY = 'sb_publishable_Ks5sPhKPZxt9B2yB4dirsA_3T_b4ims';
 const KINDS = [['bug', 'Ошибка', 'Что-то сработало не так, как написано на карте или в правилах'], ['idea', 'Идея', 'Что добавить или сделать удобнее'], ['review', 'Отзыв', 'Что понравилось, что нет'], ['rights', 'Правообладателю', 'Если вы автор или представитель и хотите, чтобы материал убрали']];
+// Icons and short titles for the four kinds (canvas «Написать разработчику»).
+const KIND_ICON = { bug: '<path d="M12 9v4M12 17h.01M10.3 3.9L2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>', idea: '<path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/>', review: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>', rights: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>' };
+const KIND_SHORT = { rights: 'Авторам' };
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 /** What was going on in the game, for a bug report. */
@@ -63,20 +66,23 @@ export async function openFeedback({ ui = null, name = '', kind = null } = {}) {
   const back = document.createElement('div');
   back.className = 'fb-back';
   back.innerHTML = `<div class="fb-win">
-    <h3>Написать разработчику</h3>
-    <div class="fb-kinds">${KINDS.map(([k, t, hint], i) => `<label class="fb-kind"><input type="radio" name="fbk" value="${k}" ${k === (kind || (inGame ? 'bug' : 'review')) ? 'checked' : ''}><b>${t}</b><small>${hint}</small></label>`).join('')}</div>
+    <div class="win-head"><h3>Написать разработчику</h3><button class="win-x" data-close aria-label="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="fb-kinds">${KINDS.map(([k, t, hint], i) => `<label class="fb-kind" title="${esc(hint)}"><input type="radio" name="fbk" value="${k}" data-hint="${esc(hint)}" ${k === (kind || (inGame ? 'bug' : 'review')) ? 'checked' : ''}><svg viewBox="0 0 24 24" aria-hidden="true">${KIND_ICON[k] || ''}</svg><b>${KIND_SHORT[k] || t}</b></label>`).join('')}</div>
+    <p class="fb-hint"></p>
     <textarea maxlength="4000" placeholder="Опишите, что случилось или что хотите предложить. Для ошибки: какая карта, что вы сделали и что ожидали."></textarea>
     <input class="fb-author" type="text" maxlength="60" value="${esc(name)}" placeholder="Ваше имя или контакт (необязательно)">
     ${shot ? `<label class="fb-shot"><input type="checkbox" checked> Приложить снимок экрана<img src="${shot}" alt="Снимок экрана"></label>` : ''}
     ${inGame ? '<label class="fb-ctx"><input type="checkbox" checked> Приложить ход текущей партии (Лидеры, поле, последние действия) — так ошибку проще найти</label>' : ''}
     <div class="fb-msg"></div>
-    <div class="fb-btns"><button class="fb-btn quiet" data-close>Отмена</button><button class="fb-btn" data-send>Отправить</button></div>
+    <div class="fb-btns"><button class="fb-btn quiet" data-cancel>Отмена</button><button class="fb-btn" data-send>Отправить</button></div>
   </div>`;
   document.body.appendChild(back);
   const ta = back.querySelector('textarea');
   setTimeout(() => ta.focus(), 50);
   const close = () => back.remove();
-  back.querySelector('[data-close]').onclick = close;
+  back.querySelectorAll('[data-close], [data-cancel]').forEach((x) => { x.onclick = close; });
+  const hint = () => { back.querySelector('.fb-hint').textContent = back.querySelector('input[name=fbk]:checked')?.dataset.hint || ''; };
+  back.querySelectorAll('input[name=fbk]').forEach((r) => r.addEventListener('change', hint)); hint();
   back.addEventListener('click', (e) => { if (e.target === back) close(); });
   back.querySelector('[data-send]').onclick = async () => {
     const text = ta.value.trim();

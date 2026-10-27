@@ -227,11 +227,16 @@ function shareBox(d) {
   const link = deckLink(d), code = encodeDeck(d);
   const b = document.createElement('div');
   b.className = 'modal-back'; b.style.cssText = 'position:fixed;inset:0;z-index:400';
-  b.innerHTML = `<div class="modal share-deck" style="max-width:560px;width:94vw"><h3>Поделиться колодой</h3>
-    <p style="margin:0 0 10px">Отправьте другу ссылку — колода «${esc(d.name || 'Моя колода')}» откроется у него в редакторе, и он сможет её сохранить. Или продиктуйте код: его вставляют в «Мои колоды» → «Колода по коду».</p>
-    <div class="link"><input readonly value="${esc(link)}"><button class="btn small primary" data-cl>Копировать ссылку</button></div>
-    <div class="link" style="margin-top:8px"><input readonly value="${esc(code)}"><button class="btn small" data-cc>Копировать код</button></div>
-    <div class="row-btns"><button class="btn" data-x>Закрыть</button></div></div>`;
+  // Canvas «Поделиться колодой»: the deck, one gold «Скопировать ссылку», then «или продиктуйте код».
+  const L = CARDS[d.leader], n = (d.cards || []).length;
+  const face = L?.img ? `background-image:url('assets/leaders/face/${d.leader}.webp'), url('${L.img}')` : '';
+  b.innerHTML = `<div class="modal share-deck win-k" style="max-width:520px;width:94vw">
+    <div class="win-head"><h3>Поделиться колодой</h3><button class="win-x" data-x aria-label="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="sd-deck"><i style="${face}"></i><div><b>${esc(d.name || 'Моя колода')}</b><small>${esc(L?.name?.split(',')[0] || '')}${n ? ` · ${n} карт` : ''}</small></div></div>
+    <button class="btn primary k-wide" data-cl>Скопировать ссылку</button>
+    <p class="st-note" style="text-align:center">Друг откроет ссылку — колода появится у него в редакторе</p>
+    <div class="sd-or"><span></span>или продиктуйте код<span></span></div>
+    <div class="sd-code"><b>${esc(code)}</b><button class="btn" data-cc>Копировать</button></div></div>`;
   document.body.appendChild(b);
   b.querySelector('[data-cl]').onclick = () => copy(link, 'Ссылка на колоду скопирована');
   b.querySelector('[data-cc]').onclick = () => copy(code, 'Код колоды скопирован');
