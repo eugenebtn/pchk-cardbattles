@@ -1,28 +1,31 @@
 // Two board layouts: wide (computer, tablet, phone held sideways) and tall (phone held upright).
 // All numbers are stage pixels; the stage is scaled to fit the window.
 
+// Board «Таверна В» (approved 2026-10-27, assets/ui/table_tavern.webp): every element stands in the socket painted for it —
+// the field in the big frame, Leaders in the round rings, companions and items on the shelves, decks and graveyards
+// in the card slots, the round ribbon and the turn seal in the right column, the log in its frame, abilities bottom left.
 export const LAND = {
   name: 'land', W: 1600, H: 900,
-  colX: (k) => 324 + k * 184, colW: 176,
-  ally: { w: 150, h: 182, dx: 13 }, place: { w: 160, h: 78, dx: 8 }, small: { w: 84, h: 106 }, leaderSize: { w: 170, h: 200 },
-  y: { oppPlace: 60, oppAlly: 146, myAlly: 382, myPlace: 578 },
-  // The battlefield is drawn as one big Place card around both sides.
-  field: [300, 44, 960, 640],
-  mats: { opp: [312, 56, 936, 300], me: [312, 372, 936, 300] },
-  midY: 355,
-  leader: { me: { x: 56, y: 524 }, opp: { x: 56, y: 14 } },
-  support: { me: { x: 24, y: 384, max: 256 }, opp: { x: 24, y: 266, max: 256 } },
-  piles: { myDeck: { x: 1300, y: 690 }, myGrave: { x: 1432, y: 690 }, oppDeck: { x: 1300, y: 104 }, oppGrave: { x: 1432, y: 104 } },
-  names: { me: { x: 60, y: 494 }, opp: { x: 92, y: 234 } },
-  coins: { me: { x: 232, y: 640 }, opp: { x: 232, y: 128 } },
-  round: { x: 1438, y: 262, seal: true }, // «Печать и ступени»: the round ribbon above the turn seal, the order of the round under it
-  end: { x: 1376, y: 300 },
-  powers: { x: 20, y: 756, w: 270, emote: { x: 238, y: 528 } },
-  hint: { x: 1296, y: 466, w: 284, h: 0 },
-  log: { x: 1288, y: 506, w: 300, h: 174 }, // the battle log takes the place of the old hint panel
-  hand: { y: 712, cardW: 160, cardH: 223, width: 780, cx: 780, step: 120 },
+  colX: (k) => 319 + k * 178, colW: 170,
+  ally: { w: 150, h: 182, dx: 13 }, place: { w: 160, h: 78, dx: 8 }, small: { w: 68, h: 76 }, leaderSize: { w: 170, h: 200 },
+  y: { oppPlace: 84, oppAlly: 168, myAlly: 358, myPlace: 546 },
+  // The battlefield is drawn as one big Place card inside the painted frame.
+  field: [315, 75, 888, 553],
+  mats: { opp: [325, 82, 868, 266], me: [325, 356, 868, 266] },
+  midY: 352,
+  leader: { me: { x: 78, y: 468 }, opp: { x: 78, y: 105 } },
+  support: { me: { x: 44, y: 381, max: 220 }, opp: { x: 44, y: 296, max: 220 } },
+  piles: { myDeck: { x: 1281, y: 655 }, myGrave: { x: 1400, y: 655 }, oppDeck: { x: 1281, y: 95 }, oppGrave: { x: 1400, y: 95 } },
+  names: { me: { x: 70, y: 456 }, opp: { x: 70, y: 272 } },
+  coins: { me: { x: 250, y: 584 }, opp: { x: 250, y: 222 } },
+  round: { x: 1396, y: 234, seal: true }, // «Печать и ступени»: the round ribbon above the turn seal, the order of the round under it
+  end: { x: 1334, y: 281 },
+  powers: { x: 24, y: 664, w: 266, emote: { x: 262, y: 478 } },
+  hint: { x: 1265, y: 470, w: 275, h: 0 },
+  log: { x: 1265, y: 481, w: 275, h: 144 }, // the battle log in its painted frame
+  hand: { y: 712, cardW: 160, cardH: 223, width: 780, cx: 759, step: 120 },
   oppHand: { y: -92, cx: 1130, step: 26, width: 160 },
-  stageCard: { x: 630, y: 160 }, // the played card is shown in the middle of the field, clear of the right column
+  stageCard: { x: 600, y: 180 }, // the played card is shown in the middle of the field, clear of the right column
   torches: [],
   bannerY: 330,
   regionLabel: false,

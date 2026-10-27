@@ -310,3 +310,11 @@ html body #game .prompt .btn.small.cancel { color: var(--t-cream) !important; te
 #stage.land .opts-pop { right: 330px; top: 60px; background: rgba(22, 13, 7, .96) !important; border: 1px solid var(--t-line) !important; border-radius: 16px !important; grid-template-columns: 1fr 1fr; width: 560px; }
 #stage.land .opts-pop .btn { font-size: 16px !important; padding: 10px 14px !important; }
 #stage.land .opts-pop #btn-menu { grid-column: 1 / -1; }
+
+/* ---------- step 5: board «Таверна В» on wide screens (phones keep their table until the tall version is ready) ---------- */
+#game #stage.land #board, #stage.land #board { background: url('../assets/ui/table_tavern.webp?v=2') center / cover no-repeat, #2a170b !important; }
+#stage.land #board::after { opacity: .35; }
+#stage.land #board .field { background: transparent !important; box-shadow: none !important; }
+#stage.land #board .field::after { display: none !important; }
+#stage.land #board .field-art, #stage.land #board .field-shade { inset: 0 !important; border-radius: 6px !important; }
+#stage.land #board .pile { transform: scale(.78); transform-origin: 0 0; }
