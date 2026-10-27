@@ -310,3 +310,77 @@ html body #game .prompt .btn.small.cancel { color: var(--t-cream) !important; te
 #stage.land .opts-pop { right: 330px; top: 60px; background: rgba(22, 13, 7, .96) !important; border: 1px solid var(--t-line) !important; border-radius: 16px !important; grid-template-columns: 1fr 1fr; width: 560px; }
 #stage.land .opts-pop .btn { font-size: 16px !important; padding: 10px 14px !important; }
 #stage.land .opts-pop #btn-menu { grid-column: 1 / -1; }
+
+/* ---------- «Колода компьютера», variant B (Eugene 2026-10-27): the card with the whole painting fills the height, Leaders in a column on the left, «В бой» under the card; phones: Leaders in a row on top, no big painting, difficulty and «В бой» on the first screen ---------- */
+/* shared: card fills the height (undo the compact tweaks of 9b18dde) */
+#heroes .hero-select.with-level { display: flex !important; flex-direction: column; height: 100vh; box-sizing: border-box; padding: 10px 18px 10px !important; max-width: none !important; min-height: 0 !important; }
+#heroes .hero-select.with-level .hs-step, #heroes .hero-select.with-level .hs-title, #heroes .hero-select.with-level .hs-chosen { flex: none; }
+#heroes .hero-select.with-level .hs-title { font-size: 26px !important; margin: 0 !important; }
+#heroes .hero-select.with-level .hs-keys, #heroes .hero-select.with-level .hs-more { display: none !important; }
+@media (max-width: 760px) {
+  #heroes .hero-select { height: auto; min-height: 100vh; padding: 56px 10px 0 !important; }
+  #heroes .hero-select .hs-roster { order: 3; flex-wrap: nowrap !important; overflow-x: auto; justify-content: flex-start !important; gap: 10px !important; padding: 4px 2px 6px; margin: 6px 0 0 !important; }
+  #heroes .hero-select .hs-medal { flex: none; width: 44px !important; font-size: 10px; line-height: 1.1; overflow-wrap: anywhere; }
+  #heroes .hero-select .hs-medal .m { width: 40px !important; height: 40px !important; }
+  #heroes .hero-select .hs-medal .tag { display: none; }
+  #heroes .hero-select .hs-main { order: 4; }
+  #heroes .hero-select .hs-portrait { display: none !important; }
+  #heroes .hero-select .hs-plain, #heroes .hero-select .hs-style { display: none !important; }
+  #heroes .hero-select .hs-name { font-size: 26px !important; }
+  #heroes .hero-select .hs-bar { order: 9; position: sticky !important; bottom: 0; margin: 8px -10px 0 !important; padding: 10px 10px calc(10px + env(safe-area-inset-bottom)) !important; background: rgba(14, 8, 4, .96) !important; }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  #heroes .hero-select { padding-top: 6px !important; }
+  #heroes .hero-select .hs-step, #heroes .hero-select .hs-chosen { display: none !important; }
+  #heroes .hero-select .hs-plain, #heroes .hero-select .hs-style, #heroes .hero-select .hs-row { display: none !important; }
+  #heroes .hero-select .hs-medal .m { width: 40px !important; height: 40px !important; }
+  #heroes .hero-select .hs-bar .hs-go { height: 44px; }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  #heroes .hero-select .hs-title { font-size: 20px !important; margin-left: 120px !important; text-align: left !important; }
+  #heroes .hero-select .hs-roster { flex-wrap: nowrap !important; overflow-x: auto; justify-content: flex-start !important; gap: 8px !important; margin: 4px 0 0 !important; padding: 0 !important; background: none !important; flex: none; }
+  #heroes .hero-select .hs-medal { flex: none; width: 86px !important; font-size: 11px !important; }
+  #heroes .hero-select .hs-medal .m { width: 36px !important; height: 36px !important; }
+  #heroes .hero-select .hs-name { font-size: 22px !important; margin: 0 !important; }
+  #heroes .hero-select .hs-sub { display: none !important; }
+  #heroes .hero-select .hs-info .hs-level { margin-top: 6px !important; }
+  #heroes .hero-select .hs-main { padding-top: 8px !important; padding-bottom: 8px !important; }
+  #heroes .hero-select .hs-bar { margin-top: 4px !important; }
+}
+/* B: Leaders in a column on the left; the card fills the rest; the go button under the card */
+@media (min-width: 761px) and (min-height: 501px) {
+  #heroes .hero-select.with-level { display: grid !important; grid-template-columns: 112px 1fr; grid-template-rows: auto auto 1fr auto; column-gap: 16px; }
+  #heroes .hero-select.with-level .hs-step, #heroes .hero-select.with-level .hs-title, #heroes .hero-select.with-level .hs-chosen { grid-column: 1 / -1; justify-self: center; }
+  #heroes .hero-select.with-level .hs-roster { grid-column: 1; grid-row: 3 / 5; display: flex !important; flex-direction: column; flex-wrap: nowrap !important; overflow-y: auto; gap: 4px !important; margin: 8px 0 0 !important; justify-content: flex-start !important; }
+  #heroes .hero-select.with-level .hs-medal { width: 100px !important; font-size: 12px; }
+  #heroes .hero-select.with-level .hs-medal .m { width: 50px !important; height: 50px !important; }
+  #heroes .hero-select.with-level .hs-main { grid-column: 2; grid-row: 3; min-height: 0 !important; margin: 8px 0 0; padding: 18px 28px 18px 0 !important; }
+  #heroes .hero-select.with-level .hs-portrait.art { width: 60% !important; background-position: center 18% !important; }
+  #heroes .hero-select.with-level .hs-info { margin-left: 50%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; padding: 0 0 0 26px !important; }
+  #heroes .hero-select.with-level .hs-bar { grid-column: 2; grid-row: 4; margin: 10px 0 0 !important; padding: 0 !important; }
+  #heroes .hero-select.with-level .hs-bar .hs-go { min-width: 340px; height: 56px; }
+}
+@media (min-width: 761px) and (min-height: 501px) { #heroes .hero-select.with-level .hs-step { grid-row: 1; } #heroes .hero-select.with-level .hs-title { grid-row: 2; } #heroes .hero-select.with-level .hs-chosen { display: none !important; } }
+/* QA notes on step 3: Настройки fit 768 px high; phone touch targets 44 px; the deck code on phones in fewer lines */
+@media (max-height: 820px) { #menu.mv .menu-opts { gap: 2px; padding-top: 16px !important; padding-bottom: 16px !important; } #menu.mv .menu-opts .k-row { min-height: 40px; } #menu.mv .menu-opts .k-vols .k-row { min-height: 32px; } #menu.mv .menu-opts .k-sec { margin-top: 4px; } }
+@media (max-width: 760px) {
+  .win-x, #menu.mv .menu-opts .mo-close { width: 44px !important; height: 44px !important; }
+  #menu.mv .menu-opts .k-row, #menu.mv .menu-opts .k-vols .k-row { min-height: 44px; }
+  .share-deck .sd-code b { font-size: 12px; letter-spacing: 0; }
+}
+@media (max-width: 760px) { #heroes .hero-select .hs-roster { gap: 3px !important; } #heroes .hero-select .hs-medal { width: 40px !important; } #heroes .hero-select .hs-medal .m { width: 38px !important; height: 38px !important; } }
+/* phone held sideways: one column, Leaders in a row, the painting as a narrow strip */
+@media (max-height: 500px) and (orientation: landscape) {
+  #heroes .hero-select, #heroes .hero-select.with-level { display: flex !important; flex-direction: column; height: 100vh; box-sizing: border-box; padding: 6px 10px 6px !important; }
+  #heroes .hero-select .hs-roster { order: 3; flex-wrap: nowrap !important; justify-content: center !important; gap: 2px !important; overflow-x: auto; flex: none; }
+  #heroes .hero-select .hs-medal { width: 78px !important; }
+  #heroes .hero-select .hs-main { order: 2; flex: 1; min-height: 0 !important; margin: 4px 0 0 !important; padding: 8px 14px 8px 0 !important; }
+  #heroes .hero-select .hs-portrait.art { width: 44% !important; }
+  #heroes .hero-select .hs-info { margin-left: 38% !important; }
+  #heroes .hero-select .hs-plain, #heroes .hero-select .hs-style, #heroes .hero-select .hs-keys, #heroes .hero-select .hs-more { display: none !important; }
+  #heroes .hero-select .hs-title { order: 1; margin-left: 120px !important; text-align: left !important; font-size: 20px !important; }
+  #heroes .hero-select .hs-bar { order: 4; flex: none; margin: 4px 0 0 !important; padding: 0 !important; position: static !important; background: none !important; }
+  #heroes .hero-select .hs-bar .hs-go { height: 44px; min-width: 260px; }
+}
+@media (max-height: 500px) and (orientation: landscape) { #heroes .hero-select.with-level .hs-title, #heroes .hero-select .hs-title { padding-left: 130px; margin-left: 0 !important; text-align: left !important; } }
+@media (max-width: 760px) { #heroes .hero-select .hs-medal { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; } }
