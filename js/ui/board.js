@@ -811,13 +811,14 @@ export class BoardUI {
     this.board.appendChild(g);
     const tags = [g];
     const tag = (pt, cls, html) => { const t = document.createElement('div'); t.className = cls; t.style.left = pt.x + 'px'; t.style.top = pt.y + 'px'; t.innerHTML = html; this.board.appendChild(t); tags.push(t); return t; };
-    if (to && amount) tag({ x: to.x, y: to.y - (this.els.get(q.to)?.offsetHeight || 160) / 2 - 18 }, 'dg-tag dg-blow-tag', `−${amount}`);
+    const port = this.L.name === 'port', toEl = this.els.get(q.to);
+    if (to && amount) tag(port ? { x: to.x + (toEl?.offsetWidth || 120) / 2 + 40, y: to.y } : { x: to.x, y: to.y - (toEl?.offsetHeight || 160) / 2 - 18 }, 'dg-tag dg-blow-tag', `−${amount}`);
     for (const o of q.options) {
       const el = this.els.get(o.id), c = this.findCard(o.id), pt = this.pointOf(o.id);
       if (!el || !c || !pt) continue;
       const hp = c.hp ?? 0, left = Math.max(0, hp - amount);
       const h2 = (el.offsetHeight || 180) / 2;
-      tag({ x: pt.x, y: pt.y + h2 + 20 }, 'dg-tag dg-res' + (left === 0 ? ' dies' : ''), left === 0 ? `${hp} → погибнет` : `${hp} → ${left}`);
+      tag({ x: pt.x, y: pt.y + (port ? h2 * 0.62 : h2 + 20) }, 'dg-tag dg-res' + (left === 0 ? ' dies' : ''), left === 0 ? `${hp} → погибнет` : `${hp} → ${left}`);
       let gold = null, sh = null;
       const on = () => { if (from) gold = arc(from, pt, 'dg-save'); sh = tag({ x: pt.x, y: pt.y - h2 * 0.35 }, 'dg-shield', '<svg viewBox="0 0 24 26"><path d="M12 1l10 4v7c0 6.5-4.3 11-10 13C6.3 23 2 18.5 2 12V5z"/></svg>'); el.classList.add('dg-pick'); };
       const off = () => { gold?.remove(); sh?.remove(); el.classList.remove('dg-pick'); };
@@ -1086,7 +1087,7 @@ export class BoardUI {
     const sides = opts.some((o) => o.kind === 'play' && o.side !== this.cardIdOf(uid)) || new Set(opts.filter((o) => o.kind === 'play').map((o) => o.side)).size > 1;
     const title = sides ? 'Какую сторону карты разыграть?' : `Что сделать с «${esc(CARDS[this.cardIdOf(uid)]?.name.split(',')[0] || '')}»?`;
     this.modal(`<h3>${title}</h3><div class="choice-row">${opts.map((o, k) => this.choiceCardHtml(o, uid, k)).join('')}</div>
-      <div class="row-btns"><button class="btn danger" data-cancel>Отмена</button></div>`, (m) => {
+      <div class="row-btns"><button class="btn" data-cancel>Отмена</button></div>`, (m) => {
       m.querySelector('.modal').classList.add('choice-modal');
       m.querySelectorAll('.choice-card').forEach((b) => b.addEventListener('click', () => { const k = Number(b.dataset.k); this.closeModal(); sfx.click(); this.answer(opts[k].id); }));
       m.querySelector('[data-cancel]').addEventListener('click', () => this.closeModal());
@@ -1646,7 +1647,7 @@ ${optHtml}</div></div>
     const sel = new Set();
     const html = `<h3>${esc(q.prompt)}</h3>
       <div class="cards">${ids.map((c) => `<div class="mcard" data-uid="${c.uid}" style="background-image:url('${CARDS[c.id]?.img || ''}')">${CARDS[c.id]?.img ? '' : `<div class="gen-card" style="width:100%;height:100%;font-size:18px">${esc(CARDS[c.id]?.name || '?')}</div>`}</div>`).join('')}</div>
-      <div class="row-btns">${single ? '' : `<button class="btn primary" data-ok>Готово</button>`}${q.cancel ? '<button class="btn danger" data-cancel>Отмена</button>' : ''}</div>
+      <div class="row-btns">${single ? '' : `<button class="btn primary" data-ok>Готово</button>`}${q.cancel ? '<button class="btn" data-cancel>Отмена</button>' : ''}</div>
       <p style="color:var(--ink-dim);margin:8px 0 0">${single ? 'Выберите карту' : `Выберите от ${min} до ${max}`}</p>`;
     this.modal(html, (m) => {
       const ok = m.querySelector('[data-ok]');

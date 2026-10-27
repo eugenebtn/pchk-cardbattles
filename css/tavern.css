@@ -141,3 +141,9 @@ input[type=checkbox], input[type=radio], input[type=range] { accent-color: var(-
 #board .dg-shield svg { width: 100%; height: 100%; fill: #f2cd6b; stroke: #160c06; stroke-width: 1.4; filter: drop-shadow(0 0 10px rgba(255, 200, 90, .8)); }
 @keyframes dg-pop { from { transform: translate(-50%, -30%) scale(.5); opacity: 0; } }
 #board .card.dg-pick { box-shadow: 0 0 0 4px #f2cd6b, 0 0 30px rgba(255, 200, 90, .8) !important; }
+/* «Отмена» in a game question is a refusal, not something irreversible: glass, not red (QA UI note) */
+html body #game .prompt .btn.small.cancel { color: var(--t-cream) !important; text-shadow: none; background: rgba(22, 13, 7, .9) !important; border: 1px solid var(--t-line-hi) !important;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, .55) !important; animation: none !important; }
+/* phones: the «−N» sits beside the Leader (not on the round plate above it); the result sits on the card's lower edge, not on the Place under it */
+#stage.port #board .dg-blow-tag { font-size: 30px; }
+#stage.port #board .dg-res { font-size: 22px; padding: 2px 8px; }
