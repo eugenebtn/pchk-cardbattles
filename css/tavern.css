@@ -384,3 +384,9 @@ html body #game .prompt .btn.small.cancel { color: var(--t-cream) !important; te
 }
 @media (max-height: 500px) and (orientation: landscape) { #heroes .hero-select.with-level .hs-title, #heroes .hero-select .hs-title { padding-left: 130px; margin-left: 0 !important; text-align: left !important; } }
 @media (max-width: 760px) { #heroes .hero-select .hs-medal { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; } }
+
+/* ---------- menu and window background: the tavern hall with the fireplace (Eugene 2026-10-27) ---------- */
+.mv-art { background-image: url('../assets/ui/menu_hall.webp') !important; background-position: 70% center !important; }
+.mv-art.leader-art { background-position: 70% center !important; }
+#scene::before { background-image: url('../assets/ui/menu_hall.webp') !important; background-position: 60% center !important; }
+@media (max-width: 760px) { .mv-art { background: #120a05 url('../assets/ui/menu_hall.webp') 72% top / auto 62vh no-repeat !important; } }

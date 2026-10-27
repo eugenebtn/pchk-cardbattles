@@ -980,11 +980,12 @@ function drawDaily() {
   box.innerHTML = `<span class="dl-ico">${d.done ? '✓' : '📜'}</span><span><b>Задание дня</b>${esc(d.task.text)}<br><span class="dl-st">${d.done ? '✓ Выполнено сегодня' : 'Ещё не выполнено'}</span>${d.streak > 1 ? ` · дней подряд: ${d.streak}` : ''}</span>`;
 }
 drawDaily();
-// The menu picture: another one each time the menu is entered (the title art, then each Leader's painting), then it stays.
+// The menu picture.
 function pickMenuArt() {
   const art = document.querySelector('#menu .mv-art'); if (!art || !matchMedia('(min-width: 761px)').matches) return;
-  const pics = ['assets/ui/menu_art.webp', ...[20, 41, 62, 63, 117, 118].map((id) => `assets/leaders/${id}.webp`)];
-  const k = (store.get('menuArt', -1) + 1) % pics.length; store.set('menuArt', k);
+  // Eugene 2026-10-27: the tavern hall with the fireplace (assets/ui/menu_hall.webp) for the menu and the windows, every time.
+  const pics = ['assets/ui/menu_hall.webp'];
+  const k = 0;
   art.style.backgroundImage = `url('${pics[k]}')`;
   // A Leader's painting has the hero in the middle: move the picture right, so the hero stands beside the buttons, not behind them.
   art.classList.toggle('leader-art', k > 0);
