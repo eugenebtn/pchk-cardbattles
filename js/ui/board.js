@@ -1121,7 +1121,7 @@ export class BoardUI {
       const opt = q && (q.type === 'main' || q.type === 'priority') ? q.options.find((o) => o.id === `ab:${L.uid}:${k}`) : null;
       const why = opt ? 'Нажмите, чтобы использовать.' : (q ? 'Сейчас нельзя: не хватает ресурсов, нет подходящей цели или не ваш момент.' : 'Можно использовать в свой ход.');
       return `<button class="power ${opt ? 'ready' : ''}" data-k="${k}" data-tip="${esc(a.name)} — ${esc(costText(a.cost))}|${a.fast ? '⚡ С Опережением: можно и в ход соперника. ' : ''}${why}">
-        <span class="pw-ico">${a.fast ? ICON.bolt : ICON.crown}</span><span class="pw-name">${esc(a.name)}</span><span class="pw-cost">${esc(costText(a.cost))}</span></button>`;
+        <span class="pw-ico">${a.fast ? ICON.bolt : ICON.crown}</span><span class="pw-name${L.id === 1004 ? ' pw-name-wrap' : ''}">${esc(a.name)}</span><span class="pw-cost">${esc(costText(a.cost))}</span></button>`;
     }).join('');
     el.querySelectorAll('.power').forEach((b) => b.addEventListener('click', (e) => {
       e.stopPropagation();

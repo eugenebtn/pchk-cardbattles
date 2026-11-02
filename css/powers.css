@@ -6,6 +6,7 @@
 .power .pw-ico { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 35% 30%, #5a3a22, #1a0e06); border: 1.5px solid #8a6328; }
 .power .pw-ico .ico { width: 18px; height: 18px; }
 .power .pw-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.power .pw-name.pw-name-wrap { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.05; }
 .power .pw-cost { font-family: var(--font-ui); font-size: 14px; color: #ffe08a; white-space: nowrap; }
 .power.ready { filter: none; color: #fff4d6; border-color: #59b6ff; box-shadow: 0 0 0 1px #0d2740, 0 0 18px rgba(89, 182, 255, .75), 0 6px 14px rgba(0, 0, 0, .6); animation: powerglow 1.2s ease-in-out infinite alternate; }
 .power.ready .pw-ico { background: radial-gradient(circle at 35% 30%, #cfeaff, #3c8fd9 55%, #0d3a66); border-color: #bfe4ff; }
