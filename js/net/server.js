@@ -64,12 +64,13 @@ export function connectRoom(code, hello, { onMessage, onState } = {}) {
 }
 
 /** «Найти соперника»: waits in the queue; onMatch(code, opponentName), onQueue(n). */
-export function findMatch(name, { onMatch, onQueue, onError, rated = true } = {}) {
+export function findMatch(name, { onMatch, onQueue, onError, rated = true, deck } = {}) {
   const ws = new WebSocket(wsUrl('/ws/lobby'));
   let done = false;
-  ws.onopen = () => ws.send(JSON.stringify({ t: 'find', name, rated })); // players are paired only with the same choice
+  ws.onopen = () => ws.send(JSON.stringify({ t: 'find', name, rated, deck })); // players are paired only with the same choice
   ws.onmessage = (e) => {
     const m = JSON.parse(e.data);
+    if (m.t === 'error') { onError && onError(m.text); try { ws.close(); } catch { /* closed */ } }
     if (m.t === 'queue') onQueue && onQueue(m.n);
     if (m.t === 'match') { done = true; onMatch && onMatch(m.code, m.vs); }
   };
@@ -96,3 +97,4 @@ export async function roomStatus(code) {
 }
 /** This browser already has a seat in that room (it can come back to a game in progress). */
 export function hasSeat(code) { try { return !!localStorage.getItem('pchk_tok_' + code); } catch { return false; } }
+

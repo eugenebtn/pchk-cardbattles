@@ -29,7 +29,7 @@ export async function submitResult(r) {
   // Test runs on this computer (local copy of the site, headless screenshots) must not land in the world ranking.
   if (isLocal()) return false;
   // Check both players, including mixed decks with an ordinary Leader.
-  if (isExperimentalDeck(r) || isExperimentalDeck({ leader: r.oppLeader, cards: r.oppCards })
+  if (isExperimentalDeck({ leader: r.leader, cards: r.cards }) || isExperimentalDeck({ leader: r.oppLeader, cards: r.oppCards })
       || isExperimentalDeck(r.opponent) || isExperimentalDeck(typeof r.oppDeck === 'object' ? r.oppDeck : null)) return false;
   try {
     const row = {
@@ -101,4 +101,5 @@ export async function publishDeck(d, author) {
     body: JSON.stringify({ player_id: playerId(), author: String(author || 'Игрок').slice(0, 24), name: String(d.name || 'Колода').slice(0, 40), leader: d.leader, cards: d.cards.slice(0, 80) }) });
   return res.ok;
 }
+
 

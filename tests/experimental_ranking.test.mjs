@@ -5,6 +5,7 @@ test('Experimental decks on either side never submit to ranking, ordinary decks 
  let calls=0;const orig=globalThis.fetch;globalThis.fetch=async()=>{calls++;return {ok:true};};
  try {
   for(const r of [{leader:1001},{leader:20,cards:[1011]},{leader:20,oppLeader:1002},{leader:20,oppCards:[1051]},{leader:20,opponent:{leader:20,cards:[1011]}},{leader:20,oppDeck:{leader:1004}}]) assert.equal(await submitResult(r),false);
-  assert.equal(calls,0);assert.equal(await submitResult({leader:20,cards:[9],oppLeader:117}),true);assert.equal(calls,1);
+  assert.equal(calls,0);assert.equal(await submitResult({leader:20,cards:[9],oppLeader:117}),true);assert.equal(calls,1);assert.equal(await submitResult({deck:'София',leader:118,oppDeck:'Лариса'}),true);assert.equal(calls,2);assert.equal(await submitResult({deck:'Опытная',leader:1001}),false);assert.equal(calls,2);
  } finally {globalThis.fetch=orig;}
 });
+

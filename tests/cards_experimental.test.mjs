@@ -2,7 +2,7 @@ import {makeGame,put,addGrave,toMain,test,eq,ok,done,defaultAnswer,useAbility,an
 import S from '../js/cards/experimental.js';
 import {EXPERIMENTAL_CARDS} from '../js/data/experimental.js';
 const game=(leader=1004)=>makeGame({p0:{leader},p1:{leader:1004}});
-function drive(gen,answers=[]) {let r=gen.next(),n=0;while(!r.done){if(++n>100)throw Error('loop');r=gen.next(answers.length?answers.shift():defaultAnswer(r.value));}return r.value;}
+function drive(gen,answers=[]) {let r=gen.next(),n=0;while(!r.done){if(++n>100)throw Error('loop');r=gen.next(answers.length?answers.shift():(r.value.type==='order'?r.value.options.map(o=>o.id):defaultAnswer(r.value)));}return r.value;}
 const enter=(g,c,a=[])=>drive(g.script(c).onEnter(g,c),a);
 const effect=(g,id,ts=[])=>drive(S[id].effect(g,{self:g.newInst(id,0,'stack'),player:0,targets:ts.map(c=>c.uid)}));
 test('All 45 definitions have scripts',()=>{eq(Object.keys(EXPERIMENTAL_CARDS).length,45);for(const id of Object.keys(EXPERIMENTAL_CARDS))ok(S[id],id);});
@@ -44,6 +44,7 @@ test('Talala draw costs three goods',()=>{const g=game(1001),l=g.leader(0);l.tok
 test('Dudush wounds a dwarf; Antoshka draws after destruction',()=>{const g=game(),a=put(g,1,1032,0);enter(g,put(g,0,1032,0),[a.uid]);eq(a.zone,'grave');drive(g.destroy(put(g,0,1074,1)));eq(g.P(0).hand.length,1);});
 test('Bitkhoven retaliates only into former region',()=>{const g=game(),a=put(g,1,1031,0),b=put(g,1,1031,1);drive(g.destroy(put(g,0,1071,0)),[a.uid]);eq(a.dmg,1);eq(b.dmg,0);});
 done();
+
 
 
 

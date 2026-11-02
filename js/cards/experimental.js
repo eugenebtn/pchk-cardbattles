@@ -49,14 +49,25 @@ const S = {
   1012: {
     *onEnter(g, s) { const t = yield* pick(g, s, spec('ally', 'own'), 'Прикрепите меч к вашему Союзнику'); if (t) { s.equip = t.uid; g.emit('equip', { uid: s.uid, tgt: t.uid }); } },
     static: { atk: (g,s,c) => s.equip === c.uid ? 2 : 0, hp: (g,s,c) => s.equip === c.uid ? 1 : 0 },
-    equipOn: { *destroyed(g, s, wearer, e) { if (wearer && e.by === wearer && enemyDeath(g,s,e)) yield* g.heal(g.leader(s.ctrl), 2, s); } },
+    on: { *destroyed(g,s,e) { if (enemyDeath(g,s,e) && (e.killerEquipment?.includes(s.uid) || (s.equip && e.by?.uid === s.equip))) yield* g.heal(g.leader(s.ctrl),2,s); } },
   },
   1013: { on: { *destroyed(g,s,e) { if (enemyDeath(g,s,e)) yield* g.gainCoins(s.ctrl,1,s); } } },
   1014: enterStun((g,c) => price(g,c) <= 3),
   1015: { static: { atk(g,s,c) { const enemy = g.allyAt(1-s.ctrl,s.region); return c === s && enemy && undead(g,enemy) ? 2 : 0; } } },
   1016: { abilities: [{ name: 'Вызвать Ангела', fast: true, cost: { selfDestroy: true }, can: (g,s) => g.allyRegions(s.ctrl, { ...s, id:1091 },1091).length > 0, *effect(g,c) { yield* g.create(c.player,1091); } }] },
   1017: { on: { *enter(g,s,e) { if (e.inst.ctrl !== s.ctrl && ally(g,e.inst) && e.inst.region === s.region) yield* g.damage(s,e.inst,1); } } },
-  1018: { *onEnter(g,s) { yield* g.draw(s.ctrl,1); yield* g.plan(s.ctrl,2); } },
+  1018: { *onEnter(g,s) {
+    yield* g.draw(s.ctrl,1);
+    const p=g.P(s.ctrl),top=p.deck.slice(0,2);
+    yield* g.plan(s.ctrl,2);
+    const rest=top.filter(c=>p.deck.includes(c));
+    if(rest.length>1) {
+      const ids=yield* g.ask(s.ctrl,{type:'order',prompt:'Лосик: порядок верхних карт (первая — выше)',options:rest.map(c=>({id:c.uid,cardId:c.id})),reveal:true});
+      const ordered=[...new Set([...ids.map(uid=>rest.find(c=>c.uid===uid)).filter(Boolean),...rest])];
+      for(const c of rest) g.removeFromZone(c);
+      p.deck.unshift(...ordered);
+    }
+  } },
   1019: { on: { turnStart: income(1) }, static: { atk: (g,s,c) => c.ctrl !== s.ctrl && ally(g,c) && c.region === s.region ? -1 : 0 } },
   1020: { *onDestroyed(g,s,e) { const cards = yield* g.pickFrom(e.ctrl,g.P(e.ctrl).grave.filter(c => ally(g,c)),{min:0,max:2,prompt:'Портал на небеса: до двух Союзников в руку'}); for (const c of cards) yield* g.toHand(c); yield* g.heal(g.leader(e.ctrl),3,s); } },
   1031: { *onEnter(g,s) { yield* area(g,s,s.region,1); } },
@@ -92,6 +103,7 @@ const S = {
   1091: { static: { kw: (g,s,c,kw) => c === s && kw === 'ward' } },
 };
 export default S;
+
 
 
 

@@ -1151,7 +1151,7 @@ export class Game {
   }
   *dies(c, by) {
     const sc = this.script(c);
-    const info = { inst: c, by, region: c.region, ctrl: c.ctrl, atk: this.atk(c), cost: this.def(c).cost, baseHp: this.def(c).hp };
+    const info = { inst: c, by, region: c.region, ctrl: c.ctrl, atk: this.atk(c), cost: this.def(c).cost, baseHp: this.def(c).hp, killerEquipment: c.x.killerEquipment };
     this.emit('death', { uid: c.uid, log: `«${this.name(c)}» погибает.` });
     if (sc.beforeDestroyed) { const r = yield* sc.beforeDestroyed(this, c, info); if (r === 'prevented') return; }
     if (c.x.exileOnDeath) { yield* this.exile(c); info.exiled = true; }
@@ -1200,6 +1200,8 @@ export class Game {
     this.emit('damage', { src: src?.uid, tgt: tgt.uid, amount: dealt, combat: !!opts.combat, fxName: opts.fx, log: opts.log ? opts.log(dealt) : `${src ? `«${this.name(src)}»` : 'Эффект'} наносит ${dealt} ран «${this.name(tgt)}».` });
     // Deathtouch (only from combat/fight damage of an ally with the keyword).
     if (src && dealt > 0 && type !== 'leader' && (opts.combat || opts.fight) && this.has(src, 'deathtouch') && !this.has(tgt, 'indestructible')) tgt.x.deathMark = true;
+    // Preserve the killing striker's equipment even if simultaneous wounds kill it first.
+    if (src && (this.hp(tgt) <= 0 || tgt.x.deathMark)) tgt.x.killerEquipment = this.items().filter(it => it.equip === src.uid).map(it => it.uid);
     if (opts.defer) opts.defer.push(ev);
     else {
       yield* this.trigger('damage', ev);
@@ -1624,3 +1626,4 @@ export class Game {
     };
   }
 }
+
