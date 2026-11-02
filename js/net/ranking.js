@@ -1,3 +1,4 @@
+import { isExperimentalDeck } from '../data/experimental.js';
 // World ranking: finished games go to a shared Supabase table (free project made by Eugene).
 // The publishable key is public by design; the table only allows adding and reading rows (see tools/ranking.sql).
 const URL = 'https://fwwiwazpivgzfyqhgtsp.supabase.co/rest/v1/';
@@ -27,6 +28,9 @@ export function isLocal(loc = globalThis.location) {
 export async function submitResult(r) {
   // Test runs on this computer (local copy of the site, headless screenshots) must not land in the world ranking.
   if (isLocal()) return false;
+  // Check both players, including mixed decks with an ordinary Leader.
+  if (isExperimentalDeck(r) || isExperimentalDeck({ leader: r.oppLeader, cards: r.oppCards })
+      || isExperimentalDeck(r.opponent) || isExperimentalDeck(typeof r.oppDeck === 'object' ? r.oppDeck : null)) return false;
   try {
     const row = {
       player_id: playerId(), player_name: String(r.name || 'Игрок').slice(0, 24), deck: String(r.deck || '').slice(0, 40), leader: r.leader ?? null,
@@ -97,3 +101,4 @@ export async function publishDeck(d, author) {
     body: JSON.stringify({ player_id: playerId(), author: String(author || 'Игрок').slice(0, 24), name: String(d.name || 'Колода').slice(0, 40), leader: d.leader, cards: d.cards.slice(0, 80) }) });
   return res.ok;
 }
+
