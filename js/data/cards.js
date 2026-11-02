@@ -181,3 +181,9 @@ export const CARDS = {"1":{"id":1,"name":"Дварф по имени Дейн","
 "378":{"id":378,"name":"Рубака преисподней","type":"ally","subtypes":["ДЕМОН","ВОИН"],"cost":6,"atk":4,"hp":4,"kw":["breakthrough"],"legend":false,"talk":[],"rarity":"Бронза","deck":"set1_other","num":"#295","img":"assets/cards/set1_other_card_295.webp","text":"Адский клинок — Когда эта карта появляется на поле, нанесите 3 раны вашему Лидеру, затем уничтожьте вражеского Союзника стоимостью 3 💰 или меньше.","flavor":"Они не сдадутся, Сфинктерион. Никогда!","back":null,"alt":null,"token":false},
 "901":{"cost":null,"legend":false,"talk":[],"rarity":null,"deck":"tokens","num":null,"img":null,"flavor":"","back":null,"alt":null,"token":true,"id":901,"name":"Шут","type":"ally","subtypes":["ЧЕЛОВЕК","АРТИСТ"],"atk":1,"hp":1,"kw":["created"],"text":"Созданная."},
 "902":{"cost":null,"legend":false,"talk":[],"rarity":null,"deck":"tokens","num":null,"img":null,"flavor":"","back":null,"alt":null,"token":true,"id":902,"name":"Речной гном","type":"ally","subtypes":["ГНОМ","ПЛУТ"],"atk":2,"hp":2,"kw":["created"],"text":"Созданная."}};
+
+import { EXPERIMENTAL_CARDS } from './experimental.js';
+Object.assign(CARDS, EXPERIMENTAL_CARDS);
+
+import { OFFICIAL_202611_CARDS } from './official202611.js';
+Object.assign(CARDS, OFFICIAL_202611_CARDS);

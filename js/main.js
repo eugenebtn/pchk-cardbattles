@@ -11,6 +11,7 @@ import { checkDaily, dailyState } from './ui/daily.js';
 import { levelAnswer, LEVEL_RU, adaptiveLevel, adaptiveAfterGame } from './engine/botlevels.js';
 import { CARDS } from './data/cards.js';
 import { DECKS } from './data/decks.js';
+import { isExperimentalDeck } from './data/experimental.js';
 import { BoardUI, esc } from './ui/board.js';
 import { sfx, setSound, setMusic, playMusic, unlockAudio, setVolumes, playAmbient, voiceSoon } from './ui/sound.js';
 import * as FX from './ui/fx.js';
@@ -249,6 +250,10 @@ const face = (id) => `assets/leaders/face/${id}.webp`; // square, the face in th
 const artFocus = (id) => (FOCUS[id] || '50%').split(' ')[0] + ' 40%';
 const DIFF_RU = { 1: '★ Просто — для первой партии', 2: '★★ Средне', 3: '★★★ Сложно — для опытных' };
 const LEADER_PLAIN = {
+  1001: { d: 2, t: ['Каждый ход ослабляет вражеского союзника', 'Лечение копит фишки: за 3 фишки берёт карту'] },
+  1002: { d: 3, t: ['Копит золото каждый ход и за победы в регионах', 'За 5 золота наносит 3 раны врагам в одном регионе'] },
+  1003: { d: 3, t: ['Первый Демон в ваш ход дешевле на 1 монету', 'Гибель ваших Демонов копит души: за 3 души берёт карту'] },
+  1004: { d: 2, t: ['Возвращает монету за гибель дешёвых союзников', 'Раз за свой ход может исцелиться за 2 монеты'] },
   20: { d: 1, t: ['Каждый ход получает +2 монеты', 'За 2 монеты делает союзника сильнее на +1/+1 — даже в ход соперника'] },
   41: { d: 2, t: ['В начале каждого боя призывает крысу 1/1', 'Первая карта за ход дешевле на 1 монету за каждое ваше Животное'] },
   62: { d: 3, t: ['Показывайте карты Вампиров из руки — копится кровь 🩸', 'Кровью платите за свойства Вампиров; за 4 🩸 — две Челюсти 1/1'] },
@@ -265,8 +270,8 @@ const DECK_STYLE = {
   sofia: 'Таверны и Торговцы: много монет, лечение Лидера и могучие Древолюды под конец.',
 };
 function allDecks() {
-  const official = Object.values(DECKS).map((d) => ({ key: 'off:' + d.key, deckKey: d.key, title: d.title, leader: d.leader, cards: d.main, official: true }));
-  const custom = loadCustomDecks(store).map((d, k) => ({ key: 'cus:' + k, title: d.name, leader: d.leader, cards: d.cards, official: false }));
+  const official = Object.values(DECKS).map((d) => ({ key: 'off:' + d.key, deckKey: d.key, title: d.title, leader: d.leader, cards: d.main, official: !d.experimental, experimental: !!d.experimental, desc: d.desc }));
+  const custom = loadCustomDecks(store).map((d, k) => ({ key: 'cus:' + k, title: d.name, leader: d.leader, cards: d.cards, official: false, experimental: isExperimentalDeck(d) }));
   return [...official, ...custom];
 }
 function deckMix(cards) {
@@ -277,14 +282,14 @@ function deckMix(cards) {
 /** Hero select. steps: [{title, allowRandom, goLabel}] → resolves with array of decks (or null). */
 function pickDecks(steps) {
   return new Promise((resolve) => {
-    const decks = allDecks();
+    const decks = allDecks().filter((d) => !steps.some((s) => s.rated || s.tournament) || !isExperimentalDeck(d));
     const chosen = [];
     let step = 0;
     const root = $('#heroes');
     const draw = () => {
       const st = steps[step];
       // The computer's step shows only the Leaders (and «Случайный»); against my own deck it brings a strong build of that Leader.
-      const pool = st.level ? decks.filter((x) => x.official) : decks;
+      const pool = st.level ? decks.filter((x) => x.official || x.experimental) : decks;
       const list = st.allowRandom ? [{ key: 'random', title: 'Случайный', leader: null, cards: [], random: true }, ...pool] : pool;
       const vsOwn = st.level && chosen[0] && !chosen[0].official && BOT_DECKS.length;
       // The opponent's step starts on «Случайный» (not on the deck you just took); each step remembers its own pick.
@@ -300,7 +305,7 @@ function pickDecks(steps) {
             <div class="hs-portrait art la" style="background-image:url('${art(L ? sel.leader : 63)}')${sel.random ? ';filter:brightness(.35) blur(2px)' : `;background-position:${artFocus(sel.leader)}`}">${L ? `<div class="hs-port-name">${esc(L.name.split(',')[0])}</div>` : ''}${sel.random ? '<div style="position:absolute;inset:0;display:grid;place-items:center;font-size:120px;filter:none">🎲</div>' : ''}</div>
             <div class="hs-info">
               <div class="hs-name">${esc(sel.random ? 'Случайный соперник' : L.name)}</div>
-              <div class="hs-sub">${sel.random ? (vsOwn ? 'У вас своя колода — компьютер возьмёт любого Лидера с сильной сборкой' : 'Компьютер возьмёт любую стартовую колоду') : vsOwn && sel.official ? `${esc(L.name.split(',')[0])} · у вас своя колода — компьютер соберёт сильную колоду этого Лидера` : `${esc(sel.title)} · ${sel.official ? 'стартовая скрижаль' : 'своя колода'} · ${sel.cards.length} карт`}</div>
+              <div class="hs-sub">${sel.random ? (vsOwn ? 'У вас своя колода — компьютер возьмёт любого Лидера с сильной сборкой' : 'Компьютер возьмёт любую стартовую колоду') : vsOwn && sel.official ? `${esc(L.name.split(',')[0])} · у вас своя колода — компьютер соберёт сильную колоду этого Лидера` : `${esc(sel.title)} · ${sel.experimental ? 'эксперимент · вне рейтинга' : sel.official ? 'стартовая скрижаль' : 'своя колода'} · ${sel.cards.length} карт`}</div>
               ${L ? `<div class="hs-row"><div class="hs-hp" data-tip="Здоровье Лидера|Если упадёт до 0 — поражение.">❤️ ${L.hp}</div>${LEADER_PLAIN[sel.leader] ? `<div class="hs-diff d${LEADER_PLAIN[sel.leader].d}">${DIFF_RU[LEADER_PLAIN[sel.leader].d]}</div>` : ''}</div>
               <div class="hs-style">${esc(sel.desc || DECK_STYLE[sel.deckKey] || 'Ваша собственная скрижаль.')}</div>
               ${LEADER_PLAIN[sel.leader] ? `<ul class="hs-plain">${LEADER_PLAIN[sel.leader].t.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
@@ -311,7 +316,7 @@ function pickDecks(steps) {
           </div>
           <div class="hs-roster"><div class="hs-medal newdeck" data-new><div class="m">＋</div>Своя колода<div class="tag">собрать</div></div>${list.map((d) => `<div class="hs-medal ${d === sel ? 'sel' : ''} ${d.random ? 'random' : ''}" data-key="${d.key}">
             <div class="m ${d.random ? '' : 'la'}" ${d.random ? '' : `style="background-image:url('${face(d.leader)}')"`}>${d.random ? '🎲' : ''}</div>
-            ${esc(d.random ? 'Случайный' : d.title)}${!d.random && !d.official ? '<div class="tag">своя</div>' : ''}</div>`).join('')}</div>
+            ${esc(d.random ? 'Случайный' : d.title)}${d.experimental ? '<div class="tag">эксперимент</div>' : !d.random && !d.official ? '<div class="tag">своя</div>' : ''}</div>`).join('')}</div>
           <div class="hs-bar"><button class="btn" data-back>← Назад</button><button class="btn hs-go" data-go>${esc(step === steps.length - 1 ? (st.goLabel || 'В бой!') : 'Далее')}</button></div>
         </div>`;
         root.querySelectorAll('.hs-medal').forEach((m) => m.addEventListener('click', () => {
@@ -322,7 +327,7 @@ function pickDecks(steps) {
         root.querySelectorAll('[data-lv]').forEach((b) => b.addEventListener('click', () => { sfx.select(); opt.botLevel = b.dataset.lv; store.set('botLevel', opt.botLevel); paint(); }));
         root.querySelector('[data-new]').onclick = () => {
           sfx.select();
-          openBuilder({ startNew: true, back: () => { const fresh = allDecks(); decks.length = 0; decks.push(...fresh); draw.last = fresh[fresh.length - 1]?.key; show('heroes'); draw(); } });
+          openBuilder({ startNew: true, back: () => { const fresh = allDecks().filter((d) => !steps.some((s) => s.rated || s.tournament) || !isExperimentalDeck(d)); decks.length = 0; decks.push(...fresh); draw.last = fresh[fresh.length - 1]?.key; show('heroes'); draw(); } });
         };
         root.querySelector('[data-back]').onclick = () => { sfx.click(); if (step > 0) { step--; chosen.pop(); draw(); } else { resolve(null); show('menu'); } };
         root.querySelector('[data-go]').onclick = () => {
@@ -620,6 +625,7 @@ function startBoard(session) {
       drawDaily();
 
     } catch (e) { console.warn(e); }
+    if (P.some((p, i) => isExperimentalDeck({ leader: p.leader.id, cards: session.cfgPlayers?.[i]?.deck || session.game?.cfg?.players?.[i]?.deck || [] }))) { ui.noRank = true; ui.setRankInfo('<span class="ov-wait">Экспериментальная партия — вне мирового рейтинга.</span>'); return; }
     // World ranking (draws are not sent): place and wins before and after this game, shown on the end screen.
     if (winner === 'draw') { ui.setRankInfo('<span class="ov-wait">Ничьи в мировой рейтинг не идут.</span>'); return; }
     if (session.server && session.rated === false) { ui.setRankInfo('<span class="ov-wait">Обычная партия — в мировой рейтинг не идёт.</span>'); return; }
@@ -632,7 +638,7 @@ function startBoard(session) {
       if (!session.server && !opt.name) { ui.setRankInfo('<span class="ov-wait">Без имени партия не идёт в мировой рейтинг. Укажите имя в «Профиле».</span>'); return; }
       // Games on the server are recorded by the server itself (honest ranking); here we only wait for it.
       const ok = session.server ? await new Promise((r) => setTimeout(() => r(true), 2500))
-        : await submitResult({ name: myName(), deck: titleOf(me), leader: P[me].leader.id, oppName: P[1 - me].name, oppDeck: titleOf(1 - me), mode, won: winner === me, rounds: view.round, cards: session.cfgPlayers?.[me]?.deck });
+        : await submitResult({ name: myName(), deck: titleOf(me), leader: P[me].leader.id, oppName: P[1 - me].name, oppDeck: titleOf(1 - me), mode, won: winner === me, rounds: view.round, cards: session.cfgPlayers?.[me]?.deck, oppLeader: P[1 - me].leader.id, oppCards: session.cfgPlayers?.[1 - me]?.deck || session.game?.cfg?.players?.[1 - me]?.deck });
       let after = null; if (ok) { try { after = mine(await loadLeagues()); } catch { /* offline */ } }
       if (!ok || !after) { ui.setRankInfo('<span class="ov-wait">Мировой рейтинг сейчас недоступен — результат сохранён в вашей статистике.</span>'); return; }
       const delta = after.points - (before ? before.points : 1000);
@@ -998,7 +1004,7 @@ function drawMenuTop() {
   const cnt = new Map(); for (const g of games) cnt.set(g.myLeader, (cnt.get(g.myLeader) || 0) + 1);
   const fav = [...cnt.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
   const ava = $('#menu .mv-ava');
-  if (ava) ava.style.backgroundImage = `url('${avatarFile(myAvatar()) || `assets/leaders/face/${[20, 41, 62, 63, 117, 118].includes(fav) ? fav : 20}.webp`}')`;
+  if (ava) ava.style.backgroundImage = `url('${avatarFile(myAvatar()) || `assets/leaders/face/${CARDS[Number(fav)]?.type === 'leader' ? Number(fav) : 20}.webp`}')`;
   const nm = $('#menu .mv-name'); if (nm) nm.textContent = opt.name || 'Игрок';
   const u = currentUser(), sub = $('#menu .mv-sub'); if (sub) sub.textContent = u ? 'Профиль сохранён' : 'Профиль';
   $('#mv-wins') && ($('#mv-wins').textContent = wins);
@@ -1051,6 +1057,7 @@ class ServerSession {
 }
 /** Join or create a room on the server with my deck; the board opens when the game starts. */
 function serverPlay(code, deck, { creating = false, matched = false, tour: inTour = false, rated = false } = {}) {
+  if (isExperimentalDeck(deck)) rated = false;
   show('picker');
   $('#picker-list').innerHTML = '';
   const ob = $('#picker-online'); ob.classList.remove('hidden');
@@ -1081,7 +1088,7 @@ function serverPlay(code, deck, { creating = false, matched = false, tour: inTou
   return conn;
 }
 async function startServerHost(rated = false, inviteTo = null) {
-  const r = await pickDecks([{ title: 'Ваша колода — затем отправьте ссылку другу', goLabel: 'Создать комнату' }]);
+  const r = await pickDecks([{ title: 'Ваша колода — затем отправьте ссылку другу', goLabel: 'Создать комнату', rated }]);
   if (!r) return;
   let code; try { code = await newRoomCode(); } catch { toast('Сервер недоступен — играем напрямую'); return startHost(true); }
   if (inviteTo) sendInvite(inviteTo, code, myName()).then((ok) => ok ? toast('Приглашение отправлено — друг увидит его в течение 20 секунд', 3500) : toast('Не удалось отправить приглашение — отправьте другу ссылку на комнату', 4500));
@@ -1098,14 +1105,14 @@ async function startServerJoin(code) {
 }
 /** «Найти соперника»: pick a deck, wait in the queue, then play in the room the server made. */
 async function startMatchmaking(rated = true) {
-  const r = await pickDecks([{ title: rated ? 'Ваша колода — рейтинговая партия со случайным соперником' : 'Ваша колода — обычная партия со случайным соперником', goLabel: 'Искать соперника' }]);
+  const r = await pickDecks([{ title: rated ? 'Ваша колода — рейтинговая партия со случайным соперником' : 'Ваша колода — обычная партия со случайным соперником', goLabel: 'Искать соперника', rated }]);
   if (!r) return;
   show('picker');
   $('#picker-title').textContent = 'Ищем соперника…';
   $('#picker-list').innerHTML = '';
   const ob = $('#picker-online'); ob.classList.remove('hidden');
   ob.textContent = 'Ждём, когда кто-то ещё нажмёт «Найти соперника»…';
-  const mm = findMatch(myName(), {
+  const mm = findMatch(myName(), { deck: r[0],
     onQueue(n) { ob.textContent = n > 1 ? `В очереди: ${n}. Сейчас подберём пару…` : 'Вы первый в очереди. Как только кто-то ещё начнёт поиск — партия начнётся.'; },
     onMatch(code, vs) { toast(`Соперник найден: ${vs}`); serverPlay(code, r[0], { matched: true, rated }); },
     rated,
@@ -1176,7 +1183,7 @@ function drawTour() {
 }
 async function startTour(code = null) {
   if (!serverOn()) { toast('Турниры работают через игровой сервер — он ещё не подключён'); return; }
-  const r = await pickDecks([{ title: code ? 'Ваша колода для турнира' : 'Ваша колода — затем позовите участников', goLabel: code ? 'Войти в турнир' : 'Создать турнир' }]);
+  const r = await pickDecks([{ title: code ? 'Ваша колода для турнира' : 'Ваша колода — затем позовите участников', goLabel: code ? 'Войти в турнир' : 'Создать турнир', tournament: true }]);
   if (!r) return;
   if (!code) { try { code = await newRoomCode(); } catch { toast('Сервер недоступен'); return; } }
   tour?.conn.close();

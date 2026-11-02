@@ -1,6 +1,7 @@
 // Deck builder: "My decks" gallery and the editor (leader + at least 40 cards, max 3 copies), saved in this browser.
 import { CARDS } from '../data/cards.js';
 import { DECKS } from '../data/decks.js';
+import { EXPERIMENTAL_DECKS, isExperimentalDeck } from '../data/experimental.js';
 import { esc, cardZoom } from './board.js';
 cardZoom(); // pointing at a card shows it big
 import { linkTerms } from './glossary.js';
@@ -18,12 +19,12 @@ import { loadGames } from './stats.js';
 
 const TYPE_RU = { ally: 'Союзники', place: 'Места', action: 'Действия', item: 'Предметы', companion: 'Напарники' };
 const TYPE_ICO = { ally: '⚔️', place: '🏰', action: '✨', item: '🎒', companion: '🤝' };
-const DECK_RU = { levenheart: 'Лёвенхарт', larisa: 'Лариса', vampires: 'Вампиры', sofia_erik: 'София и Эрик', set1_other: 'Первый набор' };
+const DECK_RU = { levenheart: 'Лёвенхарт', larisa: 'Лариса', vampires: 'Вампиры', sofia_erik: 'София и Эрик', set1_other: 'Первый набор', experimental_talala: 'Эксперимент: Талала', experimental_gimmilut: 'Эксперимент: Гиммилут', experimental_misha: 'Эксперимент: Бес Миша', experimental_yulian: 'Эксперимент: Юлиан' };
 const MIN = 40, MAX_COPIES = 3;
 
 export function loadCustomDecks(store) { return store.get('decks', []); }
 // The six Leaders have new paintings (square face crops); other cards keep their card picture.
-const LEADER_FACES = new Set([20, 41, 62, 63, 117, 118]);
+const LEADER_FACES = new Set([20, 41, 62, 63, 117, 118, 1001, 1002, 1003, 1004]);
 const leaderPic = (id) => (LEADER_FACES.has(Number(id)) ? `background-image:url('assets/leaders/face/${id}.webp');background-size:cover;background-position:50% 40%` : `background-image:url('${CARDS[id]?.img}')`);
 const costNum = (c) => (typeof c.cost === 'number' ? c.cost : 0);
 
@@ -72,8 +73,9 @@ export function renderBuilder(root, store, onBack, opts = {}) {
       </div>
       ${FEATURES.community ? '<h3 class="bld-h3">Колоды сообщества</h3><div class="bld-gal small bld-comm"><p class="bld-note">Загружаем…</p></div>' : ''}
       <h3 class="bld-h3">Начать со стартовой скрижали</h3>
-      <div class="bld-gal small">${Object.values(DECKS).map((d) => `<div class="bld-tile" data-copy="${d.key}"><div class="face" style="${leaderPic(d.leader)}"></div><b>${esc(d.title)}</b><small>скопировать и изменить${(() => { const r = WR?.decks.get(d.title); return r && r.games >= MIN_GAMES ? ` · побед ${Math.round((r.wins / r.games) * 100)}% из ${r.games}` : ''; })()}</small></div>`).join('')}</div>
+      <div class="bld-gal small">${Object.values(DECKS).filter((d) => !d.experimental).map((d) => `<div class="bld-tile" data-copy="${d.key}"><div class="face" style="${leaderPic(d.leader)}"></div><b>${esc(d.title)}</b><small>скопировать и изменить${(() => { const r = WR?.decks.get(d.title); return r && r.games >= MIN_GAMES ? ` · побед ${Math.round((r.wins / r.games) * 100)}% из ${r.games}` : ''; })()}</small></div>`).join('')}</div>
       ${READY.length ? `<h3 class="bld-h3">Готовые сборки</h3><div class="bld-gal small">${READY.map((d, k) => `<div class="bld-tile" data-build="${k}" data-tip="${esc(d.title)}|${esc(d.desc)}"><div class="face" style="${leaderPic(d.leader)}"></div><b>${esc(d.title)}</b><small>${d.style === 'theme' ? `${esc((CARDS[d.leader]?.name || '').split(',')[0])} · своя тема` : 'сильная сборка'} · скопировать</small></div>`).join('')}</div>` : ''}
+      <h3 class="bld-h3">Экспериментальные · вне рейтинга</h3><div class="bld-gal small">${Object.values(EXPERIMENTAL_DECKS).map((d) => `<div class="bld-tile" data-copy="${d.key}"><div class="face" style="${leaderPic(d.leader)}"></div><b>${esc(d.title)}</b><small>40 карт · обычные партии · скопировать</small></div>`).join('')}</div>
     </div>`;
     root.querySelector('[data-back]').onclick = () => { sfx.click(); onBack(); };
     root.querySelector('[data-new]').onclick = () => { sfx.select(); pickLeader(); };
@@ -102,7 +104,7 @@ export function renderBuilder(root, store, onBack, opts = {}) {
   // ---------- leader choice ----------
   function pickLeader() {
     root.innerHTML = `<div class="bld"><div class="bld-top"><button class="btn" data-back>← Назад</button><h2>Выберите Лидера</h2><span></span></div>
-      <div class="bld-leaders">${leaders.map((l) => `<div class="bld-leader" data-id="${l.id}"><div class="face" style="${leaderPic(l.id)}"></div><b>${esc(l.name.split(',')[0])}</b><small>❤️ ${l.hp}</small></div>`).join('')}</div>
+      <div class="bld-leaders">${leaders.map((l) => `<div class="bld-leader" data-id="${l.id}"><div class="face" style="${leaderPic(l.id)}"></div><b>${esc(l.name.split(',')[0])}</b><small>❤️ ${l.hp}${l.experimental ? ' · эксперимент' : ''}</small></div>`).join('')}</div>
       <p class="bld-note">Карты не привязаны к Лидеру: можно смешивать любые наборы. Лидер даёт здоровье и особые свойства.</p></div>`;
     root.querySelector('[data-back]').onclick = () => { sfx.click(); gallery(); };
     root.querySelectorAll('.bld-leader').forEach((e) => { e.onclick = () => { sfx.confirm(); const L = CARDS[Number(e.dataset.id)]; editor({ name: 'Колода: ' + L.name.split(',')[0], leader: L.id, cards: [] }, -1); }; });
@@ -201,6 +203,7 @@ export function renderBuilder(root, store, onBack, opts = {}) {
       const pl = root.querySelector('[data-play]');
       if (pl) pl.onclick = () => { sfx.confirm(); opts.onPlay({ name: cur.name, leader: cur.leader, cards: [...cur.cards] }); };
       const pub = root.querySelector('[data-publish]');
+      if (pub && isExperimentalDeck(cur)) { pub.disabled = true; pub.title = 'Экспериментальные колоды пока доступны только по коду'; }
       if (pub) pub.onclick = async () => { pub.disabled = true; const okp = await publishDeck({ name: cur.name, leader: cur.leader, cards: cur.cards }, opts.author?.() || ''); flash(okp ? 'Колода опубликована в «Колодах сообщества»' : 'Не получилось опубликовать — попробуйте позже'); pub.disabled = false; };
       const sh = root.querySelector('[data-share]');
       if (sh) sh.onclick = () => { sfx.click(); shareBox({ name: cur.name, leader: cur.leader, cards: [...cur.cards] }); };

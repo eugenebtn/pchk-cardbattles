@@ -333,3 +333,6 @@ export const DECKS = {
   ]
  }
 };
+
+import { EXPERIMENTAL_DECKS } from './experimental.js';
+Object.assign(DECKS, EXPERIMENTAL_DECKS);

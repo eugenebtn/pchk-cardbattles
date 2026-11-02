@@ -306,7 +306,10 @@ export const sfx = {
 /** A Leader speaks (kind: 'Intro' at the start of a game, 'Win' on victory). Only Leaders with recorded lines; music steps back. */
 export function voice(leaderId, kind) {
   const g = `elVo${leaderId}${kind}`;
-  if (!manifest || !manifest[g]) return false;
+  if (!manifest || !manifest[g]) {
+    if ([1001, 1002, 1003, 1004].includes(Number(leaderId)) && (kind === 'Intro' || kind === 'Win')) sfx.reveal();
+    return false;
+  }
   duckMusic(0.3, 3.2);
   return play(g, { vol: 0.95, verb: 0.06, vary: 0 }) || 0; // seconds the line lasts (0 = silent)
 }

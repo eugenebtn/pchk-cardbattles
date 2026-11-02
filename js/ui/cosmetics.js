@@ -2,7 +2,7 @@
 // Kept in this browser (pchk_avatar, pchk_back) and in the account profile; sent to the online opponent.
 import { CARDS } from '../data/cards.js';
 
-const LEADERS = [20, 41, 62, 63, 117, 118];
+const LEADERS = Object.values(CARDS).filter((c) => c.type === 'leader').map((c) => c.id);
 // Legendary characters whose card art makes a good round portrait (assets/avatars/<id>.webp, cut from the card art).
 const LEGENDS = [3, 4, 15, 16, 30, 31, 42, 43, 44, 69, 77, 84, 86, 87, 88, 93, 97, 98, 101, 112, 113, 119, 121, 123, 127, 129, 137, 139, 146, 153, 156, 158, 164, 166, 167, 174, 175];
 export const AVATARS = [...LEADERS.map((id) => `L${id}`), ...LEGENDS.map((id) => `C${id}`)];

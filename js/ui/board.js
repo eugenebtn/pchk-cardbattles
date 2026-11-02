@@ -10,7 +10,7 @@ import { backCss, myBack, avatarFile } from './cosmetics.js';
 import { ICON, KW_SVG, TOK_SVG } from './icons.js';
 import { askConfirm, FLAG_ICON } from './dialog.js';
 
-const LEADER_ART = new Set([20, 41, 62, 63, 117, 118]);
+const LEADER_ART = new Set([20, 41, 62, 63, 117, 118, 1001, 1002, 1003, 1004]);
 const KW_ICON = { breakthrough: '💥', defense: '🛡️', maneuver: '🏃', ward: '✨', fast: '⚡', deathtouch: '☠️', bloodsucker: '🩸', indestructible: '🪨', advantage: '🎯' };
 const KW_NAME = { breakthrough: 'Прорыв', defense: 'Оборона', maneuver: 'Манёвр', ward: 'Оберег', fast: 'Опережение', deathtouch: 'Смертельный удар', bloodsucker: 'Кровопийца', indestructible: 'Нерушимость', created: 'Созданная', advantage: 'Преимущество' };
 const KW_HELP = {
