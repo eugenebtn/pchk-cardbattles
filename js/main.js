@@ -11,7 +11,6 @@ import { checkDaily, dailyState } from './ui/daily.js';
 import { levelAnswer, LEVEL_RU, adaptiveLevel, adaptiveAfterGame } from './engine/botlevels.js';
 import { CARDS } from './data/cards.js';
 import { DECKS } from './data/decks.js';
-import { isExperimentalDeck } from './data/experimental.js';
 import { BoardUI, esc } from './ui/board.js';
 import { sfx, setSound, setMusic, playMusic, unlockAudio, setVolumes, playAmbient, voiceSoon } from './ui/sound.js';
 import * as FX from './ui/fx.js';
@@ -24,15 +23,16 @@ import { renderBuilder, loadCustomDecks } from './ui/builder.js';
 import { installTooltips, linkTerms } from './ui/glossary.js';
 import { renderStats, recordGame, loadGames, loginDialog } from './ui/stats.js';
 import { unlocked, ACH } from './ui/achievements.js';
-import { currentUser } from './net/account.js';
+import { currentUser, onAuth, pull } from './net/account.js';
 import { myAvatar, avatarFile, myLooks, cleanLooks } from './ui/cosmetics.js';
 window.addEventListener('pchk-looks', () => drawMenuTop());
 import { decodeDeck } from './net/deckcode.js';
+import { chooseDecks, availableDecks } from './ui/deck-picker.js';
 import { BOT_DECKS } from './data/botdecks.js';
 import { myFriendCode, loadFriends, addFriend, removeFriend, startPresence, setPresenceRoom, friendsStatus, sendInvite } from './net/friends.js';
 import { submitResult, loadPlayers, playerId, loadLeagues } from './net/ranking.js';
 import { emblem } from './ui/leagues.js';
-import { openFeedback } from './ui/feedback.js';
+import { installFeedbackControl, openFeedback } from './ui/feedback.js';
 import { renderLegal } from './ui/legal.js';
 import { renderShop } from './ui/shop.js';
 import { showTutorial } from './ui/tutorial.js';
@@ -269,11 +269,8 @@ const DECK_STYLE = {
   erik: 'Плуты и трюки: играйте карты в ход соперника и готовьте подлые сюрпризы.',
   sofia: 'Таверны и Торговцы: много монет, лечение Лидера и могучие Древолюды под конец.',
 };
-function allDecks() {
-  const official = Object.values(DECKS).map((d) => ({ key: 'off:' + d.key, deckKey: d.key, title: d.title, leader: d.leader, cards: d.main, official: !d.experimental, experimental: !!d.experimental, desc: d.desc }));
-  const custom = loadCustomDecks(store).map((d, k) => ({ key: 'cus:' + k, title: d.name, leader: d.leader, cards: d.cards, official: false, experimental: isExperimentalDeck(d) }));
-  return [...official, ...custom];
-}
+function allDecks() { return availableDecks(loadCustomDecks(store)); }
+
 function deckMix(cards) {
   const n = { ally: 0, place: 0, action: 0, item: 0, companion: 0 };
   for (const id of cards) { const t = CARDS[id]?.type; if (t in n) n[t]++; }
@@ -281,83 +278,19 @@ function deckMix(cards) {
 }
 /** Hero select. steps: [{title, allowRandom, goLabel}] → resolves with array of decks (or null). */
 function pickDecks(steps) {
-  return new Promise((resolve) => {
-    const decks = allDecks().filter((d) => !steps.some((s) => s.rated || s.tournament) || !isExperimentalDeck(d));
-    const chosen = [];
-    let step = 0;
-    const root = $('#heroes');
-    const draw = () => {
-      const st = steps[step];
-      // The computer's step shows only the Leaders (and «Случайный»); against my own deck it brings a strong build of that Leader.
-      const pool = st.level ? decks.filter((x) => x.official || x.experimental) : decks;
-      const list = st.allowRandom ? [{ key: 'random', title: 'Случайный', leader: null, cards: [], random: true }, ...pool] : pool;
-      const vsOwn = st.level && chosen[0] && !chosen[0].official && BOT_DECKS.length;
-      // The opponent's step starts on «Случайный» (not on the deck you just took); each step remembers its own pick.
-      draw.byStep = draw.byStep || {};
-      let sel = list.find((d) => d.key === draw.byStep[step]) || (st.allowRandom ? list[0] : list.find((d) => d.key === (draw.last || '')) || list[0]);
-      const paint = () => {
-        const L = sel.random ? null : CARDS[sel.leader];
-        root.innerHTML = `<div class="hero-select${st.level ? ' with-level' : ''}">
-          ${steps.length > 1 ? `<div class="hs-step s${step}">Шаг ${step + 1} из ${steps.length}</div>` : ''}
-          <div class="hs-title">${esc(st.title)}</div>
-          ${chosen.length ? `<div class="hs-chosen">${chosen.map((c, k) => `<span><i class="la" style="background-image:url('${face(c.leader)}')"></i>${k === 0 ? 'Ваш выбор' : 'Выбор ' + (k + 1)}: <b>${esc(c.title)}</b> ✓</span>`).join('')}</div>` : ''}
-          <div class="hs-main">
-            <div class="hs-portrait art la" style="background-image:url('${art(L ? sel.leader : 63)}')${sel.random ? ';filter:brightness(.35) blur(2px)' : `;background-position:${artFocus(sel.leader)}`}">${L ? `<div class="hs-port-name">${esc(L.name.split(',')[0])}</div>` : ''}${sel.random ? '<div style="position:absolute;inset:0;display:grid;place-items:center;font-size:120px;filter:none">🎲</div>' : ''}</div>
-            <div class="hs-info">
-              <div class="hs-name">${esc(sel.random ? 'Случайный соперник' : L.name)}</div>
-              <div class="hs-sub">${sel.random ? (vsOwn ? 'У вас своя колода — компьютер возьмёт любого Лидера с сильной сборкой' : 'Компьютер возьмёт любую стартовую колоду') : vsOwn && sel.official ? `${esc(L.name.split(',')[0])} · у вас своя колода — компьютер соберёт сильную колоду этого Лидера` : `${esc(sel.title)} · ${sel.experimental ? 'эксперимент · вне рейтинга' : sel.official ? 'стартовая скрижаль' : 'своя колода'} · ${sel.cards.length} карт`}</div>
-              ${L ? `<div class="hs-row"><div class="hs-hp" data-tip="Здоровье Лидера|Если упадёт до 0 — поражение.">❤️ ${L.hp}</div>${LEADER_PLAIN[sel.leader] ? `<div class="hs-diff d${LEADER_PLAIN[sel.leader].d}">${DIFF_RU[LEADER_PLAIN[sel.leader].d]}</div>` : ''}</div>
-              <div class="hs-style">${esc(sel.desc || DECK_STYLE[sel.deckKey] || 'Ваша собственная скрижаль.')}</div>
-              ${LEADER_PLAIN[sel.leader] ? `<ul class="hs-plain">${LEADER_PLAIN[sel.leader].t.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
-              ${(() => { const key = [...new Set(sel.cards)].map((id) => CARDS[id]).filter((c) => c && c.img && typeof c.cost === 'number').sort((a, b) => b.cost - a.cost).slice(0, 4); return key.length ? `<div class="hs-keys"><span>Сильные карты колоды:</span>${key.map((c) => `<i style="background-image:url('${c.img}')" data-tip="${esc(c.name)}|${esc((c.text || '').split('\n').slice(0, 2).join(' '))}"></i>`).join('')}</div>` : ''; })()}
-              <details class="hs-more"><summary>Подробнее: точный текст карты</summary><div class="hs-ability">${linkTerms(esc(L.text)).replace(/\n/g, '<br>')}</div></details>` : ''}
-              ${st.level ? `<div class="hs-level"><span>Насколько сильно играет</span>${['auto', 'novice', 'normal', 'strong'].map((l) => `<button class="hs-lv ${opt.botLevel === l ? 'on' : ''}" data-lv="${l}">${l === 'auto' ? `Подстраиваться <small>сейчас: ${LEVEL_RU[adaptiveLevel()]}</small>` : LEVEL_RU[l]}</button>`).join('')}<div class="hs-lv-help">${esc(LEVEL_HELP[opt.botLevel])}</div></div>` : ''}
-            </div>
-          </div>
-          <div class="hs-roster"><div class="hs-medal newdeck" data-new><div class="m">＋</div>Своя колода<div class="tag">собрать</div></div>${list.map((d) => `<div class="hs-medal ${d === sel ? 'sel' : ''} ${d.random ? 'random' : ''}" data-key="${d.key}">
-            <div class="m ${d.random ? '' : 'la'}" ${d.random ? '' : `style="background-image:url('${face(d.leader)}')"`}>${d.random ? '🎲' : ''}</div>
-            ${esc(d.random ? 'Случайный' : d.title)}${d.experimental ? '<div class="tag">эксперимент</div>' : !d.random && !d.official ? '<div class="tag">своя</div>' : ''}</div>`).join('')}</div>
-          <div class="hs-bar"><button class="btn" data-back>← Назад</button><button class="btn hs-go" data-go>${esc(step === steps.length - 1 ? (st.goLabel || 'В бой!') : 'Далее')}</button></div>
-        </div>`;
-        root.querySelectorAll('.hs-medal').forEach((m) => m.addEventListener('click', () => {
-          const d = list.find((x) => x.key === m.dataset.key);
-          if (!d || d === sel) return; // «＋ Своя колода» has its own handler
-          sel = d; draw.last = d.key; draw.byStep[step] = d.key; sfx.select(); sfx.reveal(); paint();
-        }));
-        root.querySelectorAll('[data-lv]').forEach((b) => b.addEventListener('click', () => { sfx.select(); opt.botLevel = b.dataset.lv; store.set('botLevel', opt.botLevel); paint(); }));
-        root.querySelector('[data-new]').onclick = () => {
-          sfx.select();
-          openBuilder({ startNew: true, back: () => { const fresh = allDecks().filter((d) => !steps.some((s) => s.rated || s.tournament) || !isExperimentalDeck(d)); decks.length = 0; decks.push(...fresh); draw.last = fresh[fresh.length - 1]?.key; show('heroes'); draw(); } });
-        };
-        root.querySelector('[data-back]').onclick = () => { sfx.click(); if (step > 0) { step--; chosen.pop(); draw(); } else { resolve(null); show('menu'); } };
-        root.querySelector('[data-go]').onclick = () => {
-          sfx.confirm();
-          let d = sel;
-          if (d.random) { const off = decks.filter((x) => x.official); d = off[Math.floor(Math.random() * off.length)]; }
-          // Against a player's own deck: a strong build of the chosen Leader instead of the starter deck.
-          if (vsOwn && d.official) {
-            const bs = BOT_DECKS.filter((x) => x.leader === d.leader);
-            if (bs.length) { const b = bs[Math.floor(Math.random() * bs.length)]; d = { ...d, key: b.key, title: b.title, cards: b.cards, official: false }; }
-          }
-          chosen.push(d);
-          step++;
-          if (step >= steps.length) { resolve(chosen); return; }
-          // A short pause that shows the choice was taken, then the next step slides in.
-          const box = root.querySelector('.hero-select');
-          box.classList.add('picked');
-          box.insertAdjacentHTML('beforeend', `<div class="hs-picked"><div class="hs-picked-in"><i class="la" style="background-image:url('${face(d.leader)}')"></i><span>Выбрано: <b>${esc(d.title)}</b></span><small>Теперь: ${esc(steps[step].title)}</small></div></div>`);
-          root.querySelectorAll('button').forEach((b) => { b.disabled = true; });
-          setTimeout(() => { draw(); root.querySelector('.hero-select')?.classList.add('step-in'); }, 1300);
-        };
-      };
-      paint();
-    };
-    show('heroes');
-    draw();
+  return chooseDecks($('#heroes'), steps, {
+    getDecks: allDecks, show,
+    create: (leader, back) => openBuilder({ importDeck: {leader, cards: [], name: 'Моя колода'}, back }),
+    levels: [['auto', 'Подстраиваться'], ['novice', LEVEL_RU.novice], ['normal', LEVEL_RU.normal], ['strong', LEVEL_RU.strong]],
+    getLevel: () => opt.botLevel,
+    setLevel: level => { opt.botLevel = level; store.set('botLevel', level); },
   });
 }
 
 // ---------- the computer's thinking off the screen's thread ----------
+let feedbackUI = null;
+installFeedbackControl(() => ({ ui: document.querySelector('#game.active') ? feedbackUI : null, name: opt.name, kind: 'bug' }));
+
 let botWorker = null, botAsk = 0;
 const botWaits = new Map();
 function thinkAside(g, q, level) {
@@ -548,11 +481,36 @@ class Session {
 }
 
 let current = null;
+const identity = () => `${currentUser()?.id || 'guest'}:${playerId()}`;
+let authOwner = currentUser()?.id || 'guest';
+function refreshProfileUI() {
+  opt.name = store.get('name', '');
+  $('#opt-name').value = opt.name;
+  drawMenuTop();
+  window.dispatchEvent(new Event('pchk-profile-ui'));
+}
+onAuth(() => {
+  const next = currentUser()?.id || 'guest';
+  if (next !== authOwner) {
+    if (current) current.identityChanged = true;
+    authOwner = next;
+    // Keep a running match intact. Close cached non-game screens from the previous profile.
+    if (!document.querySelector('#game.active')) show('menu');
+  }
+  refreshProfileUI();
+  if (currentUser()) { const owner = authOwner; pull().then(() => { if(owner === authOwner) refreshProfileUI(); }).catch(() => {}); }
+});
+
 // Опережение modes: 'smart' (only when aimed at me, default), 'always', true (never). The engine gets false for 'always'.
+if (currentUser()) pull().then(refreshProfileUI).catch(() => {});
+
 const AP_ENGINE = (m) => (m === 'always' ? false : m);
 const AP_NEXT = { smart: 'always', always: true, true: 'smart' };
 const AP_TOAST = { smart: 'Опережение: игра спросит, только когда соперник целится в ваши карты', always: 'Опережение: игра спрашивает при каждой возможности', true: 'Опережение выключено: игра не спрашивает' };
 function startBoard(session) {
+  session.profileIdentity ||= identity();
+  const sameProfile = () => !session.identityChanged && session.profileIdentity === identity();
+
   preload((session.cfgPlayers || []).flatMap((p) => [p.leader, ...(p.deck || [])]));
   show('game');
   const themes = ['160', '8', '33', '5', '125', '130', '116'];
@@ -573,6 +531,7 @@ function startBoard(session) {
     },
   });
   session.attach(ui);
+  feedbackUI = ui;
   ui.noTips = !!session.watch || (session.controllers ? session.controllers[session.me] !== 'human' : false);
   ui.noTimer = session.coachMode === 'tutorial' || !!session.hotseat || !!session.watch;
   ui.spectator = !!session.watch || (!!session.controllers && !session.controllers.includes('human') && !session.controllers.includes('remote'));
@@ -604,6 +563,7 @@ function startBoard(session) {
   ui.onGameEnd = (winner, view, played) => {
     if (session.watch || (session.controllers && session.controllers[session.me] !== 'human')) { ui.noRank = true; return; } // watchers, bot vs bot
     if (session.hotseat) { ui.noRank = true; return; }
+    if (!sameProfile()) { ui.noRank = true; ui.setRankInfo('Профиль изменился: результат этой партии не записан в новый профиль.'); return; }
     const me = session.me, P = view.players;
     if (session.game) saveReplay(session.game, { title: `${CARDS[P[0].leader.id]?.name.split(',')[0]} — ${CARDS[P[1].leader.id]?.name.split(',')[0]}`, mode: session.remote || session.conn ? 'online' : 'bot' });
     if (session.adaptive && !session.remote && !session.conn && winner !== 'draw') {
@@ -625,7 +585,6 @@ function startBoard(session) {
       drawDaily();
 
     } catch (e) { console.warn(e); }
-    if (P.some((p, i) => isExperimentalDeck({ leader: p.leader.id, cards: session.cfgPlayers?.[i]?.deck || session.game?.cfg?.players?.[i]?.deck || [] }))) { ui.noRank = true; ui.setRankInfo('<span class="ov-wait">Экспериментальная партия — вне мирового рейтинга.</span>'); return; }
     // World ranking (draws are not sent): place and wins before and after this game, shown on the end screen.
     if (winner === 'draw') { ui.setRankInfo('<span class="ov-wait">Ничьи в мировой рейтинг не идут.</span>'); return; }
     if (session.server && session.rated === false) { ui.setRankInfo('<span class="ov-wait">Обычная партия — в мировой рейтинг не идёт.</span>'); return; }
@@ -636,9 +595,11 @@ function startBoard(session) {
     (async () => {
       let before = null; try { before = mine(await loadLeagues()); } catch { /* offline */ }
       if (!session.server && !opt.name) { ui.setRankInfo('<span class="ov-wait">Без имени партия не идёт в мировой рейтинг. Укажите имя в «Профиле».</span>'); return; }
+      if (!sameProfile()) return;
       // Games on the server are recorded by the server itself (honest ranking); here we only wait for it.
       const ok = session.server ? await new Promise((r) => setTimeout(() => r(true), 2500))
         : await submitResult({ name: myName(), deck: titleOf(me), leader: P[me].leader.id, oppName: P[1 - me].name, oppDeck: titleOf(1 - me), mode, won: winner === me, rounds: view.round, cards: session.cfgPlayers?.[me]?.deck, oppLeader: P[1 - me].leader.id, oppCards: session.cfgPlayers?.[1 - me]?.deck || session.game?.cfg?.players?.[1 - me]?.deck });
+      if (!sameProfile()) return;
       let after = null; if (ok) { try { after = mine(await loadLeagues()); } catch { /* offline */ } }
       if (!ok || !after) { ui.setRankInfo('<span class="ov-wait">Мировой рейтинг сейчас недоступен — результат сохранён в вашей статистике.</span>'); return; }
       const delta = after.points - (before ? before.points : 1000);
@@ -684,18 +645,13 @@ const LEVEL_HELP = {
   auto: 'Компьютер становится сильнее после ваших побед и слабее после поражений.',
   novice: 'Играет просто, часто ошибается и не отвечает Опережением. Для первых партий.',
   normal: 'Играет по правилам здравого смысла, иногда отвечает на ваши ходы.',
-  strong: 'Просчитывает каждый ход до конца раунда и оценивает позицию так, как научился на тысячах партий. Играет сильной сборкой выбранного Лидера, а не стартовой колодой.',
+  strong: 'Просчитывает каждый ход до конца раунда и оценивает позицию так, как научился на тысячах партий. Играет выбранной вами колодой.',
 };
 async function startBot() {
   const r = await pickDecks([{ title: 'Ваша колода' }, { title: 'Колода компьютера', allowRandom: true, level: true }]);
   if (!r) return;
   let [mine, bot] = r;
   const adaptive = opt.botLevel === 'auto', level = adaptive ? adaptiveLevel() : opt.botLevel;
-  // «Сильный» always brings a strong build of the chosen Leader, also against a starter deck.
-  if (level === 'strong' && bot.official) {
-    const bs = BOT_DECKS.filter((x) => x.leader === bot.leader);
-    if (bs.length) { const b = bs[Math.floor(Math.random() * bs.length)]; bot = { ...bot, key: b.key, title: b.title, cards: b.cards, official: false }; }
-  }
   const s = new Session({ players: [playerCfg(mine, myName()), playerCfg(bot, `Компьютер · ${LEVEL_RU[level]}`)], controllers: ['human', 'bot'], me: 0 });
   s.botLevel = level; s.adaptive = adaptive;
   startBoard(s);
@@ -1010,7 +966,7 @@ function drawMenuTop() {
   $('#mv-wins') && ($('#mv-wins').textContent = wins);
   $('#mv-ach') && ($('#mv-ach').textContent = `${Object.keys(unlocked()).filter((k) => ACH[k]).length}/${Object.keys(ACH).length}`);
   // The panel rows carry short live notes: my decks, friends online, my league.
-  const dk = $('#mv-decks-sub'); if (dk) { const n = loadCustomDecks(store).length; dk.textContent = `6 стартовых${n ? ` · ${n} ${n % 10 === 1 && n % 100 !== 11 ? 'своя' : 'своих'}` : ' · соберите свою'}`; }
+  const dk = $('#mv-decks-sub'); if (dk) { const n = loadCustomDecks(store).length; dk.textContent = `${Object.keys(DECKS).length} стартовых${n ? ` · ${n} ${n % 10 === 1 && n % 100 !== 11 ? 'своя' : 'своих'}` : ' · соберите свою'}`; }
   const fr = $('#mv-friends-sub');
   if (fr) {
     const list = loadFriends();
@@ -1057,7 +1013,6 @@ class ServerSession {
 }
 /** Join or create a room on the server with my deck; the board opens when the game starts. */
 function serverPlay(code, deck, { creating = false, matched = false, tour: inTour = false, rated = false } = {}) {
-  if (isExperimentalDeck(deck)) rated = false;
   show('picker');
   $('#picker-list').innerHTML = '';
   const ob = $('#picker-online'); ob.classList.remove('hidden');
@@ -1070,12 +1025,13 @@ function serverPlay(code, deck, { creating = false, matched = false, tour: inTou
     $('#copy-link').onclick = () => copyText(url);
     $('#share-link') && ($('#share-link').onclick = () => navigator.share({ title: 'Карточные битвы ПЧК', text: 'Сыграем в Карточные битвы?', url }));
   } else ob.textContent = 'Соединяемся с сервером…';
+  const connectionIdentity = identity();
   let ss = null;
-  const conn = connectRoom(code, { name: myName(), playerId: playerId(), autopass: AP_ENGINE(opt.autopass), timer: creating ? opt.timer : matched ? 90 : 0, rated: creating || matched ? rated : undefined, looks: myLooks(), deck: { leader: deck.leader, cards: deck.cards, title: deck.title } }, {
+  const conn = connectRoom(code, { name: myName(), playerId: playerId(), ...(inTour && tour?.token ? {tourToken: tour.token} : {}), autopass: AP_ENGINE(opt.autopass), timer: creating ? opt.timer : matched ? 90 : 0, rated: creating || matched ? rated : undefined, looks: myLooks(), deck: { leader: deck.leader, cards: deck.cards, title: deck.title } }, {
     onMessage(msg) {
       if (msg.t === 'events' && endedIn(msg.batch)) { markDone(code); store.set('live', null); }
       if ((msg.t === 'start' || msg.t === 'sync') && !ss) store.set('live', { code, at: Date.now() }); // a game in progress: offered again in the menu after a reload
-      if ((msg.t === 'start' || msg.t === 'sync') && !ss) { ss = new ServerSession(conn, msg.me ?? 0); ss.tour = inTour; ss.rated = msg.rated !== false; setPresenceRoom(code); startBoard(ss); ss.ui?.setOppLooks?.(cleanLooks(msg.opp)); if (msg.t === 'start') toast(ss.rated ? '🏆 Рейтинговая партия — результат пойдёт в рейтинг' : 'Обычная партия — в рейтинг не идёт', 3200); if (msg.t === 'sync') ss.onMessage(msg); return; }
+      if ((msg.t === 'start' || msg.t === 'sync') && !ss) { ss = new ServerSession(conn, msg.me ?? 0); ss.profileIdentity = connectionIdentity; ss.tour = inTour; ss.rated = msg.rated !== false; setPresenceRoom(code); startBoard(ss); ss.ui?.setOppLooks?.(cleanLooks(msg.opp)); if (msg.t === 'start') toast(ss.rated ? '🏆 Рейтинговая партия — результат пойдёт в рейтинг' : 'Обычная партия — в рейтинг не идёт', 3200); if (msg.t === 'sync') ss.onMessage(msg); return; }
       if (msg.t === 'start' && ss) { ss.me = msg.me; document.querySelector('#game > .over-screen')?.remove(); toast('Новая партия!', 1800); return; } // rematch, or a draw replayed in a tournament
       if (msg.t === 'waitOpponent' && !creating) ob.textContent = 'Подключено! Ждём второго игрока…';
       else if (msg.t === 'busy') ob.textContent = 'В этой комнате уже идёт игра. Можно посмотреть её как зритель.';
@@ -1189,7 +1145,7 @@ async function startTour(code = null) {
   tour?.conn.close();
   tour = { code, deck: r[0], me: -1, owner: false, state: null };
   tour.conn = connectTour(code, { name: myName(), playerId: playerId(), deck: { leader: r[0].leader, cards: r[0].cards } }, (m) => {
-    if (m.t === 'you') { tour.me = m.me; tour.owner = m.owner; }
+    if (m.t === 'you') { tour.me = m.me; tour.owner = m.owner; tour.token = m.token; }
     if (m.t === 'state') {
       const had = tour.state?.rounds.flat().find((x) => x.room && x.winner == null && (x.a === tour.me || x.b === tour.me));
       tour.state = m;

@@ -1,8 +1,12 @@
+// Populate only with documents explicitly approved by the owner. Empty configuration renders nothing.
+export const APPROVED_LEGAL_DOCUMENTS = [];
+const escapeLink = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 // «Правовая информация и авторы»: fan-project disclaimer, rights holders, takedown, data, third-party licenses.
 export function renderLegal(root, onBack, { onRights } = {}) {
   root.innerHTML = `<div class="legal-box">
     <button class="btn small" data-back>← Назад</button>
     <h2>Правовая информация</h2>
+    ${APPROVED_LEGAL_DOCUMENTS.filter(d => d.approved === true && d.title && /^(https:\/\/|\/(?!\/))/.test(d.url || '')).map(d => `<p><a href="${escapeLink(d.url)}" rel="noopener">${escapeLink(d.title)}</a></p>`).join('')}
 
     <h3>Неофициальный фан-проект</h3>
     <p>Этот сайт — неофициальная некоммерческая фанатская версия настольной игры «Карточные битвы ПЧК», сделанная поклонниками для игры с друзьями. Он <b>не является официальным продуктом</b>, не связан с каналом и шоу «Подземелья Чикен Карри», с авторами и издателями игры «Карточные битвы ПЧК» (cardbattles.cc), с художниками, участниками и создателями шоу, а также не одобрен, не спонсирован и не проверен ими.</p>

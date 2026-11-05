@@ -112,6 +112,10 @@ function profileHtml(games, tot, name) {
 }
 
 export function renderStats(root, onBack, { tab: startTab = 'world', name = () => '', setName = () => {}, onReplay = null, onShareReplay = null } = {}) {
+  root._profileUIOff?.();
+  const refresh = () => { if (root.classList.contains('active')) draw(); };
+  window.addEventListener('pchk-profile-ui', refresh);
+  root._profileUIOff = () => window.removeEventListener('pchk-profile-ui', refresh);
   let tab = startTab, worldMode = 'league', leagueF = '';
   const draw = () => {
     const games = loadGames();
@@ -218,7 +222,7 @@ export function loginDialog() {
   b.innerHTML = `<div class="modal login-box win-k" style="max-width:440px">
     <div class="win-head"><h3>Профиль</h3><button class="win-x" data-close aria-label="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
     <div class="k-tabs"><button class="on" data-tab="in">Войти</button><button data-tab="up">Создать профиль</button></div>
-    <p class="st-note">Колоды, награды и партии из этого браузера сохранятся и появятся на любом устройстве.</p>
+    <p class="st-note">После входа откроется профиль выбранной учётной записи: его колоды, награды и партии. Гостевой профиль хранится отдельно.</p>
     <label>Почта<input type="email" autocomplete="email" placeholder="name@mail.ru" data-em></label>
     <label>Пароль<input type="password" autocomplete="current-password" placeholder="не меньше 6 символов" data-pw></label>
     <p class="login-msg" data-msg></p>
