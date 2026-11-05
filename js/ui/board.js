@@ -754,7 +754,15 @@ export class BoardUI {
   }
   /** Short name of a side (its Leader), for the spectator view. */
   sideName(i) { const id = this.view?.players?.[i]?.leader?.id; return LEADER_SHORT[id] || CARDS[id]?.name.split(',')[0] || this.view?.players?.[i]?.name || ''; }
+  clearSetupOverlays() {
+    clearInterval(this._mullT); clearInterval(this._mclock);
+    this._mullQ = null; this._mullDone = true; this.q = null;
+    this.closeModal(); this.closePriority(); this.hidePreview();
+    this._tipEl?.remove(); this._tipEl = null;
+  }
   setPending(q) {
+    // A terminal sync or a concession must never preserve the starting-hand window.
+    if (this.view?.over) { this.clearSetupOverlays(); return; }
     // Spectators (a computer-vs-computer game, or watching friends) never get questions, windows or hints.
     if (this.spectator) {
       this.q = null; this.closeModal(); this.closePriority(); this.applyInteractivity(); this.renderPrompt();
@@ -770,7 +778,7 @@ export class BoardUI {
     }
     // The starting-hand window stays open (with my picks) while the opponent's moves come in: the same question again,
     // or a pause between messages, must not reset it.
-    const mullOpen = this._mullQ && this.modalEl?.querySelector('.mull-modal') && !this._mullDone;
+    const mullOpen = this.view?.phase === 'setup' && !this.view?.over && this._mullQ?.player === this.me && this.modalEl?.querySelector('.mull-modal') && !this._mullDone;
     if (mullOpen && (!q || (q.type === 'mulligan' && q.player === this.me && mullKey(q) === mullKey(this._mullQ)))) { if (q) this.q = q; return; }
     this.q = q;
     this.chosen.clear();
@@ -1541,7 +1549,8 @@ ${optHtml}</div></div>
   }
   /** One-time tutorial tips (first game). */
   maybeTip(q) {
-    if (!q || q.player !== this.me || this.noTips || !isNewcomer()) return;
+    // The starting-hand window already contains the selection and mulligan instructions.
+    if (!q || q.type === 'mulligan' || q.player !== this.me || this.noTips || !isNewcomer()) return;
     const key = q.type === 'target' ? (q.defense ? 'defense' : q.maneuver ? 'maneuver' : q.hint === 'face' ? 'face' : 'target') : q.type;
     const tip = TIPS[key];
     if (!tip || tipStore.seen(key)) return;
@@ -2313,6 +2322,7 @@ ${optHtml}</div></div>
   /** Update the ranking block of the end screen (filled in by the app once the result is saved). */
   setRankInfo(html) { const el = document.querySelector('#game .over2 .ov-rank'); if (el) el.innerHTML = html; else this._rankHtml = html; }
   showGameOver(winner) {
+    this.clearSetupOverlays();
     const win = winner === this.me, draw = winner === 'draw';
     (win || this.spectator ? sfx.win : sfx.lose)();
     if (!draw) setTimeout(() => voice(this.view.players[winner].leader?.id, 'Win'), 2300);
