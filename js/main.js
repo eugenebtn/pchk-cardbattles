@@ -30,7 +30,7 @@ import { decodeDeck } from './net/deckcode.js';
 import { chooseDecks, availableDecks } from './ui/deck-picker.js';
 import { BOT_DECKS } from './data/botdecks.js';
 import { myFriendCode, loadFriends, addFriend, removeFriend, startPresence, setPresenceRoom, friendsStatus, sendInvite } from './net/friends.js';
-import { submitResult, loadPlayers, playerId, loadLeagues } from './net/ranking.js';
+import { loadPlayers, playerId, loadLeagues, loadMyRankingId, rankingErrorText } from './net/ranking.js';
 import { emblem } from './ui/leagues.js';
 import { installFeedbackControl, openFeedback } from './ui/feedback.js';
 import { renderLegal } from './ui/legal.js';
@@ -588,23 +588,17 @@ function startBoard(session) {
     // World ranking (draws are not sent): place and wins before and after this game, shown on the end screen.
     if (winner === 'draw') { ui.setRankInfo('<span class="ov-wait">Ничьи в мировой рейтинг не идут.</span>'); return; }
     if (session.server && session.rated === false) { ui.setRankInfo('<span class="ov-wait">Обычная партия — в мировой рейтинг не идёт.</span>'); return; }
-    const titleOf = (i) => session.cfgPlayers?.[i]?.title || Object.values(DECKS).find((d) => d.leader === P[i].leader.id)?.title || CARDS[P[i].leader.id]?.name;
-    const mode = session.remote || session.conn ? 'online' : 'bot';
-    // The league card: points before and after, and a step into the next league.
-    const mine = (list) => { const p = (list || []).find((x) => x.player_id === playerId()); return p ? { ...p, total: list.length } : null; };
+    if (!session.server) { ui.setRankInfo('<span class="ov-wait">Эта партия сохранена только в «Моих партиях». В подтверждённый рейтинг идут серверные онлайн-партии.</span>'); return; }
     (async () => {
-      let before = null; try { before = mine(await loadLeagues()); } catch { /* offline */ }
-      if (!session.server && !opt.name) { ui.setRankInfo('<span class="ov-wait">Без имени партия не идёт в мировой рейтинг. Укажите имя в «Профиле».</span>'); return; }
-      if (!sameProfile()) return;
-      // Games on the server are recorded by the server itself (honest ranking); here we only wait for it.
-      const ok = session.server ? await new Promise((r) => setTimeout(() => r(true), 2500))
-        : await submitResult({ name: myName(), deck: titleOf(me), leader: P[me].leader.id, oppName: P[1 - me].name, oppDeck: titleOf(1 - me), mode, won: winner === me, rounds: view.round, cards: session.cfgPlayers?.[me]?.deck, oppLeader: P[1 - me].leader.id, oppCards: session.cfgPlayers?.[1 - me]?.deck || session.game?.cfg?.players?.[1 - me]?.deck });
-      if (!sameProfile()) return;
-      let after = null; if (ok) { try { after = mine(await loadLeagues()); } catch { /* offline */ } }
-      if (!ok || !after) { ui.setRankInfo('<span class="ov-wait">Мировой рейтинг сейчас недоступен — результат сохранён в вашей статистике.</span>'); return; }
-      const delta = after.points - (before ? before.points : 1000);
-      const step = before && before.league !== after.league ? (after.points > before.points ? `<br>🎉 Новая лига: <b>${esc(after.league.name)}</b>!` : `<br>Лига сменилась на «${esc(after.league.name)}».`) : '';
-      ui.setRankInfo(`<div class="ov-rank-in">${emblem(after.league, 44)}<div><b>${esc(after.league.name)} · ${after.points} очков</b> (${delta >= 0 ? '+' : ''}${delta})<br>${after.place + 1} место из ${after.total} в мировом рейтинге${step}</div></div>`);
+      try {
+        const rankingId = await loadMyRankingId();
+        if (!sameProfile()) return;
+        await new Promise(r => setTimeout(r, 2500));
+        const list = await loadLeagues();
+        if (!sameProfile()) return;
+        const p = list.find(x => x.player_id === rankingId);
+        ui.setRankInfo(p ? `<div class="ov-rank-in">${emblem(p.league,44)}<div><b>${esc(p.league.name)} · ${p.points} очков</b><br>${p.place+1} место в подтверждённом сезоне</div></div>` : '<span class="ov-wait">Сервер обрабатывает результат. Проверьте новый сезон в рейтинге позже.</span>');
+      } catch (e) { if (sameProfile()) ui.setRankInfo(`<span class="ov-wait">${esc(rankingErrorText(e))}</span>`); }
     })();
   };
   const wire = () => {
@@ -976,13 +970,41 @@ function drawMenuTop() {
   const lg = $('#mv-login');
   if (lg) { lg.innerHTML = u ? '' : '<button class="mv-login-btn" data-login>Войти, чтобы сохранить профиль</button>'; const b = lg.querySelector('[data-login]'); if (b) b.onclick = () => loginDialog(); }
   const side = $('#mv-side'); if (!side) return;
-  loadLeagues().then((list) => {
-    const p = list.find((x) => x.player_id === playerId());
-    side.innerHTML = !p ? 'сыграйте партию — и вы в рейтинге' : `${emblem(p.league, 16)} ${esc(p.league.name)} · ${p.points} очков · ${p.place + 1} место`;
-  }).catch(() => { side.textContent = 'лиги игроков'; });
+  const owner = currentUser()?.id;
+  if (!owner) { side.textContent = 'новый сезон · вход для участия'; return; }
+  side.textContent = 'проверяем место в новом сезоне…';
+  Promise.all([loadLeagues(), loadMyRankingId()]).then(([list, rankingId]) => {
+    if (currentUser()?.id !== owner) return;
+    const p = list.find(x => x.player_id === rankingId);
+    side.innerHTML = !p ? 'новый сезон · сыграйте рейтинговую онлайн-партию' : `${emblem(p.league, 16)} ${esc(p.league.name)} · ${p.points} очков · ${p.place+1} место`;
+  }).catch(e => { if(currentUser()?.id === owner) side.textContent = 'новый сезон временно недоступен'; });
 }
 drawMenuTop();
 document.querySelector('#menu [data-close-opts]')?.addEventListener('click', () => $('#menu-opts').classList.add('hidden'));
+
+/** Only authenticated server identities can enter the verified season. Public reading remains open. */
+async function requireRankedProfile() {
+  if (!currentUser() && !(await loginDialog())) return false;
+  try { await loadMyRankingId(); return !!currentUser(); }
+  catch(e) { toast(rankingErrorText(e), 6500); return false; }
+}
+function connectionError(box, error, retry) {
+  const code = error?.code || error;
+  let notice = null;
+  if (document.querySelector('#game.active')) {
+    document.querySelector('.verified-auth-notice')?.remove();
+    notice=document.createElement('div');notice.className='modal-back verified-auth-notice';notice.style.cssText='position:fixed;inset:0;z-index:450';
+    box=document.createElement('div');box.className='modal win-k';box.setAttribute('role','alertdialog');box.setAttribute('aria-label','Подключение к рейтинговой партии');notice.append(box);document.body.append(notice);
+  }
+  box.replaceChildren();
+  const p=document.createElement('p');p.className='st-note';p.setAttribute('role','alert');p.textContent=rankingErrorText(error);box.append(p);
+  if (['AUTH_REQUIRED','AUTH_INVALID'].includes(code)) {
+    const b=document.createElement('button');b.className='btn primary';b.textContent='Войти в профиль';b.onclick=async()=>{notice?.remove();if(await loginDialog()) retry?.();else connectionError(box,error,retry);};box.append(b);
+  } else if (error?.retryable && code!=='IDENTITY_MISMATCH') {
+    const b=document.createElement('button');b.className='btn';b.textContent='Повторить';b.onclick=()=>{notice?.remove();retry?.();};box.append(b);
+  }
+  if(notice){const b=document.createElement('button');b.className='btn';b.textContent='В меню';b.onclick=()=>{notice.remove();show('menu');};box.append(b);}
+}
 
 // ---------- online through the game server ----------
 /** Both players are clients of the server: it runs the game, we show it and send answers. */
@@ -1027,8 +1049,10 @@ function serverPlay(code, deck, { creating = false, matched = false, tour: inTou
   } else ob.textContent = 'Соединяемся с сервером…';
   const connectionIdentity = identity();
   let ss = null;
-  const conn = connectRoom(code, { name: myName(), playerId: playerId(), ...(inTour && tour?.token ? {tourToken: tour.token} : {}), autopass: AP_ENGINE(opt.autopass), timer: creating ? opt.timer : matched ? 90 : 0, rated: creating || matched ? rated : undefined, looks: myLooks(), deck: { leader: deck.leader, cards: deck.cards, title: deck.title } }, {
+  const conn = connectRoom(code, { name: myName(), ...(inTour && tour?.token ? {tourToken: tour.token} : {}), autopass: AP_ENGINE(opt.autopass), timer: creating ? opt.timer : matched ? 90 : 0, rated: creating || matched ? rated : undefined, looks: myLooks(), deck: { leader: deck.leader, cards: deck.cards, title: deck.title } }, {
     onMessage(msg) {
+      if (msg.t === 'authError') { connectionError(ob, msg, () => { conn.close(); serverPlay(code,deck,{creating,matched,tour:inTour,rated}); }); return; }
+      if (msg.t === 'seat' && ss && msg.rankingId) ss.rankingId = msg.rankingId;
       if (msg.t === 'events' && endedIn(msg.batch)) { markDone(code); store.set('live', null); }
       if ((msg.t === 'start' || msg.t === 'sync') && !ss) store.set('live', { code, at: Date.now() }); // a game in progress: offered again in the menu after a reload
       if ((msg.t === 'start' || msg.t === 'sync') && !ss) { ss = new ServerSession(conn, msg.me ?? 0); ss.profileIdentity = connectionIdentity; ss.tour = inTour; ss.rated = msg.rated !== false; setPresenceRoom(code); startBoard(ss); ss.ui?.setOppLooks?.(cleanLooks(msg.opp)); if (msg.t === 'start') toast(ss.rated ? '🏆 Рейтинговая партия — результат пойдёт в рейтинг' : 'Обычная партия — в рейтинг не идёт', 3200); if (msg.t === 'sync') ss.onMessage(msg); return; }
@@ -1044,9 +1068,10 @@ function serverPlay(code, deck, { creating = false, matched = false, tour: inTou
   return conn;
 }
 async function startServerHost(rated = false, inviteTo = null) {
+  if (rated && !(await requireRankedProfile())) return;
   const r = await pickDecks([{ title: 'Ваша колода — затем отправьте ссылку другу', goLabel: 'Создать комнату', rated }]);
   if (!r) return;
-  let code; try { code = await newRoomCode(); } catch { toast('Сервер недоступен — играем напрямую'); return startHost(true); }
+  let code; try { code = await newRoomCode(); } catch { if(rated){toast('Сервер недоступен. Рейтинговая партия не начата.',5000);return;} toast('Сервер недоступен — играем напрямую'); return startHost(true); }
   if (inviteTo) sendInvite(inviteTo, code, myName()).then((ok) => ok ? toast('Приглашение отправлено — друг увидит его в течение 20 секунд', 3500) : toast('Не удалось отправить приглашение — отправьте другу ссылку на комнату', 4500));
   serverPlay(code, r[0], { creating: true, rated });
 }
@@ -1061,6 +1086,7 @@ async function startServerJoin(code) {
 }
 /** «Найти соперника»: pick a deck, wait in the queue, then play in the room the server made. */
 async function startMatchmaking(rated = true) {
+  if (rated && !(await requireRankedProfile())) return;
   const r = await pickDecks([{ title: rated ? 'Ваша колода — рейтинговая партия со случайным соперником' : 'Ваша колода — обычная партия со случайным соперником', goLabel: 'Искать соперника', rated }]);
   if (!r) return;
   show('picker');
@@ -1072,7 +1098,8 @@ async function startMatchmaking(rated = true) {
     onQueue(n) { ob.textContent = n > 1 ? `В очереди: ${n}. Сейчас подберём пару…` : 'Вы первый в очереди. Как только кто-то ещё начнёт поиск — партия начнётся.'; },
     onMatch(code, vs) { toast(`Соперник найден: ${vs}`); serverPlay(code, r[0], { matched: true, rated }); },
     rated,
-    onError() { ob.textContent = 'Сервер поиска недоступен. Попробуйте позже или позовите друга по ссылке.'; },
+    onAuthError(error) { connectionError(ob,error,()=>{mm.cancel();startMatchmaking(rated);}); },
+    onError(error) { if(typeof error==='string' && /^AUTH_|^IDENTITY_|^RANKING_/.test(error)) return; else ob.textContent = 'Сервер поиска недоступен. Попробуйте позже или позовите друга по ссылке.'; },
   });
   $('#picker').querySelector('[data-act=back]').onclick = () => { mm.cancel(); show('menu'); };
 }
@@ -1138,13 +1165,15 @@ function drawTour() {
   $('#picker').querySelector('[data-act=back]').onclick = () => { show('menu'); };
 }
 async function startTour(code = null) {
+  if (!(await requireRankedProfile())) return;
   if (!serverOn()) { toast('Турниры работают через игровой сервер — он ещё не подключён'); return; }
   const r = await pickDecks([{ title: code ? 'Ваша колода для турнира' : 'Ваша колода — затем позовите участников', goLabel: code ? 'Войти в турнир' : 'Создать турнир', tournament: true }]);
   if (!r) return;
   if (!code) { try { code = await newRoomCode(); } catch { toast('Сервер недоступен'); return; } }
   tour?.conn.close();
   tour = { code, deck: r[0], me: -1, owner: false, state: null };
-  tour.conn = connectTour(code, { name: myName(), playerId: playerId(), deck: { leader: r[0].leader, cards: r[0].cards } }, (m) => {
+  tour.conn = connectTour(code, { name: myName(), deck: { leader: r[0].leader, cards: r[0].cards } }, (m) => {
+    if (m.t === 'authError') { connectionError($('#picker-online'),m,()=>{tour?.conn.close();startTour(code);}); return; }
     if (m.t === 'you') { tour.me = m.me; tour.owner = m.owner; tour.token = m.token; }
     if (m.t === 'state') {
       const had = tour.state?.rounds.flat().find((x) => x.room && x.winner == null && (x.a === tour.me || x.b === tour.me));

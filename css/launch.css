@@ -44,3 +44,8 @@
   overflow-y:auto;overscroll-behavior:contain
 }
 .modal-back>.login-box>*{flex-shrink:0}
+
+.rk-seasons{flex-wrap:wrap!important;justify-content:flex-start!important}
+.rk-seasons .btn{white-space:normal;max-width:100%;min-height:44px;font-size:15px;letter-spacing:.02em}
+.verified-auth-notice .modal{max-width:480px;width:94vw;box-sizing:border-box}
+.verified-auth-notice button{min-height:44px;margin:6px}

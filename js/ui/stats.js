@@ -1,6 +1,6 @@
 // World ranking (shared online table), personal statistics (kept in this browser) and the deck balance table.
 import { CARDS } from '../data/cards.js';
-import { loadPlayers, loadDecks, playerId, loadLeagues } from '../net/ranking.js';
+import { loadPlayers, loadDecks, loadLeagues, loadMyRankingId, VERIFIED_SEASON_TITLE, rankingErrorText } from '../net/ranking.js';
 import { LEAGUES, emblem, leagueTag, nextLeague, leagueOf, START } from './leagues.js';
 import { DECKS } from '../data/decks.js';
 import { BALANCE } from '../data/balance.js';
@@ -46,44 +46,50 @@ function group(list, keyFn) {
 }
 
 /** World ranking: players and decks of one mode, loaded from the shared table. */
-async function renderWorld(box, mode, name, setName) {
-  const me = playerId();
-  box.innerHTML = `<div class="rk-name">Ваше имя в рейтинге: <input type="text" maxlength="20" value="${esc(name())}" placeholder="Игрок"><button class="btn small" data-save>Сохранить</button></div>
-    <p class="st-note">${mode === 'all' ? 'Все партии вместе: с друзьями и против компьютера.' : mode === 'online' ? 'Партии с друзьями по ссылке.' : 'Партии против компьютера.'} Считаются победы; при равенстве выше тот, у кого больше процент побед. Результат записывается сам после каждой партии.</p>
+async function renderWorld(box, mode, name, setName, archive = false) {
+  const owner = currentUser()?.id;
+  let me = null;
+  box.innerHTML = `${archive ? '' : `<div class="rk-name">Ваше имя в рейтинге: <input type="text" maxlength="20" value="${esc(name())}" placeholder="Игрок"><button class="btn small" data-save>Сохранить</button></div>`}
+    <p class="st-note">${!archive ? 'Только рейтинговые онлайн-партии, проверенные сервером. Партии с компьютером остаются в «Моих партиях».' : mode === 'all' ? 'Все партии вместе: с друзьями и против компьютера.' : mode === 'online' ? 'Партии с друзьями по ссылке.' : 'Партии против компьютера.'} Считаются победы; при равенстве выше тот, у кого больше процент побед. ${archive ? 'Архив не пополняется. Эти записи не подтверждают владение профилем.' : 'Результат записывает только сервер.'}</p>
     <div class="rk-body"><p class="st-empty">Загружаем рейтинг…</p></div>`;
-  box.querySelector('[data-save]').onclick = () => { setName(box.querySelector('input').value.trim()); box.querySelector('[data-save]').textContent = 'Сохранено'; };
+  if (!archive) box.querySelector('[data-save]').onclick = () => { setName(box.querySelector('input').value.trim()); box.querySelector('[data-save]').textContent = 'Сохранено'; };
   const body = box.querySelector('.rk-body');
   try {
-    const [players, decks] = await Promise.all([loadPlayers(mode), loadDecks(mode)]);
+    const [players, decks] = await Promise.all([loadPlayers(mode, {archive}), loadDecks(mode, {archive})]);
+    if (!archive) me = await loadMyRankingId().catch(() => null);
+    if (owner !== currentUser()?.id || !box.isConnected) return;
     const leaderOf = (title) => Object.values(DECKS).find((d) => d.title === title)?.leader;
     const face = (id) => id && CARDS[id] ? `<span class="st-face" style="background-image:url('${CARDS[id].img}')"></span>` : '';
     const medal = (k) => (k < 3 ? `<span class="rk-medal m${k + 1}">${k + 1}</span>` : `<span class="rk-place">${k + 1}</span>`);
     const when = (t) => new Date(t).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
     body.innerHTML = players.length ? `<h3>Игроки</h3><table class="st-table rk-table"><tr><th>Место</th><th>Игрок</th><th>Побед</th><th>Партий</th><th>Процент побед</th><th>Любимая колода</th><th>Последняя</th></tr>
-      ${players.map((p, k) => `<tr class="${p.player_id === me ? 'rk-me' : ''}"><td>${medal(k)}</td><td>${esc(p.player_name)}${p.player_id === me ? ' <small>(вы)</small>' : ''}</td><td><b>${p.wins}</b></td><td>${p.games}</td><td>${bar(p.wins, p.games)}</td><td>${face(leaderOf(p.fav_deck))}${esc(p.fav_deck || '—')}</td><td>${when(p.last_game)}</td></tr>`).join('')}</table>
+      ${players.map((p, k) => `<tr class="${me && p.player_id === me ? 'rk-me' : ''}"><td>${medal(k)}</td><td>${esc(p.player_name)}${me && p.player_id === me ? ' <small>(вы)</small>' : ''}</td><td><b>${p.wins}</b></td><td>${p.games}</td><td>${bar(p.wins, p.games)}</td><td>${face(leaderOf(p.fav_deck))}${esc(p.fav_deck || '—')}</td><td>${when(p.last_game)}</td></tr>`).join('')}</table>
       <h3>Колоды</h3><table class="st-table"><tr><th>Колода</th><th>Партий</th><th>Побед</th><th>Процент побед</th></tr>
       ${decks.map((d) => `<tr><td>${face(d.leader)}${esc(d.deck)}</td><td>${d.games}</td><td>${d.wins}</td><td>${bar(d.wins, d.games)}</td></tr>`).join('')}</table>`
-      : '<p class="st-empty">Пока никто не сыграл. Сыграйте партию — вы окажетесь первым!</p>';
+      : `<p class="st-empty">${archive ? 'В архиве пока нет записей для этого раздела.' : 'В новом сезоне пока нет партий. Рейтинговые онлайн-партии появятся здесь после завершения.'}</p>`;
   } catch {
-    body.innerHTML = '<p class="st-empty">Не получилось загрузить рейтинг — нет связи с сервером. Попробуйте позже.</p>';
+    body.innerHTML = `<p class="st-empty">${archive ? 'Архив сейчас недоступен. Попробуйте позже.' : rankingErrorText('AUTH_UNAVAILABLE')}</p>`;
   }
 }
 
 /** Leagues: the five emblems (pick one to see only that league) and the players with their points. */
-async function renderLeagues(box, filter, setFilter) {
-  const me = playerId();
-  box.innerHTML = `<p class="st-note">Очки лиги: все начинают с ${START}. Рейтинговая партия онлайн — +25 за победу, −20 за поражение; партия с компьютером — +8 / −6. Челленджер — десять лучших игроков от ${LEAGUES[4].min} очков.</p>
+async function renderLeagues(box, filter, setFilter, archive = false) {
+  const owner = currentUser()?.id;
+  let me = null;
+  box.innerHTML = `<p class="st-note">Очки лиги: все начинают с ${START}. Рейтинговая партия онлайн — +25 за победу, −20 за поражение; ${archive ? 'Исторические партии с компьютером — +8 / −6.' : 'Партии с компьютером не меняют очки этого сезона.'} Челленджер — десять лучших игроков от ${LEAGUES[4].min} очков.</p>
     <div class="lg-row">${LEAGUES.slice().reverse().map((l) => `<button class="lg-pick ${filter === l.key ? 'on' : ''}" data-lg="${l.key}">${emblem(l, 46)}<b>${esc(l.name)}</b><small>${l.key === 'challenger' ? `топ 10 от ${l.min}` : `от ${l.min}`}</small><i data-n="${l.key}">…</i></button>`).join('')}</div>
     <div class="rk-body"><p class="st-empty">Загружаем лиги…</p></div>`;
   box.querySelectorAll('[data-lg]').forEach((b) => { b.onclick = () => setFilter(filter === b.dataset.lg ? '' : b.dataset.lg); });
   const body = box.querySelector('.rk-body');
   try {
-    const all = await loadLeagues();
+    const all = await loadLeagues({archive});
+    if (!archive) me = await loadMyRankingId().catch(() => null);
+    if (owner !== currentUser()?.id || !box.isConnected) return;
     for (const l of LEAGUES) { const el = box.querySelector(`[data-n="${l.key}"]`); if (el) el.textContent = `${all.filter((p) => p.league === l).length} игр.`; }
     const list = filter ? all.filter((p) => p.league.key === filter) : all;
     const when = (t) => new Date(t).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
     body.innerHTML = list.length ? `<table class="st-table rk-table lg-table"><tr><th>Место</th><th>Лига</th><th>Игрок</th><th>Очки</th><th>Побед</th><th>Партий</th><th>Последняя</th></tr>
-      ${list.map((p) => `<tr class="${p.player_id === me ? 'rk-me' : ''}"><td><span class="rk-place">${p.place + 1}</span></td><td>${leagueTag(p.league)}</td><td>${esc(p.player_name)}${p.player_id === me ? ' <small>(вы)</small>' : ''}</td><td><b>${p.points}</b></td><td>${p.wins}</td><td>${p.games}</td><td>${when(p.last)}</td></tr>`).join('')}</table>`
+      ${list.map((p) => `<tr class="${me && p.player_id === me ? 'rk-me' : ''}"><td><span class="rk-place">${p.place + 1}</span></td><td>${leagueTag(p.league)}</td><td>${esc(p.player_name)}${me && p.player_id === me ? ' <small>(вы)</small>' : ''}</td><td><b>${p.points}</b></td><td>${p.wins}</td><td>${p.games}</td><td>${when(p.last)}</td></tr>`).join('')}</table>`
       : `<p class="st-empty">${filter ? 'В этой лиге пока никого. Побеждайте — и будете первым!' : 'Пока никто не сыграл. Сыграйте партию — вы окажетесь первым!'}</p>`;
   } catch {
     body.innerHTML = '<p class="st-empty">Не получилось загрузить лиги — нет связи с сервером. Попробуйте позже.</p>';
@@ -116,7 +122,7 @@ export function renderStats(root, onBack, { tab: startTab = 'world', name = () =
   const refresh = () => { if (root.classList.contains('active')) draw(); };
   window.addEventListener('pchk-profile-ui', refresh);
   root._profileUIOff = () => window.removeEventListener('pchk-profile-ui', refresh);
-  let tab = startTab, worldMode = 'league', leagueF = '';
+  let tab = startTab, worldMode = 'league', leagueF = '', archive = false;
   const draw = () => {
     const games = loadGames();
     const human = games;
@@ -184,26 +190,34 @@ export function renderStats(root, onBack, { tab: startTab = 'world', name = () =
       <button class="btn small" data-back>← Назад</button>
       <h2>Статистика</h2>
       <div class="st-tabs"><button class="btn small ${tab === 'profile' ? 'primary' : ''}" data-tab="profile">Профиль</button><button class="btn small ${tab === 'world' ? 'primary' : ''}" data-tab="world">Мировой рейтинг</button><button class="btn small ${tab === 'mine' ? 'primary' : ''}" data-tab="mine">Мои партии</button><button class="btn small ${tab === 'ach' ? 'primary' : ''}" data-tab="ach">Награды</button><button class="btn small ${tab === 'bal' ? 'primary' : ''}" data-tab="bal">Баланс колод</button></div>
-      ${tab === 'world' ? `<div class="st-tabs sub"><button class="btn small ${worldMode === 'league' ? 'primary' : ''}" data-wm="league">🏆 Лиги</button><button class="btn small ${worldMode === 'all' ? 'primary' : ''}" data-wm="all">Общий</button><button class="btn small ${worldMode === 'online' ? 'primary' : ''}" data-wm="online">С друзьями онлайн</button><button class="btn small ${worldMode === 'bot' ? 'primary' : ''}" data-wm="bot">Против компьютера</button></div><div class="rk-box"></div>` : tab === 'profile' ? profileHtml(human, tot, name()) : tab === 'mine' ? mine : tab === 'ach' ? achievementsHtml() : balance}
+      ${tab === 'world' ? `<div class="st-tabs rk-seasons"><button class="btn small ${!archive?'primary':''}" data-season="verified">Новый подтверждённый сезон</button><button class="btn small ${archive?'primary':''}" data-season="archive">Исторический архив</button></div>
+      <p class="st-note">${archive?'Архив прежнего рейтинга. Записи сохранены как были; они не переносятся в новый сезон и не присваиваются по имени или старому ID.':VERIFIED_SEASON_TITLE}</p>
+      ${!archive&&!currentUser()?'<p class="st-note">Для участия в рейтинговых партиях нужен вход в профиль. Смотреть таблицу можно без входа. <button class="btn small" data-rank-login>Войти</button></p>':''}
+      <div class="st-tabs sub"><button class="btn small ${worldMode==='league'?'primary':''}" data-wm="league">🏆 Лиги</button><button class="btn small ${worldMode==='all'?'primary':''}" data-wm="all">Игроки и колоды</button>${archive?`<button class="btn small ${worldMode==='online'?'primary':''}" data-wm="online">Онлайн · архив</button><button class="btn small ${worldMode==='bot'?'primary':''}" data-wm="bot">Компьютер · архив</button>`:''}</div><div class="rk-box"></div>` : tab === 'profile' ? profileHtml(human, tot, name()) : tab === 'mine' ? mine : tab === 'ach' ? achievementsHtml() : balance}
     </div>`;
     root.querySelector('[data-back]').onclick = onBack;
     root.querySelectorAll('[data-tab]').forEach((b) => { b.onclick = () => { tab = b.dataset.tab; draw(); }; });
     root.querySelectorAll('[data-wm]').forEach((b) => { b.onclick = () => { worldMode = b.dataset.wm; draw(); }; });
-    if (tab === 'world') { if (worldMode === 'league') renderLeagues(root.querySelector('.rk-box'), leagueF, (f) => { leagueF = f; draw(); }); else renderWorld(root.querySelector('.rk-box'), worldMode, name, setName); }
+    root.querySelectorAll('[data-season]').forEach(b => { b.onclick = () => { archive = b.dataset.season === 'archive'; worldMode = 'league'; leagueF = ''; draw(); }; });
+    root.querySelector('[data-rank-login]')?.addEventListener('click', () => loginDialog());
+    if (tab === 'world') { if (worldMode === 'league') renderLeagues(root.querySelector('.rk-box'), leagueF, (f) => { leagueF = f; draw(); }, archive); else renderWorld(root.querySelector('.rk-box'), worldMode, name, setName, archive); }
     if (tab === 'profile') {
       const inp = root.querySelector('.pf-name input');
       root.querySelector('.pf-name button').onclick = () => { setName(inp.value.trim()); root.querySelector('.pf-name button').textContent = 'Сохранено'; };
       const lo = root.querySelector('[data-logout]'); if (lo) lo.onclick = () => { signOut(); draw(); };
       bindLooks(root, () => { const a = root.querySelector('.pf-ava'), f = avatarFile(myAvatar()); if (a && f) a.style.backgroundImage = `url('${f}')`; window.dispatchEvent(new Event('pchk-looks')); });
       const li = root.querySelector('[data-login]'); if (li) li.onclick = () => loginDialog();
-      loadLeagues().then((list) => {
-        const el = root.querySelector('.pf-rank'); if (!el) return;
-        const p = list.find((x) => x.player_id === playerId());
-        if (!p) { el.innerHTML = `${leagueTag(leagueOf(START))} <span>${START} очков · сыграйте партию с именем, чтобы попасть в рейтинг</span>`; return; }
+      const owner = currentUser()?.id;
+      const rankTarget = root.querySelector('.pf-rank');
+      if (!owner) rankTarget.textContent = 'Войдите в профиль для участия в подтверждённом рейтинге.';
+      else Promise.all([loadLeagues(), loadMyRankingId()]).then(([list, rankingId]) => {
+        const el = root.querySelector('.pf-rank'); if (!el || el !== rankTarget || owner !== currentUser()?.id) return;
+        const p = list.find((x) => x.player_id === rankingId);
+        if (!p) { el.innerHTML = `${leagueTag(leagueOf(START))} <span>${START} очков · сыграйте рейтинговую онлайн-партию в новом сезоне</span>`; return; }
         const nx = nextLeague(p.points, p.league);
         el.innerHTML = `<div class="pf-league">${emblem(p.league, 44)}<div><b>${esc(p.league.name)}</b> · ${p.points} очков · ${p.place + 1} место из ${list.length}
           ${nx ? `<div class="lg-prog"><i style="width:${Math.round(nx.share * 100)}%"></i></div><small>До лиги «${esc(nx.league.name)}» — ${nx.need ? nx.need + ' очков' : 'войти в десятку лучших'}</small>` : '<small>Вы среди лучших игроков мира!</small>'}</div></div>`;
-      }).catch(() => { const el = root.querySelector('.pf-rank'); if (el) el.textContent = 'Рейтинг сейчас недоступен'; });
+      }).catch(e => { const el = root.querySelector('.pf-rank'); if (el === rankTarget && owner === currentUser()?.id) el.textContent = rankingErrorText(e); });
     }
     const reps = loadReplays().slice().reverse();
     root.querySelectorAll('[data-rp]').forEach((b) => { b.onclick = () => onReplay?.(reps[Number(b.dataset.rp)]); });
@@ -214,8 +228,12 @@ export function renderStats(root, onBack, { tab: startTab = 'world', name = () =
   draw();
 }
 
-/** Sign in / sign up window. After it the page reloads, so every screen shows the account's profile. */
+/** Sign in / sign up window. Returns true after login; preserves a running game and refreshes profile UI. */
+let loginFlight = null;
 export function loginDialog() {
+  if (loginFlight) return loginFlight;
+  loginFlight = new Promise(resolve => {
+  const finish = ok => { b.remove(); loginFlight = null; resolve(ok); };
   const b = document.createElement('div');
   b.className = 'modal-back'; b.style.cssText = 'position:fixed;inset:0;z-index:400';
   // Canvas «Вход в профиль»: title and ✕, two tabs (Войти / Создать профиль), one gold button that follows the tab.
@@ -240,7 +258,7 @@ export function loginDialog() {
     try {
       const r = await fn(em, pw);
       if (r.confirm) { msg.textContent = 'Мы отправили письмо на эту почту — откройте ссылку в нём, затем нажмите «Войти».'; b.querySelectorAll('button').forEach((x) => { x.disabled = false; }); return; }
-      msg.textContent = 'Готово!'; setTimeout(() => location.reload(), 400);
+      msg.textContent = 'Готово!'; window.dispatchEvent(new Event('pchk-profile-ui')); finish(true);
     } catch (e) { msg.textContent = e.message; b.querySelectorAll('button').forEach((x) => { x.disabled = false; }); }
   };
   b.querySelectorAll('[data-tab]').forEach((t) => { t.onclick = () => {
@@ -250,6 +268,8 @@ export function loginDialog() {
   }; });
   $('[data-go]').onclick = go;
   $('[data-pw]').onkeydown = (e) => { if (e.key === 'Enter') go(); };
-  $('[data-close]').onclick = () => b.remove();
+  $('[data-close]').onclick = () => finish(false);
   $('[data-em]').focus();
+  });
+  return loginFlight;
 }
