@@ -49,3 +49,16 @@
 .rk-seasons .btn{white-space:normal;max-width:100%;min-height:44px;font-size:15px;letter-spacing:.02em}
 .verified-auth-notice .modal{max-width:480px;width:94vw;box-sizing:border-box}
 .verified-auth-notice button{min-height:44px;margin:6px}
+
+/* Settings rows retain their content height inside the scrolling window. */
+#menu.mv .menu-opts .k-row{flex-shrink:0}
+#menu.mv .menu-opts .k-row>span{min-width:0}
+#menu.mv .menu-opts .k-row select{box-sizing:border-box;flex-shrink:0;min-height:44px}
+@media(max-width:480px){
+  #menu.mv .menu-opts .k-row:has(>select){flex-direction:column;align-items:stretch;gap:6px;padding:6px 0}
+  #menu.mv .menu-opts .k-row>select{width:100%;max-width:100%;margin:0}
+}
+/* Handoff lives in the scaled board: allow for the phone's ~0.42 stage scale. */
+#stage .pass-screen .btn{box-sizing:border-box;min-height:56px;min-width:140px;padding:12px 24px}
+#stage.port .pass-screen .btn{min-height:110px;min-width:320px;font-size:38px}
+@media(max-height:500px){#stage.land .pass-screen .btn{min-height:110px;min-width:320px;font-size:38px}}
