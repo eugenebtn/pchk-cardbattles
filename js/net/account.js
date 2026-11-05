@@ -53,7 +53,7 @@ function why(e) {
 }
 
 async function auth(path, body) {
-  const res = await fetch(`${BASE}/auth/v1/${path}`, { method: 'POST', headers: { apikey: KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const res = await fetch(`${BASE}/auth/v1/${path}`, { method: 'POST', headers: { apikey: KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(body),signal:AbortSignal.timeout(8000) });
   const d = await res.json().catch(() => ({}));
   if (!res.ok) { const e=new Error(why(d)); e.status=res.status; throw e; }
   return d;
@@ -80,6 +80,12 @@ async function token(c) {
     } finally { if(refreshFlight===flight) refreshFlight=null; }
   })();
   refreshFlight=flight;return flight.promise;
+}
+
+/** A token for the currently active login only; never returns a token after an account switch. */
+export async function getAccessToken() {
+  const c=scope();if(!c.id)return null;
+  const t=await token(c);return active(c)?t:null;
 }
 
 // ---------- profile sync ----------
