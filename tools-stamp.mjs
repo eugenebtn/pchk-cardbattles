@@ -20,6 +20,6 @@ for (const f of js) map[`./${f}`] = `./${f}?v=${hash(f)}`;
 let html = readFileSync(join(root, 'index.html'), 'utf8');
 html = html.replace(/<script type="importmap">[\s\S]*?<\/script>/, `<script type="importmap">${JSON.stringify({ imports: map })}</script>`);
 html = html.replace(/<script type="module" src="js\/main\.js(\?v=[0-9a-f]+)?"><\/script>/, `<script type="module" src="js/main.js?v=${hash('js/main.js')}"></script>`);
-html = html.replace(/href="(css\/[a-z0-9_-]+\.css)(\?v=[0-9a-f]+)?"/g, (_, f) => `href="${f}?v=${hash(f)}"`);
+html = html.replace(/href="(css\/[a-z0-9_-]+\.css)(\?v=[^"\s]+)?"/g, (_, f) => `href="${f}?v=${hash(f)}"`);
 writeFileSync(join(root, 'index.html'), html);
 console.log(`stamped ${js.length} scripts and the stylesheets`);

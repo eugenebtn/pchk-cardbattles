@@ -390,3 +390,12 @@ html body #game .prompt .btn.small.cancel { color: var(--t-cream) !important; te
 .mv-art.leader-art { background-position: 70% center !important; }
 #scene::before { background-image: url('../assets/ui/menu_hall.webp') !important; background-position: 60% center !important; }
 @media (max-width: 760px) { .mv-art { background: #120a05 url('../assets/ui/menu_hall.webp') 72% top / auto 62vh no-repeat !important; } }
+
+/* Contain wide ranking tables; leave the screen, tabs and desktop layout unchanged. */
+#stats .rk-body { min-width: 0; max-width: 100%; }
+#stats .rk-table-scroll { width: 100%; max-width: 100%; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; }
+#stats .rk-table-scroll:focus-visible { outline: 2px solid var(--t-line-hi); outline-offset: 2px; }
+#stats .rk-scroll-hint { display: none; }
+@media (max-width: 760px) {
+  #stats .rk-scroll-hint { display: block; margin: 8px 0; color: var(--t-sub); font-size: 14px; }
+}

@@ -45,6 +45,23 @@ function group(list, keyFn) {
   return [...m.entries()].sort((a, b) => b[1].n - a[1].n);
 }
 
+/** Keep wide result tables scrollable without widening the statistics screen. */
+function wrapRankingTables(body) {
+  for (const table of body.querySelectorAll('table')) {
+    if (table.parentElement.classList.contains('rk-table-scroll')) continue;
+    const hint = document.createElement('p');
+    hint.className = 'rk-scroll-hint';
+    hint.textContent = 'Проведите по таблице вбок, чтобы увидеть все столбцы.';
+    const wrap = document.createElement('div');
+    wrap.className = 'rk-table-scroll';
+    wrap.tabIndex = 0;
+    wrap.setAttribute('role', 'region');
+    wrap.setAttribute('aria-label', 'Таблица результатов с горизонтальной прокруткой');
+    table.before(hint, wrap);
+    wrap.appendChild(table);
+  }
+}
+
 /** World ranking: players and decks of one mode, loaded from the shared table. */
 async function renderWorld(box, mode, name, setName, archive = false) {
   const owner = currentUser()?.id;
@@ -67,6 +84,7 @@ async function renderWorld(box, mode, name, setName, archive = false) {
       <h3>Колоды</h3><table class="st-table"><tr><th>Колода</th><th>Партий</th><th>Побед</th><th>Процент побед</th></tr>
       ${decks.map((d) => `<tr><td>${face(d.leader)}${esc(d.deck)}</td><td>${d.games}</td><td>${d.wins}</td><td>${bar(d.wins, d.games)}</td></tr>`).join('')}</table>`
       : `<p class="st-empty">${archive ? 'В архиве пока нет записей для этого раздела.' : 'В новом сезоне пока нет партий. Рейтинговые онлайн-партии появятся здесь после завершения.'}</p>`;
+    wrapRankingTables(body);
   } catch {
     body.innerHTML = `<p class="st-empty">${archive ? 'Архив сейчас недоступен. Попробуйте позже.' : rankingErrorText('AUTH_UNAVAILABLE')}</p>`;
   }
@@ -91,6 +109,7 @@ async function renderLeagues(box, filter, setFilter, archive = false) {
     body.innerHTML = list.length ? `<table class="st-table rk-table lg-table"><tr><th>Место</th><th>Лига</th><th>Игрок</th><th>Очки</th><th>Побед</th><th>Партий</th><th>Последняя</th></tr>
       ${list.map((p) => `<tr class="${me && p.player_id === me ? 'rk-me' : ''}"><td><span class="rk-place">${p.place + 1}</span></td><td>${leagueTag(p.league)}</td><td>${esc(p.player_name)}${me && p.player_id === me ? ' <small>(вы)</small>' : ''}</td><td><b>${p.points}</b></td><td>${p.wins}</td><td>${p.games}</td><td>${when(p.last)}</td></tr>`).join('')}</table>`
       : `<p class="st-empty">${filter ? 'В этой лиге пока никого. Побеждайте — и будете первым!' : 'Пока никто не сыграл. Сыграйте партию — вы окажетесь первым!'}</p>`;
+    wrapRankingTables(body);
   } catch {
     body.innerHTML = '<p class="st-empty">Не получилось загрузить лиги — нет связи с сервером. Попробуйте позже.</p>';
   }
@@ -195,6 +214,7 @@ export function renderStats(root, onBack, { tab: startTab = 'world', name = () =
       ${!archive&&!currentUser()?'<p class="st-note">Для участия в рейтинговых партиях нужен вход в профиль. Смотреть таблицу можно без входа. <button class="btn small" data-rank-login>Войти</button></p>':''}
       <div class="st-tabs sub"><button class="btn small ${worldMode==='league'?'primary':''}" data-wm="league">🏆 Лиги</button><button class="btn small ${worldMode==='all'?'primary':''}" data-wm="all">Игроки и колоды</button>${archive?`<button class="btn small ${worldMode==='online'?'primary':''}" data-wm="online">Онлайн · архив</button><button class="btn small ${worldMode==='bot'?'primary':''}" data-wm="bot">Компьютер · архив</button>`:''}</div><div class="rk-box"></div>` : tab === 'profile' ? profileHtml(human, tot, name()) : tab === 'mine' ? mine : tab === 'ach' ? achievementsHtml() : balance}
     </div>`;
+    if (tab === 'mine') wrapRankingTables(root);
     root.querySelector('[data-back]').onclick = onBack;
     root.querySelectorAll('[data-tab]').forEach((b) => { b.onclick = () => { tab = b.dataset.tab; draw(); }; });
     root.querySelectorAll('[data-wm]').forEach((b) => { b.onclick = () => { worldMode = b.dataset.wm; draw(); }; });
