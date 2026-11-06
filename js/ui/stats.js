@@ -201,6 +201,7 @@ export function renderStats(root, onBack, { tab: startTab = 'world', name = () =
       <div class="st-tabs"><button class="btn small ${tab === 'profile' ? 'primary' : ''}" data-tab="profile">Профиль</button><button class="btn small ${tab === 'world' ? 'primary' : ''}" data-tab="world">Мировой рейтинг</button><button class="btn small ${tab === 'mine' ? 'primary' : ''}" data-tab="mine">Мои партии</button><button class="btn small ${tab === 'ach' ? 'primary' : ''}" data-tab="ach">Награды</button><button class="btn small ${tab === 'bal' ? 'primary' : ''}" data-tab="bal">Баланс колод</button></div>
       ${tab === 'world' ? `<div class="st-tabs sub"><button class="btn small ${worldMode === 'league' ? 'primary' : ''}" data-wm="league">🏆 Лиги</button><button class="btn small ${worldMode === 'all' ? 'primary' : ''}" data-wm="all">Общий</button><button class="btn small ${worldMode === 'online' ? 'primary' : ''}" data-wm="online">С друзьями онлайн</button><button class="btn small ${worldMode === 'bot' ? 'primary' : ''}" data-wm="bot">Против компьютера</button></div><div class="rk-box"></div>` : tab === 'profile' ? profileHtml(human, tot, name()) : tab === 'mine' ? mine : tab === 'ach' ? achievementsHtml() : balance}
     </div>`;
+    if (tab === 'mine') wrapRankingTables(root);
     root.querySelector('[data-back]').onclick = onBack;
     root.querySelectorAll('[data-tab]').forEach((b) => { b.onclick = () => { tab = b.dataset.tab; draw(); }; });
     root.querySelectorAll('[data-wm]').forEach((b) => { b.onclick = () => { worldMode = b.dataset.wm; draw(); }; });
