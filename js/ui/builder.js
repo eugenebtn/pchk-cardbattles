@@ -1,4 +1,6 @@
 // Deck builder: "My decks" gallery and the editor (leader + at least 40 cards, max 3 copies), saved in this browser.
+import { saveCustomDeck } from './custom-decks.js';
+import { deckError } from './deck-picker.js';
 import { onAuth } from '../net/account.js';
 import { CARDS } from '../data/cards.js';
 import { DECKS } from '../data/decks.js';
@@ -30,7 +32,8 @@ const costNum = (c) => (typeof c.cost === 'number' ? c.cost : 0);
 
 // Win rates for the builder: world numbers from the shared ranking (players' games), else your own games.
 const MIN_GAMES = 5;
-onAuth(() => { WR = null; });
+let profileVersion = 0;
+onAuth(() => { WR = null; profileVersion++; });
 let WR = null; // { cards: Map(id → {games, wins}), decks: Map(title → {games, wins}), world: bool }
 async function loadWinRates() {
   if (WR) return WR;
@@ -57,6 +60,8 @@ const wrBadge = (r) => {
 export function renderBuilder(root, store, onBack, opts = {}) {
   const pool = Object.values(CARDS).filter((c) => !c.token && c.type !== 'leader');
   const leaders = Object.values(CARDS).filter((c) => c.type === 'leader');
+  const ownerVersion = profileVersion;
+  const canSave = () => { if (ownerVersion === profileVersion) return true; flashMsg('Профиль изменился. Откройте «Мои колоды» текущего профиля.'); return false; };
   let decks = loadCustomDecks(store);
   const save = () => store.set('decks', decks);
 
@@ -70,7 +75,7 @@ export function renderBuilder(root, store, onBack, opts = {}) {
         <div class="bld-tile new" data-new><div class="plus">＋</div><b>Новая колода</b><small>Выберите Лидера и соберите 40+ карт</small></div>
         <div class="bld-tile new" data-paste><div class="plus">🔗</div><b>Колода по коду</b><small>Вставьте код или ссылку, которую вам прислали</small></div>
         ${decks.map((d, k) => `<div class="bld-tile" data-edit="${k}"><div class="face" style="${leaderPic(d.leader)}"></div>
-          <b>${esc(d.name)}</b><small>${esc((CARDS[d.leader]?.name || '').split(',')[0])} · ${d.cards.length} карт ${d.cards.length >= MIN ? '✔' : '⚠'}</small></div>`).join('')}
+          <b>${esc(d.name)}</b><small>${esc((CARDS[d.leader]?.name || '').split(',')[0])} · ${d.cards.length} карт ${!deckError(d) ? '✔' : '⚠'}</small>${opts.onPlay ? `<button class="btn primary" data-play-deck="${k}" ${deckError(d) ? 'disabled' : ''}>Играть</button>` : ''}</div>`).join('')}
       </div>
       ${FEATURES.community ? '<h3 class="bld-h3">Колоды сообщества</h3><div class="bld-gal small bld-comm"><p class="bld-note">Загружаем…</p></div>' : ''}
       <h3 class="bld-h3">Начать со стартовой скрижали</h3>
@@ -89,6 +94,7 @@ export function renderBuilder(root, store, onBack, opts = {}) {
       editor({ name: nm || 'Колода от друга', leader: d.leader, cards: d.cards }, -1);
     };
     root.querySelectorAll('[data-edit]').forEach((e) => { e.onclick = () => { sfx.select(); const k = Number(e.dataset.edit); editor({ ...decks[k], cards: [...decks[k].cards] }, k); }; });
+    root.querySelectorAll('[data-play-deck]').forEach(b => { b.onclick = e => { e.stopPropagation(); if (!canSave()) return; const d = decks[Number(b.dataset.playDeck)]; if (!deckError(d)) opts.onPlay({ ...d, cards: [...d.cards] }); }; });
     if (FEATURES.community) {
       loadCommunityDecks().then((list) => {
         const box = root.querySelector('.bld-comm'); if (!box) return;
@@ -112,6 +118,7 @@ export function renderBuilder(root, store, onBack, opts = {}) {
 
   // ---------- editor ----------
   function editor(cur, editIndex) {
+    let original = editIndex >= 0 ? {...cur, cards: [...cur.cards]} : null;
     const f = { type: '', set: '', cost: null, q: '', sort: 'cost' };
     if (!WR) loadWinRates().then(() => draw());
     let tab = 'cards';
@@ -131,7 +138,7 @@ export function renderBuilder(root, store, onBack, opts = {}) {
       const types = { ally: 0, place: 0, action: 0, item: 0, companion: 0 };
       for (const id of cur.cards) { const c = CARDS[id]; curve[Math.min(7, costNum(c))]++; types[c.type] = (types[c.type] || 0) + 1; }
       const maxC = Math.max(1, ...curve);
-      const n = cur.cards.length, ok = n >= MIN;
+      const n = cur.cards.length, ok = !deckError(cur);
       const L = CARDS[cur.leader];
       root.innerHTML = `<div class="bld editor tab-${tab}">
         <div class="bld-top">
@@ -162,9 +169,9 @@ export function renderBuilder(root, store, onBack, opts = {}) {
             </div>
             <div class="bld-types">${Object.entries(types).filter(([, v]) => v).map(([k, v]) => `<span>${TYPE_ICO[k]} ${v}</span>`).join('')}</div>
             <div class="bld-list">${rows.map((c) => `<div class="bld-row" data-row="${c.id}" style="${c.img ? `--art:url('${new URL(c.img, location.href).href}')` : ''}"><span class="cost">${c.cost ?? 0}</span><span class="nm">${esc(c.name.split(',')[0])}</span><span class="x">×${by[c.id]}</span></div>`).join('') || `<p class="bld-note">Нажимайте на карты, чтобы добавить их в колоду (до ${MAX_COPIES} копий).</p>`}</div>
-            <div class="bld-actions">
-              <button class="btn primary" data-save ${ok ? '' : 'disabled'} data-tip="${ok ? 'Сохранить|Колода появится в выборе героя.' : `Ещё ${MIN - n} карт|Колода должна быть не меньше ${MIN} карт.`}">💾 Сохранить</button>
-              ${opts.onPlay ? `<button class="btn" data-play ${ok ? '' : 'disabled'}>⚔ Сыграть с компьютером</button>` : ''}
+            <div class="bld-actions">${n > 80 ? `<p class="bld-note" role="status">${esc(deckError(cur))}</p>` : ''}
+              <button class="btn primary" data-save ${ok ? '' : 'disabled'} data-tip="${ok ? 'Сохранить|Колода появится в выборе героя.' : `Колода не подходит|${esc(deckError(cur))}`}">💾 Сохранить</button>
+              ${opts.onPlay ? `<button class="btn" data-play ${ok ? '' : 'disabled'}>⚔ Играть</button>` : ''}
               ${FEATURES.community ? `<button class="btn small" data-publish ${ok ? '' : 'disabled'} data-tip="Опубликовать|Колода появится в «Колодах сообщества», и её смогут скопировать другие игроки.">🌐 Опубликовать</button>` : ''}
               <button class="btn small" data-share ${n ? '' : 'disabled'} data-tip="Поделиться|Ссылка и код колоды: отправьте их другу, он откроет колоду у себя и сохранит.">🔗 Поделиться</button>
               <button class="btn small" data-clear>Очистить</button>
@@ -194,14 +201,19 @@ export function renderBuilder(root, store, onBack, opts = {}) {
       });
       $$('[data-minus]').forEach((b) => { b.onclick = (ev) => { ev.stopPropagation(); remove(Number(b.dataset.minus)); }; });
       $$('[data-row]').forEach((r) => { r.onclick = () => remove(Number(r.dataset.row)); });
+      const persist = () => {
+        if (!canSave()) return null;
+        const saved = saveCustomDeck(store, cur, editIndex, original);
+        if (!saved.ok) { flash(saved.error); return null; }
+        decks = saved.list; editIndex = saved.index; original = {...saved.deck, cards: [...saved.deck.cards]};
+        return saved.deck;
+      };
       root.querySelector('[data-save]').onclick = () => {
-        const d = { name: (cur.name || 'Моя колода').trim(), leader: cur.leader, cards: [...cur.cards] };
-        if (editIndex >= 0) decks[editIndex] = d; else { decks.push(d); editIndex = decks.length - 1; }
-        save(); sfx.confirm(); flash('Колода сохранена — она появится в выборе героя');
-        draw();
+        if (!persist()) return;
+        sfx.confirm(); flash('Колода сохранена — она появится в выборе героя'); draw();
       };
       const pl = root.querySelector('[data-play]');
-      if (pl) pl.onclick = () => { sfx.confirm(); opts.onPlay({ name: cur.name, leader: cur.leader, cards: [...cur.cards] }); };
+      if (pl) pl.onclick = () => { const deck = persist(); if (!deck) return; sfx.confirm(); opts.onPlay(deck); };
       const pub = root.querySelector('[data-publish]');
       if (pub) pub.onclick = async () => { pub.disabled = true; const okp = await publishDeck({ name: cur.name, leader: cur.leader, cards: cur.cards }, opts.author?.() || ''); flash(okp ? 'Колода опубликована в «Колодах сообщества»' : 'Не получилось опубликовать — попробуйте позже'); pub.disabled = false; };
       const sh = root.querySelector('[data-share]');

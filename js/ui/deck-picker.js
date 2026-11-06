@@ -7,6 +7,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt
 export function deckError(d) {
   if (CARDS[d?.leader]?.type !== 'leader') return 'Выберите Лидера.';
   if (!Array.isArray(d.cards) || d.cards.length < 40) return 'Нужно не меньше 40 карт.';
+  if (d.cards.length > 80) return 'В колоде может быть не больше 80 карт. Уберите лишние карты перед игрой.';
   const counts = new Map();
   for (const id of d.cards) {
     if (!CARDS[id] || CARDS[id].token || CARDS[id].type === 'leader') return 'В колоде есть недоступная карта.';
@@ -25,7 +26,7 @@ export function availableDecks(custom = []) {
 }
 
 // A Leader is chosen first; a concrete deck is never silently upgraded or replaced.
-export function chooseDecks(root, steps, {getDecks, show, create, levels, getLevel, setLevel}) {
+export function chooseDecks(root, steps, {getDecks, show, create, levels, getLevel, setLevel, onCancel}) {
   return new Promise(resolve => {
     const chosen = [], picks = [];
     let step = 0, phase = 'leader';
@@ -53,7 +54,7 @@ export function chooseDecks(root, steps, {getDecks, show, create, levels, getLev
       root.querySelector('[data-back]').onclick=()=>{
         if(phase==='deck'){phase='leader';draw();}
         else if(step){step--;chosen.pop();phase='deck';draw();}
-        else {resolve(null);show('menu');}
+        else {resolve(null);if(onCancel)onCancel();else show('menu');}
       };
       root.querySelector('[data-go]').onclick=()=>{
         if(phase==='leader'){phase='deck';draw();return;}

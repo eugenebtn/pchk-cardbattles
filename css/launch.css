@@ -62,3 +62,7 @@
 #stage .pass-screen .btn{box-sizing:border-box;min-height:56px;min-width:140px;padding:12px 24px}
 #stage.port .pass-screen .btn{min-height:110px;min-width:320px;font-size:38px}
 @media(max-height:500px){#stage.land .pass-screen .btn{min-height:110px;min-width:320px;font-size:38px}}
+
+/* Explicit launch action on a saved custom deck. */
+.bld-tile [data-play-deck]{min-height:44px;width:100%;box-sizing:border-box}
+.play-win .pl-selected{margin:0 0 10px;overflow-wrap:anywhere;flex-shrink:0}

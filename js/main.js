@@ -27,7 +27,7 @@ import { currentUser, onAuth, pull } from './net/account.js';
 import { myAvatar, avatarFile, myLooks, cleanLooks } from './ui/cosmetics.js';
 window.addEventListener('pchk-looks', () => drawMenuTop());
 import { decodeDeck } from './net/deckcode.js';
-import { chooseDecks, availableDecks } from './ui/deck-picker.js';
+import { chooseDecks, availableDecks, deckError } from './ui/deck-picker.js';
 import { BOT_DECKS } from './data/botdecks.js';
 import { myFriendCode, loadFriends, addFriend, removeFriend, startPresence, setPresenceRoom, friendsStatus, sendInvite } from './net/friends.js';
 import { loadPlayers, playerId, loadLeagues, loadMyRankingId, rankingErrorText } from './net/ranking.js';
@@ -277,14 +277,42 @@ function deckMix(cards) {
   return `⚔ ${n.ally} союзников · 🏰 ${n.place} мест · ✨ ${n.action} действий · 🎒 ${n.item + n.companion} напарников и предметов`;
 }
 /** Hero select. steps: [{title, allowRandom, goLabel}] → resolves with array of decks (or null). */
-function pickDecks(steps) {
+function pickDecks(steps, { onCancel } = {}) {
   return chooseDecks($('#heroes'), steps, {
-    getDecks: allDecks, show,
+    getDecks: allDecks, show, onCancel,
     create: (leader, back) => openBuilder({ importDeck: {leader, cards: [], name: 'Моя колода'}, back }),
     levels: [['auto', 'Подстраиваться'], ['novice', LEVEL_RU.novice], ['normal', LEVEL_RU.normal], ['strong', LEVEL_RU.strong]],
     getLevel: () => opt.botLevel,
     setLevel: level => { opt.botLevel = level; store.set('botLevel', level); },
   });
+}
+
+// A launch snapshot belongs to the profile that selected it, including across async steps.
+function validLaunch(launch) {
+  if (!launch) return true;
+  if (!launch.cancelled && launch.owner === identity() && !deckError(launch.deck)) return true;
+  if (!launch.cancelled) toast('Профиль изменился. Выберите колоду текущего профиля.', 5000);
+  return false;
+}
+function retireLaunch(launch) {
+  launch.cancelled = true;
+  launch.overlays.forEach(el => el.remove());
+  launch.cleanups.forEach(cleanup => cleanup());
+  launch.cleanups.clear();
+}
+function returnFromLaunch(launch) {
+  if (!launch) { show('menu'); return; }
+  if (!validLaunch(launch)) { show('menu'); return; }
+  retireLaunch(launch);
+  if (pendingCustomLaunch === launch) pendingCustomLaunch = null;
+  openBuilder();
+}
+async function pickForPlay(steps, launch) {
+  if (!launch) return pickDecks(steps);
+  if (!validLaunch(launch)) return null;
+  const rest = steps.length > 1 ? await pickDecks(steps.slice(1), {onCancel: () => returnFromLaunch(launch)}) : [];
+  if (!rest || !validLaunch(launch)) return null;
+  return [{...launch.deck, cards: [...launch.deck.cards]}, ...rest];
 }
 
 // ---------- the computer's thinking off the screen's thread ----------
@@ -481,6 +509,7 @@ class Session {
 }
 
 let current = null;
+let pendingCustomLaunch = null;
 const identity = () => `${currentUser()?.id || 'guest'}:${playerId()}`;
 let authOwner = currentUser()?.id || 'guest';
 function refreshProfileUI() {
@@ -492,6 +521,7 @@ function refreshProfileUI() {
 onAuth(() => {
   const next = currentUser()?.id || 'guest';
   if (next !== authOwner) {
+    if (pendingCustomLaunch) { retireLaunch(pendingCustomLaunch); pendingCustomLaunch = null; }
     if (current) current.identityChanged = true;
     authOwner = next;
     // Keep a running match intact. Close cached non-game screens from the previous profile.
@@ -525,7 +555,7 @@ function startBoard(session) {
       const live = !session.watch && !ui.view?.over && ui.view?.players;
       const online = !!(session.remote || session.conn);
       if (!(force || session.watch || (await askConfirm(online && live ? { title: 'Выйти из партии?', text: 'Это засчитается как поражение.', yes: 'Выйти', no: 'Остаться', danger: true, icon: FLAG_ICON } : { title: 'Выйти в меню?', text: 'Партия будет потеряна.', yes: 'Выйти', no: 'Остаться', danger: true })))) return;
-      const leave = () => { session.close(); ui.chat?.destroy(); ui.coach?.destroy(); ui.destroy(); current = null; if (session.remote || session.conn) $('#join-banner')?.classList.add('hidden'); show('menu'); };
+      const leave = () => { session.close(); ui.chat?.destroy(); ui.coach?.destroy(); ui.destroy(); current = null; if (session.remote || session.conn) $('#join-banner')?.classList.add('hidden'); returnFromLaunch(session.launch); };
       // Online: the opponent is told at once (a win for them) instead of waiting for a game that will not go on.
       if (online && live && !force) { session.concede?.(); setTimeout(leave, 400); } else leave();
     },
@@ -641,26 +671,30 @@ const LEVEL_HELP = {
   normal: 'Играет по правилам здравого смысла, иногда отвечает на ваши ходы.',
   strong: 'Просчитывает каждый ход до конца раунда и оценивает позицию так, как научился на тысячах партий. Играет выбранной вами колодой.',
 };
-async function startBot() {
-  const r = await pickDecks([{ title: 'Ваша колода' }, { title: 'Колода компьютера', allowRandom: true, level: true }]);
+async function startBot(launch = null) {
+  const r = await pickForPlay([{ title: 'Ваша колода' }, { title: 'Колода компьютера', allowRandom: true, level: true }], launch);
   if (!r) return;
   let [mine, bot] = r;
   const adaptive = opt.botLevel === 'auto', level = adaptive ? adaptiveLevel() : opt.botLevel;
   const s = new Session({ players: [playerCfg(mine, myName()), playerCfg(bot, `Компьютер · ${LEVEL_RU[level]}`)], controllers: ['human', 'bot'], me: 0 });
   s.botLevel = level; s.adaptive = adaptive;
+  if (!validLaunch(launch)) return;
+  s.launch = launch;
   startBoard(s);
 }
-async function startHotseat() {
-  const r = await pickDecks([{ title: 'Колода игрока 1' }, { title: 'Колода игрока 2' }]);
+async function startHotseat(launch = null) {
+  const r = await pickForPlay([{ title: 'Колода игрока 1' }, { title: 'Колода игрока 2' }], launch);
   if (!r) return;
   const s = new Session({ players: [playerCfg(r[0], 'Игрок 1'), playerCfg(r[1], 'Игрок 2')], controllers: ['human', 'human'], me: 0, hotseat: true });
+  if (!validLaunch(launch)) return;
+  s.launch = launch;
   startBoard(s);
 }
 
 // ---------- online ----------
-async function startHost(direct = false) {
-  if (serverOn() && !direct) return startServerHost();
-  const r = await pickDecks([{ title: 'Ваша колода — затем отправьте ссылку другу', goLabel: 'Создать комнату' }]);
+async function startHost(direct = false, launch = null) {
+  if (serverOn() && !direct) return startServerHost(false, null, launch);
+  const r = await pickForPlay([{ title: 'Ваша колода — затем отправьте ссылку другу', goLabel: 'Создать комнату' }], launch);
   if (!r) return;
   const mine = r[0];
   show('picker');
@@ -681,6 +715,7 @@ async function startHost(direct = false) {
       $('#share-link') && ($('#share-link').onclick = () => navigator.share({ title: 'Карточные битвы ПЧК', text: 'Сыграем в Карточные битвы?', url }));
     },
     onGuest(conn, hello) {
+      if (!validLaunch(launch)) { room.close(); return; }
       if (session) { // reconnect
         session.remoteQueue = [];
         room.send({ t: 'sync', view: session.game.view(1), pending: session.game.pending?.player === 1 ? session.game.pending : session.game.preQuestion(1), me: 1 });
@@ -693,6 +728,8 @@ async function startHost(direct = false) {
       session.game.cfg.options.autoPass[1] = hello.autopass === true ? true : hello.autopass === false ? false : 'smart';
       room.send({ t: 'start', me: 1 });
       session.inviteCode = room.code;
+      if (!validLaunch(launch)) { room.close(); return; }
+      session.launch = launch;
       startBoard(session);
       if (room.watcherCount) { room.sendWatchers({ t: 'watchStart', view: session.game.view(-1) }); session.ui?.chat?.setCount(room.watcherCount); room.send({ t: 'watchers', n: room.watcherCount }); }
     },
@@ -723,7 +760,8 @@ async function startHost(direct = false) {
     },
     onWatchersChange(n) { session?.ui?.chat?.setCount(n); room.send({ t: 'watchers', n }); room.sendWatchers({ t: 'watchers', n }); },
   });
-  $('#picker').querySelector('[data-act=back]').onclick = () => { room.close(); show('menu'); };
+  launch?.cleanups.add(() => { if (!session) room.close(); });
+  $('#picker').querySelector('[data-act=back]').onclick = () => { room.close(); returnFromLaunch(launch); };
 }
 function validDeck(d) {
   if (!d || !CARDS[d.leader] || CARDS[d.leader].type !== 'leader') return false;
@@ -1034,7 +1072,8 @@ class ServerSession {
   close() { setPresenceRoom(null); this.conn.close(); }
 }
 /** Join or create a room on the server with my deck; the board opens when the game starts. */
-function serverPlay(code, deck, { creating = false, matched = false, tour: inTour = false, rated = false } = {}) {
+function serverPlay(code, deck, { creating = false, matched = false, tour: inTour = false, rated = false, launch = null } = {}) {
+  if (!validLaunch(launch)) return;
   show('picker');
   $('#picker-list').innerHTML = '';
   const ob = $('#picker-online'); ob.classList.remove('hidden');
@@ -1051,11 +1090,12 @@ function serverPlay(code, deck, { creating = false, matched = false, tour: inTou
   let ss = null;
   const conn = connectRoom(code, { name: myName(), ...(inTour && tour?.token ? {tourToken: tour.token} : {}), autopass: AP_ENGINE(opt.autopass), timer: creating ? opt.timer : matched ? 90 : 0, rated: creating || matched ? rated : undefined, looks: myLooks(), deck: { leader: deck.leader, cards: deck.cards, title: deck.title } }, {
     onMessage(msg) {
-      if (msg.t === 'authError') { connectionError(ob, msg, () => { conn.close(); serverPlay(code,deck,{creating,matched,tour:inTour,rated}); }); return; }
+      if (!ss && !validLaunch(launch)) { conn.close(); return; }
+      if (msg.t === 'authError') { connectionError(ob, msg, () => { conn.close(); serverPlay(code,deck,{creating,matched,tour:inTour,rated,launch}); }); return; }
       if (msg.t === 'seat' && ss && msg.rankingId) ss.rankingId = msg.rankingId;
       if (msg.t === 'events' && endedIn(msg.batch)) { markDone(code); store.set('live', null); }
       if ((msg.t === 'start' || msg.t === 'sync') && !ss) store.set('live', { code, at: Date.now() }); // a game in progress: offered again in the menu after a reload
-      if ((msg.t === 'start' || msg.t === 'sync') && !ss) { ss = new ServerSession(conn, msg.me ?? 0); ss.profileIdentity = connectionIdentity; ss.tour = inTour; ss.rated = msg.rated !== false; setPresenceRoom(code); startBoard(ss); ss.ui?.setOppLooks?.(cleanLooks(msg.opp)); if (msg.t === 'start') toast(ss.rated ? '🏆 Рейтинговая партия — результат пойдёт в рейтинг' : 'Обычная партия — в рейтинг не идёт', 3200); if (msg.t === 'sync') ss.onMessage(msg); return; }
+      if ((msg.t === 'start' || msg.t === 'sync') && !ss) { launch?.cleanups.delete(cancelWaiting); ss = new ServerSession(conn, msg.me ?? 0); ss.profileIdentity = connectionIdentity; ss.tour = inTour; ss.launch = launch; ss.rated = msg.rated !== false; setPresenceRoom(code); startBoard(ss); ss.ui?.setOppLooks?.(cleanLooks(msg.opp)); if (msg.t === 'start') toast(ss.rated ? '🏆 Рейтинговая партия — результат пойдёт в рейтинг' : 'Обычная партия — в рейтинг не идёт', 3200); if (msg.t === 'sync') ss.onMessage(msg); return; }
       if (msg.t === 'start' && ss) { ss.me = msg.me; document.querySelector('#game > .over-screen')?.remove(); toast('Новая партия!', 1800); return; } // rematch, or a draw replayed in a tournament
       if (msg.t === 'waitOpponent' && !creating) ob.textContent = 'Подключено! Ждём второго игрока…';
       else if (msg.t === 'busy') ob.textContent = 'В этой комнате уже идёт игра. Можно посмотреть её как зритель.';
@@ -1064,16 +1104,20 @@ function serverPlay(code, deck, { creating = false, matched = false, tour: inTou
     },
     onState(text) { if (text) toast(text, 2500); },
   });
-  $('#picker').querySelector('[data-act=back]').onclick = () => { conn.close(); show('menu'); };
+  const cancelWaiting = () => { if (!ss) conn.close(); };
+  launch?.cleanups.add(cancelWaiting);
+  $('#picker').querySelector('[data-act=back]').onclick = () => { conn.close(); returnFromLaunch(launch); };
   return conn;
 }
-async function startServerHost(rated = false, inviteTo = null) {
-  if (rated && !(await requireRankedProfile())) return;
-  const r = await pickDecks([{ title: 'Ваша колода — затем отправьте ссылку другу', goLabel: 'Создать комнату', rated }]);
+async function startServerHost(rated = false, inviteTo = null, launch = null) {
+  if (!validLaunch(launch)) return;
+  if (rated && !(await requireRankedProfile())) { returnFromLaunch(launch); return; }
+  const r = await pickForPlay([{ title: 'Ваша колода — затем отправьте ссылку другу', goLabel: 'Создать комнату', rated }], launch);
   if (!r) return;
-  let code; try { code = await newRoomCode(); } catch { if(rated){toast('Сервер недоступен. Рейтинговая партия не начата.',5000);return;} toast('Сервер недоступен — играем напрямую'); return startHost(true); }
+  let code; try { code = await newRoomCode(); } catch { if(rated){toast('Сервер недоступен. Рейтинговая партия не начата.',5000);return;} toast('Сервер недоступен — играем напрямую'); return startHost(true, launch); }
+  if (!validLaunch(launch)) return;
   if (inviteTo) sendInvite(inviteTo, code, myName()).then((ok) => ok ? toast('Приглашение отправлено — друг увидит его в течение 20 секунд', 3500) : toast('Не удалось отправить приглашение — отправьте другу ссылку на комнату', 4500));
-  serverPlay(code, r[0], { creating: true, rated });
+  serverPlay(code, r[0], { creating: true, rated, launch });
 }
 async function startServerJoin(code) {
   await askName();
@@ -1085,9 +1129,10 @@ async function startServerJoin(code) {
   serverPlay(code, r[0]);
 }
 /** «Найти соперника»: pick a deck, wait in the queue, then play in the room the server made. */
-async function startMatchmaking(rated = true) {
-  if (rated && !(await requireRankedProfile())) return;
-  const r = await pickDecks([{ title: rated ? 'Ваша колода — рейтинговая партия со случайным соперником' : 'Ваша колода — обычная партия со случайным соперником', goLabel: 'Искать соперника', rated }]);
+async function startMatchmaking(rated = true, launch = null) {
+  if (!validLaunch(launch)) return;
+  if (rated && !(await requireRankedProfile())) { returnFromLaunch(launch); return; }
+  const r = await pickForPlay([{ title: rated ? 'Ваша колода — рейтинговая партия со случайным соперником' : 'Ваша колода — обычная партия со случайным соперником', goLabel: 'Искать соперника', rated }], launch);
   if (!r) return;
   show('picker');
   $('#picker-title').textContent = 'Ищем соперника…';
@@ -1096,12 +1141,14 @@ async function startMatchmaking(rated = true) {
   ob.textContent = 'Ждём, когда кто-то ещё нажмёт «Найти соперника»…';
   const mm = findMatch(myName(), { deck: r[0],
     onQueue(n) { ob.textContent = n > 1 ? `В очереди: ${n}. Сейчас подберём пару…` : 'Вы первый в очереди. Как только кто-то ещё начнёт поиск — партия начнётся.'; },
-    onMatch(code, vs) { toast(`Соперник найден: ${vs}`); serverPlay(code, r[0], { matched: true, rated }); },
+    onMatch(code, vs) { launch?.cleanups.delete(cancelQueue); if(!validLaunch(launch)){mm.cancel();return;} toast(`Соперник найден: ${vs}`); serverPlay(code, r[0], { matched: true, rated, launch }); },
     rated,
-    onAuthError(error) { connectionError(ob,error,()=>{mm.cancel();startMatchmaking(rated);}); },
+    onAuthError(error) { connectionError(ob,error,()=>{mm.cancel();startMatchmaking(rated, launch);}); },
     onError(error) { if(typeof error==='string' && /^AUTH_|^IDENTITY_|^RANKING_/.test(error)) return; else ob.textContent = 'Сервер поиска недоступен. Попробуйте позже или позовите друга по ссылке.'; },
   });
-  $('#picker').querySelector('[data-act=back]').onclick = () => { mm.cancel(); show('menu'); };
+  const cancelQueue = () => mm.cancel();
+  launch?.cleanups.add(cancelQueue);
+  $('#picker').querySelector('[data-act=back]').onclick = () => { mm.cancel(); returnFromLaunch(launch); };
 }
 /** «С другом»: invite by link or find a random opponent. */
 function chooseOnline() {
@@ -1191,13 +1238,8 @@ function openBuilder({ startNew = false, back = () => show('menu'), importDeck =
   renderBuilder($('#builder'), store, back, {
     startNew, importDeck, author: () => myName(),
     onPlay: (deck) => {
-      // My own deck → the computer brings one of its strong builds (or a starter deck if there are none).
-      const bots = BOT_DECKS.length ? BOT_DECKS.map((d) => ({ leader: d.leader, main: d.cards, title: d.title })) : Object.values(DECKS);
-      const bot = bots[Math.floor(Math.random() * bots.length)];
-      const adaptive = opt.botLevel === 'auto', level = adaptive ? adaptiveLevel() : opt.botLevel;
-      const s = new Session({ players: [playerCfg(deck, myName()), playerCfg({ leader: bot.leader, cards: bot.main }, `Компьютер · ${LEVEL_RU[level]} (${bot.title})`)], controllers: ['human', 'bot'], me: 0 });
-      s.botLevel = level; s.adaptive = adaptive;
-      startBoard(s);
+      const launch = { deck: {...deck, title: deck.name, preset: false, category: 'Своя', cards: [...deck.cards]}, owner: identity(), cancelled: false, overlays: new Set(), cleanups: new Set() };
+      openPlay(launch);
     },
   });
   show('builder');
@@ -1221,13 +1263,15 @@ function drawPlayLast() {
   if (el) el.textContent = ''; // no «в прошлый раз» line under «Играть»
 }
 drawPlayLast();
-function openPlay() {
+function openPlay(launch = null) {
+  if (!validLaunch(launch)) return;
+  if (launch) pendingCustomLaunch = launch;
   const online = serverOn();
   let rrated = store.get('randomRated', true), fm = store.get('friendMode', 'link');
   const b = document.createElement('div');
   b.className = 'modal-back play-back'; b.style.cssText = 'position:fixed;inset:0;z-index:400';
   const lv = (l) => `<button class="pl-lv ${opt.botLevel === l ? 'on' : ''}" data-lv="${l}">${LEVEL_RU[l]}</button>`;
-  b.innerHTML = `<div class="modal play-win"><h3>Как сыграем?</h3>
+  b.innerHTML = `<div class="modal play-win"><h3>Как сыграем?</h3>${launch ? `<p class="st-note pl-selected">Колода: <b>${esc(launch.deck.name)}</b> · ${launch.deck.cards.length} карт</p>` : ''}
     <div class="pl-tiles">
       <div class="pl-tile" data-go="bot" style="--art:url('${new URL('assets/leaders/20.webp', location.href).href}');--pos:30% 30%"><div class="pl-head"><b>С компьютером</b><span>Спокойная партия в любое время</span></div>
         <div class="pl-foot"><small class="pl-cap">Сложность</small><div class="pl-seg pl-seg4">${['novice', 'normal', 'strong', 'auto'].map(lv).join('')}</div><small class="pl-note">&nbsp;</small><button class="pl-go"><span>Играть</span></button></div></div>
@@ -1238,6 +1282,7 @@ function openPlay() {
     </div>
     <div class="pl-more"><button class="plq" data-go="hotseat"><span>Вдвоём за одним устройством</span></button><button class="plq" data-go="learn"><span>Обучение и учебная партия</span></button><button class="plq pl-cancel" data-close><span>Отмена</span></button></div></div>`;
   document.body.appendChild(b);
+  if (launch) launch.overlays.add(b);
   const note = () => {
     b.querySelector('[data-fm-note]').textContent = fm === 'link' ? 'Создадим комнату — отправьте ссылку в мессенджер' : `В списке друзей: ${loadFriends().length}. Нажмите «Позвать» у того, кто в сети`;
     b.querySelector('[data-fm-go]').textContent = fm === 'link' ? 'Создать ссылку' : 'Выбрать друга';
@@ -1247,17 +1292,18 @@ function openPlay() {
   b.querySelectorAll('[data-fm]').forEach((x) => x.addEventListener('click', (e) => { e.stopPropagation(); sfx.select(); fm = x.dataset.fm; store.set('friendMode', fm); b.querySelectorAll('[data-fm]').forEach((y) => y.classList.toggle('on', y === x)); note(); }));
   b.querySelectorAll('[data-rr]').forEach((x) => x.addEventListener('click', (e) => { e.stopPropagation(); sfx.select(); rrated = x.dataset.rr === '1'; store.set('randomRated', rrated); b.querySelectorAll('[data-rr]').forEach((y) => y.classList.toggle('on', y === x)); note(); }));
   const go = (kind) => {
+    if (!validLaunch(launch)) { b.remove(); return; }
     b.remove(); store.set('lastPlay', kind); drawPlayLast();
-    if (kind === 'bot') startBot();
-    else if (kind === 'friend') { if (fm === 'list') openFriends(); else if (online) startServerHost(false); else startHost(true); }
-    else if (kind === 'random') startMatchmaking(rrated);
-    else if (kind === 'hotseat') startHotseat();
+    if (kind === 'bot') startBot(launch);
+    else if (kind === 'friend') { if (fm === 'list') openFriends({ launch }); else if (online) startServerHost(false, null, launch); else startHost(true, launch); }
+    else if (kind === 'random') startMatchmaking(rrated, launch);
+    else if (kind === 'hotseat') startHotseat(launch);
     else if (kind === 'learn') openTutorial(); // the short lesson, then the learning game
   };
   b.querySelectorAll('.pl-tile:not(.off)').forEach((t) => t.addEventListener('click', () => { sfx.click(); go(t.dataset.go); }));
   b.querySelectorAll('.pl-more [data-go]').forEach((x) => x.addEventListener('click', () => { sfx.click(); go(x.dataset.go); }));
-  b.querySelector('[data-close]').onclick = () => b.remove();
-  b.addEventListener('click', (e) => { if (e.target === b) b.remove(); });
+  b.querySelector('[data-close]').onclick = () => { b.remove(); returnFromLaunch(launch); };
+  b.addEventListener('click', (e) => { if (e.target === b) { b.remove(); returnFromLaunch(launch); } });
 }
 // First visit: offer the tutorial once (after the splash).
 $('#splash').addEventListener('click', () => {
@@ -1396,8 +1442,10 @@ function friendInvite(room, name) {
   pop.querySelector('[data-no]').onclick = () => { sfx.click(); close(); markDone(room); };
 }
 startPresence(() => myName(), friendInvite);
-async function openFriends({ watch = false } = {}) {
+async function openFriends({ watch = false, launch = null } = {}) {
+  if (!validLaunch(launch)) return;
   const code = await myFriendCode();
+  if (!validLaunch(launch)) return;
   const link = `${location.origin}${location.pathname}?friend=${code}&fn=${encodeURIComponent(myName())}`;
   const b = document.createElement('div');
   b.className = 'modal-back'; b.style.cssText = 'position:fixed;inset:0;z-index:400';
@@ -1414,6 +1462,7 @@ async function openFriends({ watch = false } = {}) {
       <p class="st-note">Приглашение — это ссылка: отправьте её в мессенджер, друг откроет и появится в списке. Ваш код для друга: <b class="fr-mycode">${code}</b></p>
     </div></div>`;
   document.body.appendChild(b);
+  if(launch) launch.overlays.add(b);
   b.querySelector('[data-copy]').onclick = async () => {
     if (navigator.share) { try { await navigator.share({ title: 'Карточные битвы', text: 'Давай сыграем в «Карточные битвы»!', url: link }); return; } catch { /* closed or not allowed: copy instead */ } }
     copyText(link, 'Ссылка-приглашение скопирована: отправьте её другу');
@@ -1424,12 +1473,14 @@ async function openFriends({ watch = false } = {}) {
     if (!/^[0-9a-f]{10}$/.test(v)) { toast('Код — это 10 символов, его видно у друга в окне «Друзья»', 3500); return; }
     if (await addFriend(v, 'Друг', myName())) { toast('Друг добавлен', 2000); b.querySelector('[data-code]').value = ''; draw(); } else toast('Это ваш собственный код', 2500);
   };
-  b.querySelector('[data-close]').onclick = () => { clearInterval(t); b.remove(); };
+  b.querySelector('[data-close]').onclick = () => { clearInterval(t); b.remove(); if(launch) returnFromLaunch(launch); };
   const draw = async () => {
+    if (!b.isConnected || !validLaunch(launch)) { clearInterval(t); return; }
     const list = loadFriends(), box = b.querySelector('[data-list]');
     b.querySelector('[data-count]').textContent = `${watch ? 'Сейчас играют' : 'В списке'} · ${list.length}`;
     if (!list.length) { box.innerHTML = '<p class="ov-wait">Пока никого. Отправьте приглашение ниже.</p>'; return; }
     const st = await friendsStatus();
+    if (!validLaunch(launch) || !b.isConnected) return;
     const shown = watch ? list.filter((f) => st[f.code]?.room) : list;
     if (watch && !shown.length) { box.innerHTML = '<p class="ov-wait">Сейчас никто из друзей не играет. Окно обновляется само — оставьте его открытым или загляните позже.</p>'; return; }
     box.innerHTML = shown.map((f) => {
@@ -1438,8 +1489,9 @@ async function openFriends({ watch = false } = {}) {
       return `<div class="fr-row"><b>${esc(s.name || f.name)}</b>${state}${s.room ? `<button class="btn small primary" data-watch="${s.room}">👁 Смотреть</button>` : s.online ? `<button class="btn small primary" data-call="${f.code}">⚔ Позвать в партию</button>` : ''}<button class="btn small" data-del="${f.code}" title="Убрать из друзей">✕</button></div>`;
     }).join('');
     box.querySelectorAll('[data-watch]').forEach((x) => { x.onclick = () => { clearInterval(t); b.remove(); startServerWatch(x.dataset.watch); }; });
-    box.querySelectorAll('[data-call]').forEach((x) => { x.onclick = () => { clearInterval(t); b.remove(); startServerHost(false, x.dataset.call); }; });
+    box.querySelectorAll('[data-call]').forEach((x) => { x.onclick = () => { clearInterval(t); b.remove(); startServerHost(false, x.dataset.call, launch); }; });
     box.querySelectorAll('[data-del]').forEach((x) => { x.onclick = () => { removeFriend(x.dataset.del); draw(); }; });
   };
   draw(); const t = setInterval(draw, 15000);
+  launch?.cleanups.add(() => clearInterval(t));
 }
