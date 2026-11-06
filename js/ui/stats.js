@@ -45,6 +45,23 @@ function group(list, keyFn) {
   return [...m.entries()].sort((a, b) => b[1].n - a[1].n);
 }
 
+/** Keep wide result tables scrollable without widening the statistics screen. */
+function wrapRankingTables(body) {
+  for (const table of body.querySelectorAll('table')) {
+    if (table.parentElement.classList.contains('rk-table-scroll')) continue;
+    const hint = document.createElement('p');
+    hint.className = 'rk-scroll-hint';
+    hint.textContent = 'Проведите по таблице вбок, чтобы увидеть все столбцы.';
+    const wrap = document.createElement('div');
+    wrap.className = 'rk-table-scroll';
+    wrap.tabIndex = 0;
+    wrap.setAttribute('role', 'region');
+    wrap.setAttribute('aria-label', 'Таблица результатов с горизонтальной прокруткой');
+    table.before(hint, wrap);
+    wrap.appendChild(table);
+  }
+}
+
 /** World ranking: players and decks of one mode, loaded from the shared table. */
 async function renderWorld(box, mode, name, setName) {
   const me = playerId();
@@ -64,6 +81,7 @@ async function renderWorld(box, mode, name, setName) {
       <h3>Колоды</h3><table class="st-table"><tr><th>Колода</th><th>Партий</th><th>Побед</th><th>Процент побед</th></tr>
       ${decks.map((d) => `<tr><td>${face(d.leader)}${esc(d.deck)}</td><td>${d.games}</td><td>${d.wins}</td><td>${bar(d.wins, d.games)}</td></tr>`).join('')}</table>`
       : '<p class="st-empty">Пока никто не сыграл. Сыграйте партию — вы окажетесь первым!</p>';
+    wrapRankingTables(body);
   } catch {
     body.innerHTML = '<p class="st-empty">Не получилось загрузить рейтинг — нет связи с сервером. Попробуйте позже.</p>';
   }
@@ -85,6 +103,7 @@ async function renderLeagues(box, filter, setFilter) {
     body.innerHTML = list.length ? `<table class="st-table rk-table lg-table"><tr><th>Место</th><th>Лига</th><th>Игрок</th><th>Очки</th><th>Побед</th><th>Партий</th><th>Последняя</th></tr>
       ${list.map((p) => `<tr class="${p.player_id === me ? 'rk-me' : ''}"><td><span class="rk-place">${p.place + 1}</span></td><td>${leagueTag(p.league)}</td><td>${esc(p.player_name)}${p.player_id === me ? ' <small>(вы)</small>' : ''}</td><td><b>${p.points}</b></td><td>${p.wins}</td><td>${p.games}</td><td>${when(p.last)}</td></tr>`).join('')}</table>`
       : `<p class="st-empty">${filter ? 'В этой лиге пока никого. Побеждайте — и будете первым!' : 'Пока никто не сыграл. Сыграйте партию — вы окажетесь первым!'}</p>`;
+    wrapRankingTables(body);
   } catch {
     body.innerHTML = '<p class="st-empty">Не получилось загрузить лиги — нет связи с сервером. Попробуйте позже.</p>';
   }
